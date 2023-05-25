@@ -1,0 +1,15 @@
+app:
+  logLevel: "DEBUG"
+
+service:
+  type: "ClusterIP"
+  port: 80
+
+ingress:
+  enabled: true
+  className: "nginx"
+  hosts:
+  - host: "dns-mockserver.127.0.0.1.nip.io"
+    paths:
+    - path: "/"
+      pathType: ImplementationSpecific

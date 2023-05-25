@@ -1,0 +1,50 @@
+image:
+  registry: localhost:5001
+  repository: paas-dns-dev/external-dns-plugin-provider
+  tag: latest
+  pullPolicy: Always
+
+provider: plugin
+
+sources: 
+  - service
+
+dryRun: true
+
+logLevel: debug
+
+extraArgs:
+  plugin-provider-url: http://localhost:8888
+
+sidecars:
+  - name: plugin
+    image: localhost:5001/paas-dns-dev/external-dns-ionos-plugin:latest
+    imagePullPolicy: Always
+    ports:
+      - containerPort: 8888
+        name: http
+    livenessProbe:
+      httpGet:
+        path: /health
+        port: http
+      initialDelaySeconds: 10
+      timeoutSeconds: 5
+    readinessProbe:
+      httpGet:
+        path: /health
+        port: http
+      initialDelaySeconds: 10
+      timeoutSeconds: 5
+    env:
+      - name: LOG_LEVEL
+        value: debug
+      # - name: DRY_RUN
+      #   value: "true"
+      - name: SERVER_HOST
+        value: ""
+      - name: IONOS_API_KEY
+        value: "test-api-key"
+      - name: IONOS_API_URL
+        value: "http://dns-mockserver.dns-mockserver.svc.cluster.local"
+      - name: IONOS_DEBUG
+        value: "true"

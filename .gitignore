@@ -1,0 +1,9 @@
+# Build directories
+build/
+token
+.idea/
+.vscode/
+cover.out
+reports/
+cosign.key
+dist/
