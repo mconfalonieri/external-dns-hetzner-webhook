@@ -11,9 +11,8 @@ LOCAL_REGISTRY_RUNNING=$(docker ps -a | grep -q $LOCAL_REGISTRY_NAME && echo "tr
 IMAGE_EXTERNAL_DNS_PLUGIN_PROVIDER=ghcr.io/ionos-cloud/external-dns-plugin-provider:latest
 
 IMAGE_REGISTRY=localhost:$LOCAL_REGISTRY_PORT
-IMAGE_REPO=paas-dns-dev
 IMAGE_NAME=external-dns-ionos-plugin
-IMAGE=$IMAGE_REGISTRY/$IMAGE_REPO/$IMAGE_NAME
+IMAGE=$IMAGE_REGISTRY/$IMAGE_NAME
 
 #kind
 KIND_CLUSTER_NAME=external-dns
@@ -60,18 +59,18 @@ if [ "$LOCAL_REGISTRY_RUNNING" = "false" ]; then
     # once there is an official release of external-dns with the provider plugin, we can remove this steps
     printf "pushing external-dns-plugin-provider image to local registry...\n"
     docker pull $IMAGE_EXTERNAL_DNS_PLUGIN_PROVIDER
-    docker tag $IMAGE_EXTERNAL_DNS_PLUGIN_PROVIDER localhost:$LOCAL_REGISTRY_PORT/paas-dns-dev/external-dns-plugin-provider:latest
-    docker push localhost:$LOCAL_REGISTRY_PORT/paas-dns-dev/external-dns-plugin-provider:latest
+    docker tag $IMAGE_EXTERNAL_DNS_PLUGIN_PROVIDER localhost:$LOCAL_REGISTRY_PORT/external-dns-plugin-provider:latest
+    docker push localhost:$LOCAL_REGISTRY_PORT/external-dns-plugin-provider:latest
 fi
 
 printf "Building binary...\n"
 make build
 
 printf "Building image...\n"
-docker build -t $IMAGE:latest .
+make docker-build
 
 printf "Pushing image...\n"
-docker push $IMAGE:latest
+make docker-push
 
 # run kind cluster if not running
 if [ "$KIND_CLUSTER_RUNNING" = "false" ]; then

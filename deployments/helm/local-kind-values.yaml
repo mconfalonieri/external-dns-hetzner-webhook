@@ -1,6 +1,6 @@
 image:
   registry: localhost:5001
-  repository: paas-dns-dev/external-dns-plugin-provider
+  repository: external-dns-plugin-provider
   tag: latest
   pullPolicy: Always
 
@@ -18,7 +18,7 @@ extraArgs:
 
 sidecars:
   - name: plugin
-    image: localhost:5001/paas-dns-dev/external-dns-ionos-plugin:latest
+    image: localhost:5001/external-dns-ionos-plugin:latest
     imagePullPolicy: Always
     ports:
       - containerPort: 8888

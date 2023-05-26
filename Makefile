@@ -15,14 +15,25 @@ LOG_ENVIRONMENT = production
 LOG_FORMAT = auto
 
 
-REGISTRY ?= ghcr.io
+REGISTRY ?= localhost:5001
 IMAGE_NAME ?= external-dns-ionos-plugin
+IMAGE_TAG ?= latest
+IMAGE = $(REGISTRY)/$(IMAGE_NAME):$(IMAGE_TAG)
 
 ##@ General
 
 .PHONY: help
 help: ## Display this help.
 	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
+
+show: ## Show variables
+	@echo "GOPATH: $(GOPATH)"
+	@echo "ARTIFACT_NAME: $(ARTIFACT_NAME)"
+	@echo "REGISTRY: $(REGISTRY)"
+	@echo "IMAGE_NAME: $(IMAGE_NAME)"
+	@echo "IMAGE_TAG: $(IMAGE_TAG)"
+	@echo "IMAGE: $(IMAGE)"
+
 
 ##@ Code analysis
 
@@ -61,7 +72,11 @@ run:build ## Run the binary on local machine
 
 .PHONY: docker-build
 docker-build: build ## Build the docker image
-	docker build ./ -f localbuild.Dockerfile -t external-dns-ionos-plugin:local
+	docker build ./ -f localbuild.Dockerfile -t $(IMAGE)
+
+.PHONY: docker-push
+docker-push: ## Push the docker image
+	docker push $(IMAGE)
 
 ##@ Test
 

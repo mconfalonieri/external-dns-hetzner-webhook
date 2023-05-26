@@ -22,6 +22,7 @@ set -e
 
 sleep 2
 
+mkdir -p build/reports/hurl
 hurl test/hurl/service_nodeport.hurl --test --report-html build/reports/hurl/ --report-junit build/reports/hurl/junit.xml
 
 
