@@ -10,9 +10,10 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/go-chi/chi/v5"
+
 	log "github.com/sirupsen/logrus"
 
-	"github.com/go-chi/chi"
 	"github.com/ionos-cloud/external-dns-ionos-plugin/cmd/plugin/init/configuration"
 
 	"github.com/ionos-cloud/external-dns-ionos-plugin/pkg/plugin"
