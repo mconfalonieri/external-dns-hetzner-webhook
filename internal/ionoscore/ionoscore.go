@@ -24,7 +24,7 @@ type Provider struct {
 	dryRun       bool
 }
 
-// DnsService
+// DnsService interface to the dns backend, also needed for creating mocks in tests
 type DnsService interface {
 	GetZones(ctx context.Context) ([]sdk.Zone, error)
 	GetZone(ctx context.Context, zoneId string) (*sdk.CustomerZone, error)
@@ -81,13 +81,13 @@ func NewProvider(domainFilter endpoint.DomainFilter, dryRun bool) (*Provider, er
 		return nil, fmt.Errorf("provider creation failed, %v", err)
 	}
 
-	provider := &Provider{
+	prov := &Provider{
 		client:       DnsClient{client: client},
 		domainFilter: domainFilter,
 		dryRun:       dryRun,
 	}
 
-	return provider, nil
+	return prov, nil
 }
 
 // createClient creates the API DNS client
@@ -150,8 +150,8 @@ func (p *Provider) Records(ctx context.Context) ([]*endpoint.Endpoint, error) {
 			}
 		}
 
-		for _, endpoint := range recordSets {
-			endpoints = append(endpoints, endpoint)
+		for _, ep := range recordSets {
+			endpoints = append(endpoints, ep)
 		}
 	}
 	log.Debugf("Records() found %d endpoints: %v", len(endpoints), endpoints)

@@ -405,7 +405,7 @@ func TestPrepareFiltersStripsWhitespaceAndDotSuffix(t *testing.T) {
 }
 
 func TestMatchFilterReturnsProperEmptyVal(t *testing.T) {
-	emptyFilters := []string{}
+	var emptyFilters []string
 	assert.Equal(t, true, matchFilter(emptyFilters, "somedomain.com", true))
 	assert.Equal(t, false, matchFilter(emptyFilters, "somedomain.com", false))
 }

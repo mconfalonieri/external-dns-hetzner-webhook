@@ -23,7 +23,6 @@ func TestInit(t *testing.T) {
 		},
 	}
 
-	// run test cases
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			for k, v := range tc.env {

@@ -23,9 +23,6 @@ import (
 func Init(config configuration.Config, p *plugin.Plugin) *http.Server {
 	r := chi.NewRouter()
 	r.Use(plugin.Health)
-	r.Use(p.AcceptType)
-	r.Use(p.ContentType)
-	r.Get("/", p.Negotiate)
 	r.Get("/records", p.Records)
 	r.Post("/records", p.ApplyChanges)
 	r.Post("/propertyvaluesequals", p.PropertyValuesEquals)

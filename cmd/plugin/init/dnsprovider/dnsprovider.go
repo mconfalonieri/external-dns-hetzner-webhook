@@ -29,10 +29,10 @@ func Init(config configuration.Config) provider.Provider {
 		config.RegexDomainExclusion,
 		config.DryRun)
 
-	provider, err := ionoscore.NewProvider(domainFilter, config.DryRun)
+	prov, err := ionoscore.NewProvider(domainFilter, config.DryRun)
 	if err != nil {
 		log.Fatalf("Failed to initialize IonosCore provider: %v", err)
 	}
 
-	return provider
+	return prov
 }

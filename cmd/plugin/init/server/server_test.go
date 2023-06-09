@@ -40,7 +40,6 @@ type testCase struct {
 
 var mockProvider *MockProvider
 
-// add test main
 func TestMain(m *testing.M) {
 	mockProvider = &MockProvider{}
 	srv := Init(configuration.Init(), plugin.New(mockProvider))
@@ -52,37 +51,7 @@ func TestMain(m *testing.M) {
 	}
 }
 
-func TestNegotiate(t *testing.T) {
-	testCases := []testCase{
-		{
-			name:               "negotiate, happy case",
-			method:             http.MethodGet,
-			headers:            map[string]string{"Accept": "application/external.dns.plugin+json;version=1"},
-			path:               "/",
-			body:               "",
-			expectedStatusCode: http.StatusOK,
-			expectedResponseHeaders: map[string]string{
-				"Content-Type": "application/external.dns.plugin+json;version=1",
-				"Vary":         "Content-Type",
-			},
-			expectedBody: "",
-		},
-		{
-			name:                    "negotiate with unsupported version",
-			method:                  http.MethodGet,
-			headers:                 map[string]string{"Accept": "application/external.dns.plugin+json;version=2"},
-			path:                    "/",
-			body:                    "",
-			expectedStatusCode:      http.StatusUnsupportedMediaType,
-			expectedResponseHeaders: map[string]string{},
-			expectedBody:            "unsupported media type version: 'application/external.dns.plugin+json;version=2'. Supported media types are: 'application/external.dns.plugin+json;version=1'",
-		},
-	}
-	executeTestCases(t, testCases)
-}
-
 func TestRecords(t *testing.T) {
-	negotiateMediaType(t)
 	testCases := []testCase{
 		{
 			name: "happy case",
@@ -129,7 +98,7 @@ func TestRecords(t *testing.T) {
 			expectedResponseHeaders: map[string]string{
 				"Content-Type": "text/plain",
 			},
-			expectedBody: "only allows media type 'application/external.dns.plugin+json;version=1' as accept header",
+			expectedBody: "client must provide a valid versioned media type in the accept header: unsupported media type version: 'invalid'. Supported media types are: 'application/external.dns.plugin+json;version=1'",
 		},
 		{
 			name:               "backend error",
@@ -145,7 +114,6 @@ func TestRecords(t *testing.T) {
 }
 
 func TestApplyChanges(t *testing.T) {
-	negotiateMediaType(t)
 	testCases := []testCase{
 		{
 			name:   "happy case",
@@ -169,7 +137,7 @@ func TestApplyChanges(t *testing.T) {
         }
     ]
 }`,
-			expectedStatusCode:      http.StatusOK,
+			expectedStatusCode:      http.StatusNoContent,
 			expectedResponseHeaders: map[string]string{},
 			expectedBody:            "",
 			expectedChanges: &plan.Changes{
@@ -210,7 +178,7 @@ func TestApplyChanges(t *testing.T) {
 			expectedResponseHeaders: map[string]string{
 				"Content-Type": "text/plain",
 			},
-			expectedBody: "only allows media type 'application/external.dns.plugin+json;version=1' as content-type",
+			expectedBody: "client must provide a valid versioned media type in the content type: unsupported media type version: 'invalid'. Supported media types are: 'application/external.dns.plugin+json;version=1'",
 		},
 		{
 			name:   "invalid json",
@@ -258,7 +226,6 @@ func TestApplyChanges(t *testing.T) {
 }
 
 func TestAdjustEndpoints(t *testing.T) {
-	negotiateMediaType(t)
 	testCases := []testCase{
 		{
 			name: "happy case",
@@ -337,7 +304,7 @@ func TestAdjustEndpoints(t *testing.T) {
 			expectedResponseHeaders: map[string]string{
 				"Content-Type": "text/plain",
 			},
-			expectedBody: "only allows media type 'application/external.dns.plugin+json;version=1' as content-type",
+			expectedBody: "client must provide a valid versioned media type in the content type: unsupported media type version: 'invalid'. Supported media types are: 'application/external.dns.plugin+json;version=1'",
 		},
 		{
 			name:   "no accept header",
@@ -366,7 +333,7 @@ func TestAdjustEndpoints(t *testing.T) {
 			expectedResponseHeaders: map[string]string{
 				"Content-Type": "text/plain",
 			},
-			expectedBody: "only allows media type 'application/external.dns.plugin+json;version=1' as accept header",
+			expectedBody: "client must provide a valid versioned media type in the accept header: unsupported media type version: 'invalid'. Supported media types are: 'application/external.dns.plugin+json;version=1'",
 		},
 		{
 			name:   "invalid json",
@@ -388,7 +355,6 @@ func TestAdjustEndpoints(t *testing.T) {
 }
 
 func TestPropertyValuesEqual(t *testing.T) {
-	negotiateMediaType(t)
 	testCases := []testCase{
 		{
 			name:   "happy case",
@@ -440,7 +406,7 @@ func TestPropertyValuesEqual(t *testing.T) {
 			expectedResponseHeaders: map[string]string{
 				"Content-Type": "text/plain",
 			},
-			expectedBody: "only allows media type 'application/external.dns.plugin+json;version=1' as content-type",
+			expectedBody: "client must provide a valid versioned media type in the content type: unsupported media type version: 'invalid'. Supported media types are: 'application/external.dns.plugin+json;version=1'",
 		},
 		{
 			name:   "no accept header",
@@ -469,7 +435,7 @@ func TestPropertyValuesEqual(t *testing.T) {
 			expectedResponseHeaders: map[string]string{
 				"Content-Type": "text/plain",
 			},
-			expectedBody: "only allows media type 'application/external.dns.plugin+json;version=1' as accept header",
+			expectedBody: "client must provide a valid versioned media type in the accept header: unsupported media type version: 'invalid'. Supported media types are: 'application/external.dns.plugin+json;version=1'",
 		},
 		{
 			name:   "invalid json",
@@ -488,18 +454,6 @@ func TestPropertyValuesEqual(t *testing.T) {
 		},
 	}
 	executeTestCases(t, testCases)
-}
-
-func negotiateMediaType(t *testing.T) {
-	request, err := http.NewRequest(http.MethodGet, "http://localhost:8888/", nil)
-	if err != nil {
-		t.Error(err)
-	}
-	request.Header.Set("Accept", "application/external.dns.plugin+json;version=1")
-	_, err = http.DefaultClient.Do(request)
-	if err != nil {
-		t.Error(err)
-	}
 }
 
 func executeTestCases(t *testing.T, testCases []testCase) {
@@ -536,7 +490,7 @@ func executeTestCases(t *testing.T, testCases []testCase) {
 				if err != nil {
 					t.Error(err)
 				}
-				response.Body.Close()
+				_ = response.Body.Close()
 				actualTrimmedBody := strings.TrimSpace(string(body))
 				if actualTrimmedBody != tc.expectedBody {
 					t.Errorf("expected body '%s', got '%s'", tc.expectedBody, actualTrimmedBody)

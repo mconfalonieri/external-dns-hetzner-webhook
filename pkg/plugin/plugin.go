@@ -25,6 +25,8 @@ const (
 	logFieldError          = "error"
 )
 
+var mediaTypeVersion1 = mediaTypeVersion("1")
+
 type mediaType string
 
 func mediaTypeVersion(v string) mediaType {
@@ -35,11 +37,10 @@ func (m mediaType) Is(headerValue string) bool {
 	return string(m) == headerValue
 }
 
-func checkAndSetMediaTypeHeaderValue(value string) error {
+func checkAndGetMediaTypeHeaderValue(value string) (string, error) {
 	for _, v := range strings.Split(supportedMediaVersions, ",") {
 		if mediaTypeVersion(v).Is(value) {
-			currentMediaType = mediaTypeVersion(v)
-			return nil
+			return v, nil
 		}
 	}
 	supportedMediaTypesString := ""
@@ -50,17 +51,8 @@ func checkAndSetMediaTypeHeaderValue(value string) error {
 		}
 		supportedMediaTypesString += string(mediaTypeVersion(v)) + sep
 	}
-	return fmt.Errorf("unsupported media type version: '%s'. Supported media types are: '%s'", value, supportedMediaTypesString)
+	return "", fmt.Errorf("unsupported media type version: '%s'. Supported media types are: '%s'", value, supportedMediaTypesString)
 }
-
-func checkMediaTypeSet() error {
-	if len(currentMediaType) == 0 {
-		return fmt.Errorf("media type not set, please call the negotiation endpoint first")
-	}
-	return nil
-}
-
-var currentMediaType mediaType
 
 // Plugin for external dns provider
 type Plugin struct {
@@ -73,30 +65,6 @@ func New(provider provider.Provider) *Plugin {
 	return &p
 }
 
-func (p *Plugin) hasAcceptHeader(w http.ResponseWriter, r *http.Request) bool {
-	if len(r.Header.Get(acceptHeader)) == 0 {
-		w.Header().Set(contentTypeHeader, contentTypePlaintext)
-		w.WriteHeader(http.StatusNotAcceptable)
-		err := fmt.Errorf("client must provide an accept header")
-		fmt.Fprint(w, err.Error())
-		requestLog(r).WithField(logFieldError, err).Info("accept header check failed")
-		return false
-	}
-	return true
-}
-
-func (p *Plugin) hasContentHeader(w http.ResponseWriter, r *http.Request) bool {
-	if len(r.Header.Get(contentTypeHeader)) == 0 {
-		w.Header().Set(contentTypeHeader, contentTypePlaintext)
-		w.WriteHeader(http.StatusNotAcceptable)
-		err := fmt.Errorf("client must provide a content type")
-		fmt.Fprint(w, err.Error())
-		requestLog(r).WithField(logFieldError, err).Info("content type header check failed")
-		return false
-	}
-	return true
-}
-
 func Health(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == healthPath {
@@ -107,116 +75,108 @@ func Health(next http.Handler) http.Handler {
 	})
 }
 
-func (p *Plugin) AcceptType(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/" {
-			accept := r.Header.Get(acceptHeader)
-			if len(accept) > 0 && !currentMediaType.Is(accept) {
-				if err := checkMediaTypeSet(); err != nil {
-					w.WriteHeader(http.StatusNotAcceptable)
-					fmt.Fprint(w, err.Error())
-					requestLog(r).WithField(logFieldError, err).Info("accept header check failed")
-					return
-				}
-				w.Header().Set(contentTypeHeader, contentTypePlaintext)
-				w.WriteHeader(http.StatusUnsupportedMediaType)
-				err := fmt.Errorf("only allows media type '%s' as accept header ", currentMediaType)
-				fmt.Fprint(w, err.Error())
-				requestLog(r).WithField(logFieldError, err).Info("accept header check failed")
-				return
-			}
-		}
-		next.ServeHTTP(w, r)
-	})
+func (p *Plugin) contentTypeHeaderCheck(w http.ResponseWriter, r *http.Request) error {
+	return p.headerCheck(true, w, r)
 }
 
-func (p *Plugin) ContentType(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/" {
-			contentType := r.Header.Get(contentTypeHeader)
-			if len(contentType) > 0 && !currentMediaType.Is(contentType) {
-				if err := checkMediaTypeSet(); err != nil {
-					w.WriteHeader(http.StatusNotAcceptable)
-					fmt.Fprint(w, err.Error())
-					requestLog(r).WithField(logFieldError, err).Info("content type header check failed")
-					return
-				}
-				w.Header().Set(contentTypeHeader, contentTypePlaintext)
-				w.WriteHeader(http.StatusUnsupportedMediaType)
-				err := fmt.Errorf("only allows media type '%s' as content-type", currentMediaType)
-				fmt.Fprint(w, err.Error())
-				requestLog(r).WithField(logFieldError, err).Info("content type header check failed")
-				return
-			}
-		}
-		next.ServeHTTP(w, r)
-	})
+func (p *Plugin) acceptHeaderCheck(w http.ResponseWriter, r *http.Request) error {
+	return p.headerCheck(false, w, r)
 }
 
-// Negotiate get request endpoint handler
-func (p *Plugin) Negotiate(w http.ResponseWriter, r *http.Request) {
-	if p.hasAcceptHeader(w, r) {
-		err := checkAndSetMediaTypeHeaderValue(r.Header.Get(acceptHeader))
-		if err != nil {
-			w.Header().Set(contentTypeHeader, contentTypePlaintext)
-			w.WriteHeader(http.StatusUnsupportedMediaType)
-			fmt.Fprint(w, err.Error())
-			requestLog(r).Info(err.Error())
-			return
-		}
-		w.Header().Set(varyHeader, contentTypeHeader)
-		w.Header().Set(contentTypeHeader, string(currentMediaType))
-		requestLog(r).Debugf("negotiating media type, returning media type: '%s'", currentMediaType)
-		w.WriteHeader(http.StatusOK)
+func (p *Plugin) headerCheck(isContentType bool, w http.ResponseWriter, r *http.Request) error {
+	var header string
+	if isContentType {
+		header = r.Header.Get(contentTypeHeader)
+	} else {
+		header = r.Header.Get(acceptHeader)
 	}
+	if len(header) == 0 {
+		w.Header().Set(contentTypeHeader, contentTypePlaintext)
+		w.WriteHeader(http.StatusNotAcceptable)
+		msg := "client must provide "
+		if isContentType {
+			msg += "a content type"
+		} else {
+			msg += "an accept header"
+		}
+		err := fmt.Errorf(msg)
+		_, writeErr := fmt.Fprint(w, err.Error())
+		if writeErr != nil {
+			requestLog(r).WithField(logFieldError, writeErr).Fatalf("error writing error message to response writer")
+		}
+		return err
+	}
+	// as we support only one media type version, we can ignore the returned value
+	if _, err := checkAndGetMediaTypeHeaderValue(header); err != nil {
+		w.Header().Set(contentTypeHeader, contentTypePlaintext)
+		w.WriteHeader(http.StatusUnsupportedMediaType)
+		msg := "client must provide a valid versioned media type in the "
+		if isContentType {
+			msg += "content type"
+		} else {
+			msg += "accept header"
+		}
+		err := fmt.Errorf(msg+": %s", err.Error())
+		_, writeErr := fmt.Fprint(w, err.Error())
+		if writeErr != nil {
+			requestLog(r).WithField(logFieldError, writeErr).Fatalf("error writing error message to response writer")
+		}
+		return err
+	}
+	return nil
 }
 
-// Records get request endpoint handler
+// Records handles the get request for records
 func (p *Plugin) Records(w http.ResponseWriter, r *http.Request) {
-	if p.hasAcceptHeader(w, r) {
-		requestLog(r).Debug("requesting records")
-		ctx := r.Context()
-		records, err := p.provider.Records(ctx)
-		if err != nil {
-			requestLog(r).WithField(logFieldError, err).Error("error getting records")
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-		w.Header().Set(contentTypeHeader, string(currentMediaType))
-		w.WriteHeader(http.StatusOK)
-		requestLog(r).Debugf("returning records count: %d", len(records))
-		err = json.NewEncoder(w).Encode(records)
-		if err != nil {
-			requestLog(r).WithField(logFieldError, err).Error("error encoding records")
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
+	if err := p.acceptHeaderCheck(w, r); err != nil {
+		requestLog(r).WithField(logFieldError, err).Error("accept header check failed")
+		return
+	}
+	requestLog(r).Debug("requesting records")
+	ctx := r.Context()
+	records, err := p.provider.Records(ctx)
+	if err != nil {
+		requestLog(r).WithField(logFieldError, err).Error("error getting records")
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	requestLog(r).Debugf("returning records count: %d", len(records))
+	w.Header().Set(contentTypeHeader, string(mediaTypeVersion1))
+	w.Header().Set(varyHeader, contentTypeHeader)
+	err = json.NewEncoder(w).Encode(records)
+	if err != nil {
+		requestLog(r).WithField(logFieldError, err).Error("error encoding records")
+		w.WriteHeader(http.StatusInternalServerError)
+		return
 	}
 }
 
-// ApplyChanges get request endpoint handler
+// ApplyChanges handles the post request for record changes
 func (p *Plugin) ApplyChanges(w http.ResponseWriter, r *http.Request) {
-	if p.hasContentHeader(w, r) {
-		var changes plan.Changes
-		ctx := r.Context()
-		if err := json.NewDecoder(r.Body).Decode(&changes); err != nil {
-			w.Header().Set(contentTypeHeader, contentTypePlaintext)
-			w.WriteHeader(http.StatusBadRequest)
-			errMsg := fmt.Sprintf("error decoding changes: %s", err.Error())
-			fmt.Fprint(w, errMsg)
-			requestLog(r).WithField(logFieldError, err).Info(errMsg)
-			return
-		}
-		requestLog(r).Debugf("requesting apply changes, create: %d , updateOld: %d, updateNew: %d, delete: %d",
-			len(changes.Create), len(changes.UpdateOld), len(changes.UpdateNew), len(changes.Delete))
-		err := p.provider.ApplyChanges(ctx, &changes)
-		if err != nil {
-			w.Header().Set(contentTypeHeader, contentTypePlaintext)
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-		w.WriteHeader(http.StatusOK)
+	if err := p.contentTypeHeaderCheck(w, r); err != nil {
+		requestLog(r).WithField(logFieldError, err).Error("content type header check failed")
+		return
 	}
+	var changes plan.Changes
+	ctx := r.Context()
+	if err := json.NewDecoder(r.Body).Decode(&changes); err != nil {
+		w.Header().Set(contentTypeHeader, contentTypePlaintext)
+		w.WriteHeader(http.StatusBadRequest)
+		errMsg := fmt.Sprintf("error decoding changes: %s", err.Error())
+		if _, writeError := fmt.Fprint(w, errMsg); writeError != nil {
+			requestLog(r).WithField(logFieldError, writeError).Fatalf("error writing error message to response writer")
+		}
+		requestLog(r).WithField(logFieldError, err).Info(errMsg)
+		return
+	}
+	requestLog(r).Debugf("requesting apply changes, create: %d , updateOld: %d, updateNew: %d, delete: %d",
+		len(changes.Create), len(changes.UpdateOld), len(changes.UpdateNew), len(changes.Delete))
+	if err := p.provider.ApplyChanges(ctx, &changes); err != nil {
+		w.Header().Set(contentTypeHeader, contentTypePlaintext)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // PropertyValuesEqualsRequest holds params for property values equals request
@@ -231,49 +191,74 @@ type PropertiesValuesEqualsResponse struct {
 	Equals bool `json:"equals"`
 }
 
-// PropertyValuesEquals get request endpoint handler
+// PropertyValuesEquals handles the post request for property values equals
 func (p *Plugin) PropertyValuesEquals(w http.ResponseWriter, r *http.Request) {
-	if p.hasContentHeader(w, r) && p.hasAcceptHeader(w, r) {
-		pve := PropertyValuesEqualsRequest{}
-		if err := json.NewDecoder(r.Body).Decode(&pve); err != nil {
-			w.Header().Set(contentTypeHeader, contentTypePlaintext)
-			w.WriteHeader(http.StatusBadRequest)
-			errMessage := fmt.Sprintf("failed to decode request body: %v", err)
-			fmt.Fprint(w, errMessage)
-			requestLog(r).WithField(logFieldError, err).Info(errMessage)
-			return
+	if err := p.contentTypeHeaderCheck(w, r); err != nil {
+		requestLog(r).WithField(logFieldError, err).Error("content type header check failed")
+		return
+	}
+	if err := p.acceptHeaderCheck(w, r); err != nil {
+		requestLog(r).WithField(logFieldError, err).Error("accept header check failed")
+		return
+	}
+
+	pve := PropertyValuesEqualsRequest{}
+	if err := json.NewDecoder(r.Body).Decode(&pve); err != nil {
+		w.Header().Set(contentTypeHeader, contentTypePlaintext)
+		w.WriteHeader(http.StatusBadRequest)
+		errMessage := fmt.Sprintf("failed to decode request body: %v", err)
+
+		if _, writeError := fmt.Fprint(w, errMessage); writeError != nil {
+			requestLog(r).WithField(logFieldError, writeError).Fatalf("error writing error message to response writer")
 		}
-		requestLog(r).Debugf("requesting property values equals, name: %s, previous: %s , current: %s",
-			pve.Name, pve.Previous, pve.Current)
-		valuesEqual := p.provider.PropertyValuesEqual(pve.Name, pve.Previous, pve.Current)
-		resp := PropertiesValuesEqualsResponse{
-			Equals: valuesEqual,
-		}
-		out, _ := json.Marshal(&resp)
-		requestLog(r).Debugf("return property values equals response equals: %v", valuesEqual)
-		w.Header().Set(contentTypeHeader, string(currentMediaType))
-		fmt.Fprint(w, string(out))
+		requestLog(r).WithField(logFieldError, err).Info(errMessage)
+		return
+	}
+	requestLog(r).Debugf("requesting property values equals, name: %s, previous: %s , current: %s",
+		pve.Name, pve.Previous, pve.Current)
+	valuesEqual := p.provider.PropertyValuesEqual(pve.Name, pve.Previous, pve.Current)
+	resp := PropertiesValuesEqualsResponse{
+		Equals: valuesEqual,
+	}
+	out, _ := json.Marshal(&resp)
+	requestLog(r).Debugf("return property values equals response equals: %v", valuesEqual)
+	w.Header().Set(contentTypeHeader, string(mediaTypeVersion1))
+	w.Header().Set(varyHeader, contentTypeHeader)
+	if _, writeError := fmt.Fprint(w, string(out)); writeError != nil {
+		requestLog(r).WithField(logFieldError, writeError).Fatalf("error writing response")
 	}
 }
 
-// AdjustEndpoints get request endpoint handler
+// AdjustEndpoints handles the post request for adjusting endpoints
 func (p *Plugin) AdjustEndpoints(w http.ResponseWriter, r *http.Request) {
-	if p.hasContentHeader(w, r) && p.hasAcceptHeader(w, r) {
-		var pve []*endpoint.Endpoint
-		if err := json.NewDecoder(r.Body).Decode(&pve); err != nil {
-			w.Header().Set(contentTypeHeader, contentTypePlaintext)
-			w.WriteHeader(http.StatusBadRequest)
-			errMessage := fmt.Sprintf("failed to decode request body: %v", err)
-			log.Infof(errMessage+" , request method: %s, request path: %s", r.Method, r.URL.Path)
-			fmt.Fprint(w, errMessage)
-			return
+	if err := p.contentTypeHeaderCheck(w, r); err != nil {
+		log.Errorf("content type header check failed, request method: %s, request path: %s", r.Method, r.URL.Path)
+		return
+	}
+	if err := p.acceptHeaderCheck(w, r); err != nil {
+		log.Errorf("accept header check failed, request method: %s, request path: %s", r.Method, r.URL.Path)
+		return
+	}
+
+	var pve []*endpoint.Endpoint
+	if err := json.NewDecoder(r.Body).Decode(&pve); err != nil {
+		w.Header().Set(contentTypeHeader, contentTypePlaintext)
+		w.WriteHeader(http.StatusBadRequest)
+		errMessage := fmt.Sprintf("failed to decode request body: %v", err)
+		log.Infof(errMessage+" , request method: %s, request path: %s", r.Method, r.URL.Path)
+		if _, writeError := fmt.Fprint(w, errMessage); writeError != nil {
+			requestLog(r).WithField(logFieldError, writeError).Fatalf("error writing error message to response writer")
 		}
-		log.Debugf("requesting adjust endpoints count: %d", len(pve))
-		pve = p.provider.AdjustEndpoints(pve)
-		out, _ := json.Marshal(&pve)
-		log.Debugf("return adjust endpoints response, resultEndpointCount: %d", len(pve))
-		w.Header().Set(contentTypeHeader, string(currentMediaType))
-		fmt.Fprint(w, string(out))
+		return
+	}
+	log.Debugf("requesting adjust endpoints count: %d", len(pve))
+	pve = p.provider.AdjustEndpoints(pve)
+	out, _ := json.Marshal(&pve)
+	log.Debugf("return adjust endpoints response, resultEndpointCount: %d", len(pve))
+	w.Header().Set(contentTypeHeader, string(mediaTypeVersion1))
+	w.Header().Set(varyHeader, contentTypeHeader)
+	if _, writeError := fmt.Fprint(w, string(out)); writeError != nil {
+		requestLog(r).WithField(logFieldError, writeError).Fatalf("error writing response")
 	}
 }
 
