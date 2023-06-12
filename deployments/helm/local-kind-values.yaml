@@ -38,8 +38,18 @@ sidecars:
     env:
       - name: LOG_LEVEL
         value: debug
-      # - name: DRY_RUN
-      #   value: "true"
+      - name: LOG_FORMAT
+        value: txt
+#      - name: DRY_RUN
+#        value: "true"
+#      - name: DOMAIN_FILTER
+#        value: "alexkrieg.com,alexkrieg.de"
+#      - name: EXCLUDE_DOMAIN_FILTER
+#        value: "test.com,test.de"
+#      - name: REGEXP_DOMAIN_FILTER
+#        value: ""
+#      - name: REGEXP_DOMAIN_FILTER_EXCLUSION
+#        value: ""
       - name: SERVER_HOST
         value: ""
       - name: IONOS_API_KEY

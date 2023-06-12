@@ -7,9 +7,10 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/ionos-cloud/external-dns-ionos-plugin/internal/ionos"
+
 	log "github.com/sirupsen/logrus"
 
-	"github.com/caarlos0/env/v6"
 	"github.com/ionos-cloud/external-dns-ionos-plugin/pkg/endpoint"
 	"github.com/ionos-cloud/external-dns-ionos-plugin/pkg/plan"
 	"github.com/ionos-cloud/external-dns-ionos-plugin/pkg/provider"
@@ -30,15 +31,6 @@ type DnsService interface {
 	GetZone(ctx context.Context, zoneId string) (*sdk.CustomerZone, error)
 	CreateRecords(ctx context.Context, zoneId string, records []sdk.Record) error
 	DeleteRecord(ctx context.Context, zoneId string, recordId string) error
-}
-
-// Configuration holds configuration from environmental variables
-// TODO when ionos cloud provider is added move shared config parameters to upper level
-type Configuration struct {
-	APIKey         string `env:"IONOS_API_KEY,notEmpty"`
-	APIEndpointURL string `env:"IONOS_API_URL" envDefault:"https://api.hosting.ionos.com/dns"`
-	AuthHeader     string `env:"IONOS_AUTH_HEADER" envDefault:"X-API-Key"`
-	Debug          bool   `env:"IONOS_DEBUG" envDefault:"false"`
 }
 
 // DnsClient client of the dns api
@@ -75,8 +67,8 @@ func (c DnsClient) DeleteRecord(ctx context.Context, zoneId string, recordId str
 }
 
 // NewProvider creates a new IONOS DNS provider.
-func NewProvider(domainFilter endpoint.DomainFilter, dryRun bool) (*Provider, error) {
-	client, err := createClient()
+func NewProvider(domainFilter endpoint.DomainFilter, configuration *ionos.Configuration, dryRun bool) (*Provider, error) {
+	client, err := createClient(configuration)
 	if err != nil {
 		return nil, fmt.Errorf("provider creation failed, %v", err)
 	}
@@ -90,13 +82,7 @@ func NewProvider(domainFilter endpoint.DomainFilter, dryRun bool) (*Provider, er
 	return prov, nil
 }
 
-// createClient creates the API DNS client
-func createClient() (*sdk.APIClient, error) {
-	config := Configuration{}
-	if err := env.Parse(&config); err != nil {
-		return nil, fmt.Errorf("API DNS client creation failed, %v", err)
-	}
-
+func createClient(config *ionos.Configuration) (*sdk.APIClient, error) {
 	maskAPIKey := func() string {
 		if len(config.APIKey) <= 3 {
 			return strings.Repeat("*", len(config.APIKey))
@@ -104,7 +90,7 @@ func createClient() (*sdk.APIClient, error) {
 		return fmt.Sprintf("%s%s", config.APIKey[:3], strings.Repeat("*", len(config.APIKey)-3))
 	}
 	log.Infof(
-		"Creating DNS client with parameters: API Endpoint URL: '%v', Auth header: '%v', API key: '%v', Debug: '%v'",
+		"Creating ionos core DNS client with parameters: API Endpoint URL: '%v', Auth header: '%v', API key: '%v', Debug: '%v'",
 		config.APIEndpointURL,
 		config.AuthHeader,
 		maskAPIKey(),

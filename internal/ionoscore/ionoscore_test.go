@@ -3,9 +3,10 @@ package ionoscore
 import (
 	"context"
 	"fmt"
-	"os"
 	"sort"
 	"testing"
+
+	"github.com/ionos-cloud/external-dns-ionos-plugin/internal/ionos"
 
 	log "github.com/sirupsen/logrus"
 
@@ -23,7 +24,8 @@ type mockDnsService struct {
 func TestNewProvider(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
 	t.Setenv("IONOS_API_KEY", "1")
-	p, err := NewProvider(endpoint.NewDomainFilter([]string{"a.de."}), true)
+
+	p, err := NewProvider(endpoint.NewDomainFilter([]string{"a.de."}), &ionos.Configuration{}, true)
 	if err != nil {
 		t.Errorf("should not fail, %s", err)
 	}
@@ -32,7 +34,7 @@ func TestNewProvider(t *testing.T) {
 	require.Equal(t, true, p.domainFilter.IsConfigured())
 	require.Equal(t, false, p.domainFilter.Match("b.de."))
 
-	p, err = NewProvider(endpoint.DomainFilter{}, false)
+	p, err = NewProvider(endpoint.DomainFilter{}, &ionos.Configuration{}, false)
 
 	if err != nil {
 		t.Errorf("should not fail, %s", err)
@@ -41,13 +43,6 @@ func TestNewProvider(t *testing.T) {
 	require.Equal(t, false, p.dryRun)
 	require.Equal(t, false, p.domainFilter.IsConfigured())
 	require.Equal(t, true, p.domainFilter.Match("a.de."))
-
-	_ = os.Unsetenv("IONOS_API_KEY")
-	_, err = NewProvider(endpoint.DomainFilter{}, true)
-
-	if err == nil {
-		t.Errorf("expected to fail")
-	}
 }
 
 func TestRecords(t *testing.T) {
