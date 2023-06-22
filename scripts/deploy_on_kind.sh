@@ -8,10 +8,10 @@ LOCAL_REGISTRY_NAME=kind-registry
 LOCAL_REGISTRY_RUNNING=$(docker ps -a | grep -q $LOCAL_REGISTRY_NAME && echo "true" || echo "false")
 
 # docker
-IMAGE_EXTERNAL_DNS_PLUGIN_PROVIDER=ghcr.io/ionos-cloud/external-dns-plugin-provider:latest
+IMAGE_EXTERNAL_DNS_WEBHOOK_PROVIDER=ghcr.io/ionos-cloud/external-dns-webhook-provider:latest
 
 IMAGE_REGISTRY=localhost:$LOCAL_REGISTRY_PORT
-IMAGE_NAME=external-dns-ionos-plugin
+IMAGE_NAME=external-dns-ionos-webhook
 IMAGE=$IMAGE_REGISTRY/$IMAGE_NAME
 
 #kind
@@ -56,11 +56,11 @@ printf "KIND_CLUSTER_RUNNING: %s\n" "$KIND_CLUSTER_RUNNING"
 if [ "$LOCAL_REGISTRY_RUNNING" = "false" ]; then
     printf "Starting local registry...\n"
     docker run -d --restart=always -p "127.0.0.1:$LOCAL_REGISTRY_PORT:5000" --name "$LOCAL_REGISTRY_NAME" registry:2
-    # once there is an official release of external-dns with the provider plugin, we can remove this steps
-    printf "pushing external-dns-plugin-provider image to local registry...\n"
-    docker pull $IMAGE_EXTERNAL_DNS_PLUGIN_PROVIDER
-    docker tag $IMAGE_EXTERNAL_DNS_PLUGIN_PROVIDER localhost:$LOCAL_REGISTRY_PORT/external-dns-plugin-provider:latest
-    docker push localhost:$LOCAL_REGISTRY_PORT/external-dns-plugin-provider:latest
+    # once there is an official release of external-dns with the provider webhook, we can remove this steps
+    printf "pushing external-dns-webhook-provider image to local registry...\n"
+    docker pull $IMAGE_EXTERNAL_DNS_WEBHOOK_PROVIDER
+    docker tag $IMAGE_EXTERNAL_DNS_WEBHOOK_PROVIDER localhost:$LOCAL_REGISTRY_PORT/external-dns-webhook-provider:latest
+    docker push localhost:$LOCAL_REGISTRY_PORT/external-dns-webhook-provider:latest
 fi
 
 printf "Building binary...\n"

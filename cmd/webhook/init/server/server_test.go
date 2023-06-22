@@ -12,11 +12,11 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/ionos-cloud/external-dns-ionos-plugin/pkg/endpoint"
-	"github.com/ionos-cloud/external-dns-ionos-plugin/pkg/plan"
+	"github.com/ionos-cloud/external-dns-ionos-webhook/pkg/endpoint"
+	"github.com/ionos-cloud/external-dns-ionos-webhook/pkg/plan"
 
-	"github.com/ionos-cloud/external-dns-ionos-plugin/cmd/plugin/init/configuration"
-	"github.com/ionos-cloud/external-dns-ionos-plugin/pkg/plugin"
+	"github.com/ionos-cloud/external-dns-ionos-webhook/cmd/webhook/init/configuration"
+	"github.com/ionos-cloud/external-dns-ionos-webhook/pkg/webhook"
 )
 
 type testCase struct {
@@ -42,7 +42,7 @@ var mockProvider *MockProvider
 
 func TestMain(m *testing.M) {
 	mockProvider = &MockProvider{}
-	srv := Init(configuration.Init(), plugin.New(mockProvider))
+	srv := Init(configuration.Init(), webhook.New(mockProvider))
 	go ShutdownGracefully(srv)
 	time.Sleep(300 * time.Millisecond)
 	m.Run()
@@ -67,12 +67,12 @@ func TestRecords(t *testing.T) {
 				},
 			},
 			method:             http.MethodGet,
-			headers:            map[string]string{"Accept": "application/external.dns.plugin+json;version=1"},
+			headers:            map[string]string{"Accept": "application/external.dns.webhook+json;version=1"},
 			path:               "/records",
 			body:               "",
 			expectedStatusCode: http.StatusOK,
 			expectedResponseHeaders: map[string]string{
-				"Content-Type": "application/external.dns.plugin+json;version=1",
+				"Content-Type": "application/external.dns.webhook+json;version=1",
 			},
 			expectedBody: "[{\"dnsName\":\"test.example.com\",\"targets\":[\"\"],\"recordType\":\"A\",\"recordTTL\":3600,\"labels\":{\"label1\":\"value1\"}}]",
 		},
@@ -98,13 +98,13 @@ func TestRecords(t *testing.T) {
 			expectedResponseHeaders: map[string]string{
 				"Content-Type": "text/plain",
 			},
-			expectedBody: "client must provide a valid versioned media type in the accept header: unsupported media type version: 'invalid'. Supported media types are: 'application/external.dns.plugin+json;version=1'",
+			expectedBody: "client must provide a valid versioned media type in the accept header: unsupported media type version: 'invalid'. Supported media types are: 'application/external.dns.webhook+json;version=1'",
 		},
 		{
 			name:               "backend error",
 			hasError:           fmt.Errorf("backend error"),
 			method:             http.MethodGet,
-			headers:            map[string]string{"Accept": "application/external.dns.plugin+json;version=1"},
+			headers:            map[string]string{"Accept": "application/external.dns.webhook+json;version=1"},
 			path:               "/records",
 			body:               "",
 			expectedStatusCode: http.StatusInternalServerError,
@@ -119,7 +119,7 @@ func TestApplyChanges(t *testing.T) {
 			name:   "happy case",
 			method: http.MethodPost,
 			headers: map[string]string{
-				"Content-Type": "application/external.dns.plugin+json;version=1",
+				"Content-Type": "application/external.dns.webhook+json;version=1",
 			},
 			path: "/records",
 			body: `
@@ -178,14 +178,14 @@ func TestApplyChanges(t *testing.T) {
 			expectedResponseHeaders: map[string]string{
 				"Content-Type": "text/plain",
 			},
-			expectedBody: "client must provide a valid versioned media type in the content type: unsupported media type version: 'invalid'. Supported media types are: 'application/external.dns.plugin+json;version=1'",
+			expectedBody: "client must provide a valid versioned media type in the content type: unsupported media type version: 'invalid'. Supported media types are: 'application/external.dns.webhook+json;version=1'",
 		},
 		{
 			name:   "invalid json",
 			method: http.MethodPost,
 			headers: map[string]string{
-				"Content-Type": "application/external.dns.plugin+json;version=1",
-				"Accept":       "application/external.dns.plugin+json;version=1",
+				"Content-Type": "application/external.dns.webhook+json;version=1",
+				"Accept":       "application/external.dns.webhook+json;version=1",
 			},
 			path:               "/records",
 			body:               "invalid",
@@ -200,8 +200,8 @@ func TestApplyChanges(t *testing.T) {
 			hasError: fmt.Errorf("backend error"),
 			method:   http.MethodPost,
 			headers: map[string]string{
-				"Content-Type": "application/external.dns.plugin+json;version=1",
-				"Accept":       "application/external.dns.plugin+json;version=1",
+				"Content-Type": "application/external.dns.webhook+json;version=1",
+				"Accept":       "application/external.dns.webhook+json;version=1",
 			},
 			path: "/records",
 			body: `
@@ -242,8 +242,8 @@ func TestAdjustEndpoints(t *testing.T) {
 			},
 			method: http.MethodPost,
 			headers: map[string]string{
-				"Content-Type": "application/external.dns.plugin+json;version=1",
-				"Accept":       "application/external.dns.plugin+json;version=1",
+				"Content-Type": "application/external.dns.webhook+json;version=1",
+				"Accept":       "application/external.dns.webhook+json;version=1",
 			},
 			path: "/adjustendpoints",
 			body: `
@@ -261,7 +261,7 @@ func TestAdjustEndpoints(t *testing.T) {
 ]`,
 			expectedStatusCode: http.StatusOK,
 			expectedResponseHeaders: map[string]string{
-				"Content-Type": "application/external.dns.plugin+json;version=1",
+				"Content-Type": "application/external.dns.webhook+json;version=1",
 			},
 			expectedBody: "[{\"dnsName\":\"adjusted.example.com\",\"targets\":[\"\"],\"recordType\":\"A\",\"recordTTL\":3600,\"labels\":{\"label1\":\"value1\"}}]",
 			expectedEndpointsToAdjust: []*endpoint.Endpoint{
@@ -281,7 +281,7 @@ func TestAdjustEndpoints(t *testing.T) {
 			name:   "no content type header",
 			method: http.MethodPost,
 			headers: map[string]string{
-				"Accept": "application/external.dns.plugin+json;version=1",
+				"Accept": "application/external.dns.webhook+json;version=1",
 			},
 			path:               "/adjustendpoints",
 			body:               "",
@@ -296,7 +296,7 @@ func TestAdjustEndpoints(t *testing.T) {
 			method: http.MethodPost,
 			headers: map[string]string{
 				"Content-Type": "invalid",
-				"Accept":       "application/external.dns.plugin+json;version=1",
+				"Accept":       "application/external.dns.webhook+json;version=1",
 			},
 			path:               "/adjustendpoints",
 			body:               "",
@@ -304,13 +304,13 @@ func TestAdjustEndpoints(t *testing.T) {
 			expectedResponseHeaders: map[string]string{
 				"Content-Type": "text/plain",
 			},
-			expectedBody: "client must provide a valid versioned media type in the content type: unsupported media type version: 'invalid'. Supported media types are: 'application/external.dns.plugin+json;version=1'",
+			expectedBody: "client must provide a valid versioned media type in the content type: unsupported media type version: 'invalid'. Supported media types are: 'application/external.dns.webhook+json;version=1'",
 		},
 		{
 			name:   "no accept header",
 			method: http.MethodPost,
 			headers: map[string]string{
-				"Content-Type": "application/external.dns.plugin+json;version=1",
+				"Content-Type": "application/external.dns.webhook+json;version=1",
 			},
 			path:               "/adjustendpoints",
 			body:               "",
@@ -324,7 +324,7 @@ func TestAdjustEndpoints(t *testing.T) {
 			name:   "wrong accept header",
 			method: http.MethodPost,
 			headers: map[string]string{
-				"Content-Type": "application/external.dns.plugin+json;version=1",
+				"Content-Type": "application/external.dns.webhook+json;version=1",
 				"Accept":       "invalid",
 			},
 			path:               "/adjustendpoints",
@@ -333,14 +333,14 @@ func TestAdjustEndpoints(t *testing.T) {
 			expectedResponseHeaders: map[string]string{
 				"Content-Type": "text/plain",
 			},
-			expectedBody: "client must provide a valid versioned media type in the accept header: unsupported media type version: 'invalid'. Supported media types are: 'application/external.dns.plugin+json;version=1'",
+			expectedBody: "client must provide a valid versioned media type in the accept header: unsupported media type version: 'invalid'. Supported media types are: 'application/external.dns.webhook+json;version=1'",
 		},
 		{
 			name:   "invalid json",
 			method: http.MethodPost,
 			headers: map[string]string{
-				"Content-Type": "application/external.dns.plugin+json;version=1",
-				"Accept":       "application/external.dns.plugin+json;version=1",
+				"Content-Type": "application/external.dns.webhook+json;version=1",
+				"Accept":       "application/external.dns.webhook+json;version=1",
 			},
 			path:               "/adjustendpoints",
 			body:               "invalid",
@@ -360,8 +360,8 @@ func TestPropertyValuesEqual(t *testing.T) {
 			name:   "happy case",
 			method: http.MethodPost,
 			headers: map[string]string{
-				"Content-Type": "application/external.dns.plugin+json;version=1",
-				"Accept":       "application/external.dns.plugin+json;version=1",
+				"Content-Type": "application/external.dns.webhook+json;version=1",
+				"Accept":       "application/external.dns.webhook+json;version=1",
 			},
 			path: "/propertyvaluesequals",
 			body: `
@@ -372,7 +372,7 @@ func TestPropertyValuesEqual(t *testing.T) {
 }`,
 			expectedStatusCode: http.StatusOK,
 			expectedResponseHeaders: map[string]string{
-				"Content-Type": "application/external.dns.plugin+json;version=1",
+				"Content-Type": "application/external.dns.webhook+json;version=1",
 			},
 			expectedBody:                        "{\"equals\":false}",
 			expectedPropertyValuesEqualName:     "propertyname",
@@ -383,7 +383,7 @@ func TestPropertyValuesEqual(t *testing.T) {
 			name:   "no content type header",
 			method: http.MethodPost,
 			headers: map[string]string{
-				"Accept": "application/external.dns.plugin+json;version=1",
+				"Accept": "application/external.dns.webhook+json;version=1",
 			},
 			path:               "/propertyvaluesequals",
 			body:               "",
@@ -398,7 +398,7 @@ func TestPropertyValuesEqual(t *testing.T) {
 			method: http.MethodPost,
 			headers: map[string]string{
 				"Content-Type": "invalid",
-				"Accept":       "application/external.dns.plugin+json;version=1",
+				"Accept":       "application/external.dns.webhook+json;version=1",
 			},
 			path:               "/propertyvaluesequals",
 			body:               "",
@@ -406,13 +406,13 @@ func TestPropertyValuesEqual(t *testing.T) {
 			expectedResponseHeaders: map[string]string{
 				"Content-Type": "text/plain",
 			},
-			expectedBody: "client must provide a valid versioned media type in the content type: unsupported media type version: 'invalid'. Supported media types are: 'application/external.dns.plugin+json;version=1'",
+			expectedBody: "client must provide a valid versioned media type in the content type: unsupported media type version: 'invalid'. Supported media types are: 'application/external.dns.webhook+json;version=1'",
 		},
 		{
 			name:   "no accept header",
 			method: http.MethodPost,
 			headers: map[string]string{
-				"Content-Type": "application/external.dns.plugin+json;version=1",
+				"Content-Type": "application/external.dns.webhook+json;version=1",
 			},
 			path:               "/propertyvaluesequals",
 			body:               "",
@@ -426,7 +426,7 @@ func TestPropertyValuesEqual(t *testing.T) {
 			name:   "wrong accept header",
 			method: http.MethodPost,
 			headers: map[string]string{
-				"Content-Type": "application/external.dns.plugin+json;version=1",
+				"Content-Type": "application/external.dns.webhook+json;version=1",
 				"Accept":       "invalid",
 			},
 			path:               "/propertyvaluesequals",
@@ -435,14 +435,14 @@ func TestPropertyValuesEqual(t *testing.T) {
 			expectedResponseHeaders: map[string]string{
 				"Content-Type": "text/plain",
 			},
-			expectedBody: "client must provide a valid versioned media type in the accept header: unsupported media type version: 'invalid'. Supported media types are: 'application/external.dns.plugin+json;version=1'",
+			expectedBody: "client must provide a valid versioned media type in the accept header: unsupported media type version: 'invalid'. Supported media types are: 'application/external.dns.webhook+json;version=1'",
 		},
 		{
 			name:   "invalid json",
 			method: http.MethodPost,
 			headers: map[string]string{
-				"Content-Type": "application/external.dns.plugin+json;version=1",
-				"Accept":       "application/external.dns.plugin+json;version=1",
+				"Content-Type": "application/external.dns.webhook+json;version=1",
+				"Accept":       "application/external.dns.webhook+json;version=1",
 			},
 			path:               "/propertyvaluesequals",
 			body:               "invalid",

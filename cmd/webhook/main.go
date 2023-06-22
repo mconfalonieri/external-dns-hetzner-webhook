@@ -3,11 +3,11 @@ package main
 import (
 	"fmt"
 
-	"github.com/ionos-cloud/external-dns-ionos-plugin/cmd/plugin/init/configuration"
-	"github.com/ionos-cloud/external-dns-ionos-plugin/cmd/plugin/init/dnsprovider"
-	"github.com/ionos-cloud/external-dns-ionos-plugin/cmd/plugin/init/logging"
-	"github.com/ionos-cloud/external-dns-ionos-plugin/cmd/plugin/init/server"
-	"github.com/ionos-cloud/external-dns-ionos-plugin/pkg/plugin"
+	"github.com/ionos-cloud/external-dns-ionos-webhook/cmd/webhook/init/configuration"
+	"github.com/ionos-cloud/external-dns-ionos-webhook/cmd/webhook/init/dnsprovider"
+	"github.com/ionos-cloud/external-dns-ionos-webhook/cmd/webhook/init/logging"
+	"github.com/ionos-cloud/external-dns-ionos-webhook/cmd/webhook/init/server"
+	"github.com/ionos-cloud/external-dns-ionos-webhook/pkg/webhook"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -16,7 +16,7 @@ const banner = `
  |_ _/ _ \| \| |/ _ \/ __| 
   | | (_) | .  | (_) \__ \
  |___\___/|_|\_|\___/|___/
- external-dns-ionos-plugin
+ external-dns-ionos-webhook
  version: %s (%s)
 
 `
@@ -34,6 +34,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to initialize DNS provider: %v", err)
 	}
-	srv := server.Init(config, plugin.New(provider))
+	srv := server.Init(config, webhook.New(provider))
 	server.ShutdownGracefully(srv)
 }

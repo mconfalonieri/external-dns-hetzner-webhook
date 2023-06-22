@@ -3,9 +3,8 @@ package dnsprovider
 import (
 	"testing"
 
-	"github.com/ionos-cloud/external-dns-ionos-plugin/cmd/plugin/init/configuration"
-	"github.com/ionos-cloud/external-dns-ionos-plugin/internal/ionoscloud"
-	"github.com/ionos-cloud/external-dns-ionos-plugin/internal/ionoscore"
+	"github.com/ionos-cloud/external-dns-ionos-webhook/cmd/webhook/init/configuration"
+	"github.com/ionos-cloud/external-dns-ionos-webhook/internal/ionoscore"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
@@ -32,7 +31,8 @@ func TestInit(t *testing.T) {
 			env: map[string]string{
 				"IONOS_API_KEY": "algorithm.eyAiaXNzIiA6ICJpb25vc2Nsb3VkIiB9.signature",
 			},
-			providerType: "cloud",
+			providerType:  "cloud",
+			expectedError: "failed to initialize IONOS provider: ionos cloud DNS is not supported in this version",
 		},
 		{
 			name:          "without api key you are not able to create provider",
@@ -56,10 +56,11 @@ func TestInit(t *testing.T) {
 			if tc.providerType == "core" {
 				_, ok := dnsProvider.(*ionoscore.Provider)
 				assert.True(t, ok, "provider is not of type ionoscore.Provider")
-			} else if tc.providerType == "cloud" {
-				_, ok := dnsProvider.(*ionoscloud.Provider)
-				assert.True(t, ok, "provider is not of type ionoscloud.Provider")
 			}
+			//} else if tc.providerType == "cloud" {
+			//	_, ok := dnsProvider.(*ionoscloud.Provider)
+			//	assert.True(t, ok, "provider is not of type ionoscloud.Provider")
+			//}
 		})
 	}
 }

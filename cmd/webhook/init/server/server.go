@@ -14,15 +14,15 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/ionos-cloud/external-dns-ionos-plugin/cmd/plugin/init/configuration"
+	"github.com/ionos-cloud/external-dns-ionos-webhook/cmd/webhook/init/configuration"
 
-	"github.com/ionos-cloud/external-dns-ionos-plugin/pkg/plugin"
+	"github.com/ionos-cloud/external-dns-ionos-webhook/pkg/webhook"
 )
 
 // Init server initialization function
-func Init(config configuration.Config, p *plugin.Plugin) *http.Server {
+func Init(config configuration.Config, p *webhook.Webhook) *http.Server {
 	r := chi.NewRouter()
-	r.Use(plugin.Health)
+	r.Use(webhook.Health)
 	r.Get("/records", p.Records)
 	r.Post("/records", p.ApplyChanges)
 	r.Post("/propertyvaluesequals", p.PropertyValuesEquals)

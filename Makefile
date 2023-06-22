@@ -7,7 +7,7 @@ ifndef $(GOPATH)
     export GOPATH
 endif
 
-ARTIFACT_NAME = external-dns-ionos-plugin
+ARTIFACT_NAME = external-dns-ionos-webhook
 
 # logging
 LOG_LEVEL = debug
@@ -16,7 +16,7 @@ LOG_FORMAT = auto
 
 
 REGISTRY ?= localhost:5001
-IMAGE_NAME ?= external-dns-ionos-plugin
+IMAGE_NAME ?= external-dns-ionos-webhook
 IMAGE_TAG ?= latest
 IMAGE = $(REGISTRY)/$(IMAGE_NAME):$(IMAGE_TAG)
 
@@ -57,16 +57,17 @@ static-analysis: lint vet ## Run static analysis against code.
 
 .PHONY: clean
 clean: ## Clean the build directory
+	rm -rf ./dist
 	rm -rf ./build
 	rm -rf ./vendor
 
 .PHONY: build
 build: ## Build the binary
-	CGO_ENABLED=0 go build -o build/bin/$(ARTIFACT_NAME) ./cmd/plugin
+	CGO_ENABLED=0 go build -o build/bin/$(ARTIFACT_NAME) ./cmd/webhook
 
 .PHONY: run
 run:build ## Run the binary on local machine
-	LOG_LEVEL=$(LOG_LEVEL) LOG_ENVIRONMENT=$(LOG_ENVIRONMENT) LOG_FORMAT=$(LOG_FORMAT) build/bin/external-dns-ionos-plugin
+	LOG_LEVEL=$(LOG_LEVEL) LOG_ENVIRONMENT=$(LOG_ENVIRONMENT) LOG_FORMAT=$(LOG_FORMAT) build/bin/external-dns-ionos-webhook
 
 ##@ Docker
 
@@ -90,7 +91,7 @@ unit-test: ## Run unit tests
 
 .PHONY: release-check
 release-check: ## Check if the release will work
-	GITHUB_SERVER_URL=github.com GITHUB_REPOSITORY=ionos-cloud/external-dns-ionos-plugin REGISTRY=$(REGISTRY) IMAGE_NAME=$(IMAGE_NAME) goreleaser release --snapshot --clean --skip-publish
+	GITHUB_SERVER_URL=github.com GITHUB_REPOSITORY=ionos-cloud/external-dns-ionos-webhook REGISTRY=$(REGISTRY) IMAGE_NAME=$(IMAGE_NAME) goreleaser release --snapshot --clean --skip-publish
 
 ##@ License
 

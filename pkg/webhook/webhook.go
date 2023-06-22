@@ -1,4 +1,4 @@
-package plugin
+package webhook
 
 import (
 	"encoding/json"
@@ -6,14 +6,14 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/ionos-cloud/external-dns-ionos-plugin/pkg/endpoint"
-	"github.com/ionos-cloud/external-dns-ionos-plugin/pkg/plan"
-	"github.com/ionos-cloud/external-dns-ionos-plugin/pkg/provider"
+	"github.com/ionos-cloud/external-dns-ionos-webhook/pkg/endpoint"
+	"github.com/ionos-cloud/external-dns-ionos-webhook/pkg/plan"
+	"github.com/ionos-cloud/external-dns-ionos-webhook/pkg/provider"
 	log "github.com/sirupsen/logrus"
 )
 
 const (
-	mediaTypeFormat        = "application/external.dns.plugin+json;"
+	mediaTypeFormat        = "application/external.dns.webhook+json;"
 	contentTypeHeader      = "Content-Type"
 	contentTypePlaintext   = "text/plain"
 	acceptHeader           = "Accept"
@@ -54,14 +54,14 @@ func checkAndGetMediaTypeHeaderValue(value string) (string, error) {
 	return "", fmt.Errorf("unsupported media type version: '%s'. Supported media types are: '%s'", value, supportedMediaTypesString)
 }
 
-// Plugin for external dns provider
-type Plugin struct {
+// Webhook for external dns provider
+type Webhook struct {
 	provider provider.Provider
 }
 
-// New creates a new instance of the Plugin
-func New(provider provider.Provider) *Plugin {
-	p := Plugin{provider: provider}
+// New creates a new instance of the Webhook
+func New(provider provider.Provider) *Webhook {
+	p := Webhook{provider: provider}
 	return &p
 }
 
@@ -75,15 +75,15 @@ func Health(next http.Handler) http.Handler {
 	})
 }
 
-func (p *Plugin) contentTypeHeaderCheck(w http.ResponseWriter, r *http.Request) error {
+func (p *Webhook) contentTypeHeaderCheck(w http.ResponseWriter, r *http.Request) error {
 	return p.headerCheck(true, w, r)
 }
 
-func (p *Plugin) acceptHeaderCheck(w http.ResponseWriter, r *http.Request) error {
+func (p *Webhook) acceptHeaderCheck(w http.ResponseWriter, r *http.Request) error {
 	return p.headerCheck(false, w, r)
 }
 
-func (p *Plugin) headerCheck(isContentType bool, w http.ResponseWriter, r *http.Request) error {
+func (p *Webhook) headerCheck(isContentType bool, w http.ResponseWriter, r *http.Request) error {
 	var header string
 	if isContentType {
 		header = r.Header.Get(contentTypeHeader)
@@ -127,7 +127,7 @@ func (p *Plugin) headerCheck(isContentType bool, w http.ResponseWriter, r *http.
 }
 
 // Records handles the get request for records
-func (p *Plugin) Records(w http.ResponseWriter, r *http.Request) {
+func (p *Webhook) Records(w http.ResponseWriter, r *http.Request) {
 	if err := p.acceptHeaderCheck(w, r); err != nil {
 		requestLog(r).WithField(logFieldError, err).Error("accept header check failed")
 		return
@@ -152,7 +152,7 @@ func (p *Plugin) Records(w http.ResponseWriter, r *http.Request) {
 }
 
 // ApplyChanges handles the post request for record changes
-func (p *Plugin) ApplyChanges(w http.ResponseWriter, r *http.Request) {
+func (p *Webhook) ApplyChanges(w http.ResponseWriter, r *http.Request) {
 	if err := p.contentTypeHeaderCheck(w, r); err != nil {
 		requestLog(r).WithField(logFieldError, err).Error("content type header check failed")
 		return
@@ -192,7 +192,7 @@ type PropertiesValuesEqualsResponse struct {
 }
 
 // PropertyValuesEquals handles the post request for property values equals
-func (p *Plugin) PropertyValuesEquals(w http.ResponseWriter, r *http.Request) {
+func (p *Webhook) PropertyValuesEquals(w http.ResponseWriter, r *http.Request) {
 	if err := p.contentTypeHeaderCheck(w, r); err != nil {
 		requestLog(r).WithField(logFieldError, err).Error("content type header check failed")
 		return
@@ -230,7 +230,7 @@ func (p *Plugin) PropertyValuesEquals(w http.ResponseWriter, r *http.Request) {
 }
 
 // AdjustEndpoints handles the post request for adjusting endpoints
-func (p *Plugin) AdjustEndpoints(w http.ResponseWriter, r *http.Request) {
+func (p *Webhook) AdjustEndpoints(w http.ResponseWriter, r *http.Request) {
 	if err := p.contentTypeHeaderCheck(w, r); err != nil {
 		log.Errorf("content type header check failed, request method: %s, request path: %s", r.Method, r.URL.Path)
 		return

@@ -1,8 +1,8 @@
-# ExternalDNS - IONOS Plugin
+# ExternalDNS - IONOS Webhook
 
-**⚠️ NOTE**: This Plugin is based on a not yet released version of
+**⚠️ NOTE**: This Webhook is based on a not yet released version of
 [ExternalDNS](https://github.com/kubernetes-sigs/external-dns) -
-especially the new integration approach by using plugins, discussed and implemented in
+especially the new integration approach by using webhooks, discussed and implemented in
 [PR-3063](https://github.com/kubernetes-sigs/external-dns/pull/3063).
 
 ExternalDNS is a Kubernetes add-on for automatically managing
@@ -10,18 +10,18 @@ Domain Name System (DNS) records for Kubernetes services by using different DNS 
 By default, Kubernetes manages DNS records internally,
 but ExternalDNS takes this functionality a step further by delegating the management of DNS records to an external DNS
 provider such as IONOS.
-Therefore, the IONOS plugin allows to manage your
+Therefore, the IONOS webhook allows to manage your
 IONOS domains inside your kubernetes cluster with [ExternalDNS](https://github.com/kubernetes-sigs/external-dns).
 
 To use ExternalDNS with IONOS, you need your IONOS API key or token of the account managing
 your domains.
-For detailed technical instructions on how the IONOS plugin is deployed using the Bitnami Helm charts for ExternalDNS,
+For detailed technical instructions on how the IONOS webhook is deployed using the Bitnami Helm charts for ExternalDNS,
 see[deployment instructions](#kubernetes-deployment).
 
 ## Kubernetes Deployment
 
-The IONOS plugin is provided as a regular Open Container Initiative (OCI) image released in
-the [GitHub container registry](https://github.com/ionos-cloud/external-dns-ionos-plugin/pkgs/container/external-dns-ionos-plugin).
+The IONOS webhook is provided as a regular Open Container Initiative (OCI) image released in
+the [GitHub container registry](https://github.com/ionos-cloud/external-dns-ionos-webhook/pkgs/container/external-dns-ionos-webhook).
 The deployment can be performed in every way Kubernetes supports.
 The following example shows the deployment as
 a [sidecar container](https://kubernetes.io/docs/concepts/workloads/pods/#workload-resources-for-managing-pods) in the
@@ -36,17 +36,17 @@ kubectl create secret generic ionos-credentials --from-literal=api-key='<EXAMPLE
 cat <<EOF > external-dns-ionos-values.yaml
 image:
   registry: ghcr.io
-  repository: ionos-cloud/external-dns-plugin-provider
+  repository: ionos-cloud/external-dns-webhook-provider
   tag: latest
 
-provider: plugin
+provider: webhook
 
 extraArgs:
-  plugin-provider-url: http://localhost:8888
+  webhook-provider-url: http://localhost:8888
 
 sidecars:
-  - name: ionos-plugin
-    image: ghcr.io/ionos-cloud/external-dns-ionos-plugin:$RELEASE_VERSION
+  - name: ionos-webhook
+    image: ghcr.io/ionos-cloud/external-dns-ionos-webhook:$RELEASE_VERSION
     ports:
       - containerPort: 8888
         name: http
@@ -81,15 +81,15 @@ helm install external-dns-ionos bitnami/external-dns -f external-dns-ionos-value
 
 ## Verify the image resource integrity
 
-All official plugins provided by IONOS are signed using [Cosign](https://docs.sigstore.dev/cosign/overview/).
+All official webhooks provided by IONOS are signed using [Cosign](https://docs.sigstore.dev/cosign/overview/).
 The Cosign public key can be found in the [cosign.pub](./cosign.pub) file.
 
-Note: Due to the early development stage of the plugin, the image is not yet signed
+Note: Due to the early development stage of the webhook, the image is not yet signed
 by [sigstores transparency log](https://github.com/sigstore/rekor).
 
 ```shell
 export RELEASE_VERSION=latest
-cosign verify --insecure-ignore-tlog --key cosign.pub ghcr.io/ionos-cloud/external-dns-ionos-plugin:$RELEASE_VERSION
+cosign verify --insecure-ignore-tlog --key cosign.pub ghcr.io/ionos-cloud/external-dns-ionos-webhook:$RELEASE_VERSION
 ```
 
 ## Development
@@ -98,7 +98,7 @@ The basic development tasks are provided by make. Run `make help` to see the ava
 
 ### Local deployment
 
-The plugin can be deployed locally with a kind cluster. As a prerequisite, you need to install:
+The webhook can be deployed locally with a kind cluster. As a prerequisite, you need to install:
 
 - [Docker](https://docs.docker.com/get-docker/),
 - [Helm](https://https://helm.sh/ ) with the repos:
@@ -113,10 +113,10 @@ The plugin can be deployed locally with a kind cluster. As a prerequisite, you n
 - [kubectl](https://kubernetes.io/docs/tasks/tools/)
 
 ```shell
-# setup the kind cluster and deploy external-dns with ionos plugin and a dns mockserver
+# setup the kind cluster and deploy external-dns with ionos webhook and a dns mockserver
 ./scripts/deploy_on_kind.sh
 
-# check if the plugin is running
+# check if the webhook is running
 kubectl get pods -l app.kubernetes.io/name=external-dns -o wide
 
 # trigger a DNS change e.g. with annotating the ingress controller service
@@ -128,7 +128,7 @@ kubectl -n ingress-nginx annotate service  ingress-nginx-controller "external-dn
 
 ### Local acceptance tests
 
-The acceptance tests are run against a kind cluster with ExternalDNS and the plugin deployed.
+The acceptance tests are run against a kind cluster with ExternalDNS and the webhook deployed.
 The DNS mock server is used to verify the DNS changes. The following diagram shows the test setup:
 
 ```mermaid

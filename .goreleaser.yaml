@@ -1,11 +1,11 @@
-# This is an example .goreleaser.yml file with some sensible defaults.
-# Make sure to check the documentation at https://goreleaser.com
+project_name: external-dns-ionos-webhook
+
 before:
   hooks:
     - scripts/release_precheck.sh
 
 builds:
-  - main: ./cmd/plugin
+  - main: ./cmd/webhook
     env:
       - CGO_ENABLED=0
     goos:
@@ -31,7 +31,7 @@ archives:
     - goos: windows
       format: zip
 dockers:
-  - id: external-dns-ionos-plugin
+  - id: external-dns-ionos-webhook
     use: buildx
     image_templates:
       - "{{ .Env.REGISTRY }}/{{ .Env.IMAGE_NAME }}:{{ .Tag }}"
@@ -41,7 +41,7 @@ dockers:
     goarch: amd64
     build_flag_templates:
       - --label=org.opencontainers.image.title={{ .ProjectName }}
-      - --label=org.opencontainers.image.description=ionos DNS plugin for external-dns
+      - --label=org.opencontainers.image.description=ionos DNS webhook for external-dns
       - --label=org.opencontainers.image.url=https://{{ .Env.GITHUB_SERVER_URL }}/{{ .Env.GITHUB_REPOSITORY}}
       - --label=org.opencontainers.image.source=https://{{ .Env.GITHUB_SERVER_URL }}/{{ .Env.GITHUB_REPOSITORY}}
       - --label=org.opencontainers.image.version={{ .Version }}
@@ -67,7 +67,7 @@ docker_signs:
       - --yes
     artifacts: images
     ids:
-      - external-dns-ionos-plugin
+      - external-dns-ionos-webhook
     output: true
 
 changelog:

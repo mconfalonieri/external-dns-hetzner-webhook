@@ -1,10 +1,10 @@
 image:
   registry: localhost:5001
-  repository: external-dns-plugin-provider
+  repository: external-dns-webhook-provider
   tag: latest
   pullPolicy: Always
 
-provider: plugin
+provider: webhook
 
 sources: 
   - service
@@ -14,11 +14,11 @@ dryRun: true
 logLevel: debug
 
 extraArgs:
-  plugin-provider-url: http://localhost:8888
+  webhook-provider-url: http://localhost:8888
 
 sidecars:
-  - name: plugin
-    image: localhost:5001/external-dns-ionos-plugin:latest
+  - name: webhook
+    image: localhost:5001/external-dns-ionos-webhook:latest
     imagePullPolicy: Always
     ports:
       - containerPort: 8888

@@ -17,7 +17,7 @@ limitations under the License.
 package plan
 
 import (
-	"github.com/ionos-cloud/external-dns-ionos-plugin/pkg/endpoint"
+	"github.com/ionos-cloud/external-dns-ionos-webhook/pkg/endpoint"
 )
 
 // Changes holds lists of actions to be executed by dns providers
