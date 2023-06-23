@@ -1,0 +1,63 @@
+image:
+  registry: ghcr.io
+  repository: ionos-cloud/external-dns-webhook-provider
+  tag: latest
+  pullPolicy: Always
+
+provider: webhook
+
+sources: 
+  - service
+
+dryRun: true
+
+logLevel: debug
+
+extraArgs:
+  webhook-provider-url: http://localhost:8888
+
+sidecars:
+  - name: webhook
+    image: ghcr.io/ionos-cloud/external-dns-ionos-webhook:latest
+    imagePullPolicy: Always
+    ports:
+      - containerPort: 8888
+        name: http
+    livenessProbe:
+      httpGet:
+        path: /health
+        port: http
+      initialDelaySeconds: 10
+      timeoutSeconds: 5
+    readinessProbe:
+      httpGet:
+        path: /health
+        port: http
+      initialDelaySeconds: 10
+      timeoutSeconds: 5
+    env:
+      - name: LOG_LEVEL
+        value: debug
+      - name: LOG_FORMAT
+        value: txt
+      - name: DRY_RUN
+        value: "true"
+#      - name: DOMAIN_FILTER
+#        value: "test.com,test.de"
+#      - name: EXCLUDE_DOMAIN_FILTER
+#        value: "test.com,test.de"
+#      - name: REGEXP_DOMAIN_FILTER
+#        value: ""
+#      - name: REGEXP_DOMAIN_FILTER_EXCLUSION
+#        value: ""
+      - name: SERVER_HOST
+        value: "0.0.0.0"
+      - name: IONOS_API_KEY
+        value: "put your api key here"
+      - name: IONOS_DEBUG
+        value: "false"
+# the following values are derived automatically from the api key
+#      - name: IONOS_API_URL
+#        value: "https://api.hosting.ionos.com/dns"
+#      - name: IONOS_AUTH_HEADER
+#        value: "X-API-Key"
