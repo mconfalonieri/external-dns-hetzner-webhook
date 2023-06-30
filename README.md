@@ -71,7 +71,7 @@ sidecars:
             name: ionos-credentials
             key: api-key
       - name: SERVER_HOST
-        value: "" 
+        value: "0.0.0.0" 
       - name: IONOS_DEBUG
         value: "true"  
 EOF

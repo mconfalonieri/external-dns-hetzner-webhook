@@ -9,8 +9,6 @@ provider: webhook
 sources: 
   - service
 
-dryRun: true
-
 logLevel: debug
 
 extraArgs:

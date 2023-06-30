@@ -391,6 +391,8 @@ github.com/ianlancetaylor/demangle v0.0.0-20200824232613-28f6c0f3b639/go.mod h1:
 github.com/inconshreveable/mousetrap v1.0.1/go.mod h1:vpF70FUmC8bwa3OWnCshd2FqLfsEA9PFc4w1p2J65bw=
 github.com/inconshreveable/mousetrap v1.1.0 h1:wN+x4NVGpMsO7ErUn/mUI3vEoE6Jt13X2s0bqwp9tc8=
 github.com/inconshreveable/mousetrap v1.1.0/go.mod h1:vpF70FUmC8bwa3OWnCshd2FqLfsEA9PFc4w1p2J65bw=
+github.com/ionos-cloud/sdk-go-dns v1.1.1 h1:Qdf5mXYt9ZeRl4zZQxGrvamFkKm1X9WeARyB9/WYhKg=
+github.com/ionos-cloud/sdk-go-dns v1.1.1/go.mod h1:l9gYdwtUshlBOiIi4nHn3RCX81XlV3VoNvLJrO2VfHg=
 github.com/ionos-developer/dns-sdk-go v0.0.5 h1:LxoAy9GoDN4zrU3xbGVEjtdGIw4BCVgYmY/ikF9aRzQ=
 github.com/ionos-developer/dns-sdk-go v0.0.5/go.mod h1:lsQ14d6pPUlTbvCL/J8hAG4V0MlzKQ+1SECGkd09tC8=
 github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99 h1:BQSFePA1RWJOlocH6Fxy8MmwDt+yVQYULKfN0RoTN8A=

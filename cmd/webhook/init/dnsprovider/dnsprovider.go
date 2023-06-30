@@ -7,6 +7,8 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/ionos-cloud/external-dns-ionos-webhook/internal/ionoscloud"
+
 	"github.com/caarlos0/env/v8"
 
 	"github.com/ionos-cloud/external-dns-ionos-webhook/cmd/webhook/init/configuration"
@@ -21,7 +23,7 @@ const (
 	webtokenIonosISSValue = "ionoscloud"
 )
 
-type IONOSProviderFactory func(domainFilter endpoint.DomainFilter, ionosConfig *ionos.Configuration, dryRun bool) (provider.Provider, error)
+type IONOSProviderFactory func(domainFilter endpoint.DomainFilter, ionosConfig *ionos.Configuration) provider.Provider
 
 func setDefaults(apiEndpointURL, authHeader string, ionosConfig *ionos.Configuration) {
 	if ionosConfig.APIEndpointURL == "" {
@@ -32,15 +34,14 @@ func setDefaults(apiEndpointURL, authHeader string, ionosConfig *ionos.Configura
 	}
 }
 
-var IonosCoreProviderFactory = func(domainFilter endpoint.DomainFilter, ionosConfig *ionos.Configuration, dryRun bool) (provider.Provider, error) {
+var IonosCoreProviderFactory = func(domainFilter endpoint.DomainFilter, ionosConfig *ionos.Configuration) provider.Provider {
 	setDefaults("https://api.hosting.ionos.com/dns", "X-API-Key", ionosConfig)
-	return ionoscore.NewProvider(domainFilter, ionosConfig, dryRun)
+	return ionoscore.NewProvider(domainFilter, ionosConfig)
 }
 
-var IonosCloudProviderFactory = func(domainFilter endpoint.DomainFilter, ionosConfig *ionos.Configuration, dryRun bool) (provider.Provider, error) {
+var IonosCloudProviderFactory = func(domainFilter endpoint.DomainFilter, ionosConfig *ionos.Configuration) provider.Provider {
 	setDefaults("https://dns.de-fra.ionos.com", "Bearer", ionosConfig)
-	// return ionoscloud.NewProvider(domainFilter, ionosConfig, dryRun)
-	return nil, fmt.Errorf("ionos cloud DNS is not supported in this version")
+	return ionoscloud.NewProvider(domainFilter, ionosConfig)
 }
 
 func Init(config configuration.Config) (provider.Provider, error) {
@@ -58,7 +59,7 @@ func Init(config configuration.Config) (provider.Provider, error) {
 		)
 	} else {
 		if config.DomainFilter != nil && len(config.DomainFilter) > 0 {
-			createMsg += fmt.Sprintf("Domain filter: '%s', ", strings.Join(config.DomainFilter, ","))
+			createMsg += fmt.Sprintf("zoneNode filter: '%s', ", strings.Join(config.DomainFilter, ","))
 		}
 		if config.ExcludeDomains != nil && len(config.ExcludeDomains) > 0 {
 			createMsg += fmt.Sprintf("Exclude domain filter: '%s', ", strings.Join(config.ExcludeDomains, ","))
@@ -71,18 +72,12 @@ func Init(config configuration.Config) (provider.Provider, error) {
 		createMsg += "no kind of domain filters"
 	}
 	log.Info(createMsg)
-	if config.DryRun {
-		log.Warn("***** Dry run enabled, DNS records will not be created or deleted *****")
-	}
 	ionosConfig := ionos.Configuration{}
 	if err := env.Parse(&ionosConfig); err != nil {
 		return nil, fmt.Errorf("reading ionos ionosConfig failed: %v", err)
 	}
 	createProvider := detectProvider(&ionosConfig)
-	provider, err := createProvider(domainFilter, &ionosConfig, config.DryRun)
-	if err != nil {
-		return nil, fmt.Errorf("failed to initialize IONOS provider: %v", err)
-	}
+	provider := createProvider(domainFilter, &ionosConfig)
 	return provider, nil
 }
 
