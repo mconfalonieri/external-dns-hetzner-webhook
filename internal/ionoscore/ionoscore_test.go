@@ -6,6 +6,8 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/ionos-cloud/external-dns-ionos-webhook/pkg/provider"
+
 	"github.com/ionos-cloud/external-dns-ionos-webhook/internal/ionos"
 
 	log "github.com/sirupsen/logrus"
@@ -24,14 +26,15 @@ type mockDnsService struct {
 func TestNewProvider(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
 
-	p := NewProvider(endpoint.NewDomainFilter([]string{"a.de."}), &ionos.Configuration{DryRun: true})
+	baseProvider := provider.NewBaseProvider(endpoint.NewDomainFilter([]string{"a.de."}))
+	p := NewProvider(baseProvider, &ionos.Configuration{DryRun: true})
 	require.Equal(t, true, p.dryRun)
-	require.Equal(t, true, p.domainFilter.IsConfigured())
+	require.Equal(t, true, p.BaseProvider.GetDomainFilter().IsConfigured())
 	require.NotNilf(t, p.client, "client should not be nil")
-
-	p = NewProvider(endpoint.DomainFilter{}, &ionos.Configuration{})
+	baseProvider = provider.NewBaseProvider(endpoint.DomainFilter{})
+	p = NewProvider(baseProvider, &ionos.Configuration{})
 	require.Equal(t, false, p.dryRun)
-	require.Equal(t, false, p.domainFilter.IsConfigured())
+	require.Equal(t, false, p.BaseProvider.GetDomainFilter().IsConfigured())
 	require.NotNilf(t, p.client, "client should not be nil")
 }
 

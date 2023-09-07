@@ -20,9 +20,8 @@ import (
 // Provider implements the DNS provider for IONOS DNS.
 type Provider struct {
 	provider.BaseProvider
-	client       DnsService
-	domainFilter endpoint.DomainFilter
-	dryRun       bool
+	client DnsService
+	dryRun bool
 }
 
 // DnsService interface to the dns backend, also needed for creating mocks in tests
@@ -63,12 +62,12 @@ func (c DnsClient) DeleteRecord(ctx context.Context, zoneId string, recordId str
 }
 
 // NewProvider creates a new IONOS DNS provider.
-func NewProvider(domainFilter endpoint.DomainFilter, configuration *ionos.Configuration) *Provider {
+func NewProvider(baseProvider *provider.BaseProvider, configuration *ionos.Configuration) *Provider {
 	client := createClient(configuration)
 
 	prov := &Provider{
+		BaseProvider: *baseProvider,
 		client:       DnsClient{client: client},
-		domainFilter: domainFilter,
 		dryRun:       configuration.DryRun,
 	}
 
@@ -287,7 +286,7 @@ func (p *Provider) getZones(ctx context.Context) (map[string]string, error) {
 	result := map[string]string{}
 
 	for _, zone := range zones {
-		if p.domainFilter.Match(*zone.Name) {
+		if p.BaseProvider.GetDomainFilter().Match(*zone.Name) {
 			result[*zone.Id] = *zone.Name
 		}
 	}

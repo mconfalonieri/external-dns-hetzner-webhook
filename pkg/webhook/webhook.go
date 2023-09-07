@@ -179,56 +179,6 @@ func (p *Webhook) ApplyChanges(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// PropertyValuesEqualsRequest holds params for property values equals request
-type PropertyValuesEqualsRequest struct {
-	Name     string `json:"name"`
-	Previous string `json:"previous"`
-	Current  string `json:"current"`
-}
-
-// PropertiesValuesEqualsResponse holds params for property values equals response
-type PropertiesValuesEqualsResponse struct {
-	Equals bool `json:"equals"`
-}
-
-// PropertyValuesEquals handles the post request for property values equals
-func (p *Webhook) PropertyValuesEquals(w http.ResponseWriter, r *http.Request) {
-	if err := p.contentTypeHeaderCheck(w, r); err != nil {
-		requestLog(r).WithField(logFieldError, err).Error("content type header check failed")
-		return
-	}
-	if err := p.acceptHeaderCheck(w, r); err != nil {
-		requestLog(r).WithField(logFieldError, err).Error("accept header check failed")
-		return
-	}
-
-	pve := PropertyValuesEqualsRequest{}
-	if err := json.NewDecoder(r.Body).Decode(&pve); err != nil {
-		w.Header().Set(contentTypeHeader, contentTypePlaintext)
-		w.WriteHeader(http.StatusBadRequest)
-		errMessage := fmt.Sprintf("failed to decode request body: %v", err)
-
-		if _, writeError := fmt.Fprint(w, errMessage); writeError != nil {
-			requestLog(r).WithField(logFieldError, writeError).Fatalf("error writing error message to response writer")
-		}
-		requestLog(r).WithField(logFieldError, err).Info(errMessage)
-		return
-	}
-	requestLog(r).Debugf("requesting property values equals, name: %s, previous: %s , current: %s",
-		pve.Name, pve.Previous, pve.Current)
-	valuesEqual := p.provider.PropertyValuesEqual(pve.Name, pve.Previous, pve.Current)
-	resp := PropertiesValuesEqualsResponse{
-		Equals: valuesEqual,
-	}
-	out, _ := json.Marshal(&resp)
-	requestLog(r).Debugf("return property values equals response equals: %v", valuesEqual)
-	w.Header().Set(contentTypeHeader, string(mediaTypeVersion1))
-	w.Header().Set(varyHeader, contentTypeHeader)
-	if _, writeError := fmt.Fprint(w, string(out)); writeError != nil {
-		requestLog(r).WithField(logFieldError, writeError).Fatalf("error writing response")
-	}
-}
-
 // AdjustEndpoints handles the post request for adjusting endpoints
 func (p *Webhook) AdjustEndpoints(w http.ResponseWriter, r *http.Request) {
 	if err := p.contentTypeHeaderCheck(w, r); err != nil {
@@ -259,6 +209,25 @@ func (p *Webhook) AdjustEndpoints(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set(varyHeader, contentTypeHeader)
 	if _, writeError := fmt.Fprint(w, string(out)); writeError != nil {
 		requestLog(r).WithField(logFieldError, writeError).Fatalf("error writing response")
+	}
+}
+
+func (p *Webhook) Negotiate(w http.ResponseWriter, r *http.Request) {
+	if err := p.acceptHeaderCheck(w, r); err != nil {
+		requestLog(r).WithField(logFieldError, err).Error("accept header check failed")
+		return
+	}
+	b, err := p.provider.GetDomainFilter().MarshalJSON()
+	if err != nil {
+		log.Errorf("failed to marshal domain filter, request method: %s, request path: %s", r.Method, r.URL.Path)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set(contentTypeHeader, string(mediaTypeVersion1))
+	if _, writeError := w.Write(b); writeError != nil {
+		requestLog(r).WithField(logFieldError, writeError).Error("error writing response")
+		w.WriteHeader(http.StatusInternalServerError)
+		return
 	}
 }
 

@@ -6,6 +6,8 @@ import (
 	"math/rand"
 	"testing"
 
+	"github.com/ionos-cloud/external-dns-ionos-webhook/pkg/provider"
+
 	"github.com/ionos-cloud/external-dns-ionos-webhook/internal/ionos"
 	"github.com/ionos-cloud/external-dns-ionos-webhook/pkg/endpoint"
 	"github.com/ionos-cloud/external-dns-ionos-webhook/pkg/plan"
@@ -20,14 +22,15 @@ var letterRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
 func TestNewProvider(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
 	t.Setenv("IONOS_API_KEY", "1")
+	domainFilter := endpoint.NewDomainFilter([]string{"a.de."})
+	baseProvider := provider.NewBaseProvider(domainFilter)
+	p := NewProvider(baseProvider, &ionos.Configuration{})
+	require.Equal(t, true, p.BaseProvider.GetDomainFilter().IsConfigured())
+	require.Equal(t, false, p.BaseProvider.GetDomainFilter().Match("b.de."))
 
-	p := NewProvider(endpoint.NewDomainFilter([]string{"a.de."}), &ionos.Configuration{})
-	require.Equal(t, true, p.domainFilter.IsConfigured())
-	require.Equal(t, false, p.domainFilter.Match("b.de."))
-
-	p = NewProvider(endpoint.DomainFilter{}, &ionos.Configuration{})
-	require.Equal(t, false, p.domainFilter.IsConfigured())
-	require.Equal(t, true, p.domainFilter.Match("a.de."))
+	p = NewProvider(provider.NewBaseProvider(endpoint.DomainFilter{}), &ionos.Configuration{})
+	require.Equal(t, false, p.BaseProvider.GetDomainFilter().IsConfigured())
+	require.Equal(t, true, p.BaseProvider.GetDomainFilter().Match("a.de."))
 }
 
 func TestRecords(t *testing.T) {
@@ -120,7 +123,7 @@ func TestRecords(t *testing.T) {
 				allRecords:  tc.givenRecords,
 				returnError: tc.givenError,
 			}
-			provider := &Provider{client: mockDnsClient, domainFilter: tc.givenDomainFilter}
+			provider := &Provider{client: mockDnsClient, BaseProvider: *provider.NewBaseProvider(tc.givenDomainFilter)}
 			endpoints, err := provider.Records(ctx)
 			if tc.expectedError != nil {
 				require.Error(t, err)
@@ -475,7 +478,7 @@ func TestApplyChanges(t *testing.T) {
 				zoneRecords: tc.givenZoneRecords,
 				returnError: tc.givenError,
 			}
-			provider := &Provider{client: mockDnsClient, domainFilter: tc.givenDomainFilter}
+			provider := &Provider{client: mockDnsClient, BaseProvider: *provider.NewBaseProvider(tc.givenDomainFilter)}
 			err := provider.ApplyChanges(ctx, tc.whenChanges)
 			if tc.expectedError != nil {
 				require.Error(t, err)
@@ -501,13 +504,6 @@ func TestApplyChanges(t *testing.T) {
 			}
 		})
 	}
-}
-
-func TestPropertyValuesEqual(t *testing.T) {
-	provider := &Provider{}
-	name := RandStringRunes(10)
-	require.True(t, provider.PropertyValuesEqual(name, "a", "a"))
-	require.False(t, provider.PropertyValuesEqual(name, "a", "b"))
 }
 
 func TestAdjustEndpoints(t *testing.T) {

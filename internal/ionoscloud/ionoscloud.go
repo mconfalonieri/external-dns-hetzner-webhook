@@ -138,16 +138,15 @@ func (c *DNSClient) DeleteRecord(ctx context.Context, zoneId string, recordId st
 // Provider extends base provider to work with paas dns rest API
 type Provider struct {
 	provider.BaseProvider
-	client       DNSService
-	domainFilter endpoint.DomainFilter
+	client DNSService
 }
 
 // NewProvider returns an instance of new provider
-func NewProvider(domainFilter endpoint.DomainFilter, configuration *ionos.Configuration) *Provider {
+func NewProvider(baseProvider *provider.BaseProvider, configuration *ionos.Configuration) *Provider {
 	client := createClient(configuration)
 	prov := &Provider{
+		BaseProvider: *baseProvider,
 		client:       &DNSClient{client: client, dryRun: configuration.DryRun},
-		domainFilter: domainFilter,
 	}
 	return prov
 }
@@ -200,15 +199,15 @@ func (p *Provider) readAllRecords(ctx context.Context) ([]sdk.RecordRead, error)
 		}
 	}
 
-	if p.domainFilter.IsConfigured() {
+	if p.BaseProvider.GetDomainFilter().IsConfigured() {
 		filteredResult := make([]sdk.RecordRead, 0)
 		for _, record := range result {
 			fqdn := *record.GetMetadata().GetFqdn()
-			if p.domainFilter.Match(fqdn) {
+			if p.BaseProvider.GetDomainFilter().Match(fqdn) {
 				filteredResult = append(filteredResult, record)
 			}
 		}
-		logger := log.WithField(logFieldDomainFilter, p.domainFilter)
+		logger := log.WithField(logFieldDomainFilter, p.BaseProvider.GetDomainFilter())
 		logger.Debugf("found %d records after applying domainFilter", len(filteredResult))
 		return filteredResult, nil
 	} else {
@@ -363,7 +362,7 @@ func (p *Provider) createZoneTree(ctx context.Context) (*ionos.ZoneTree[sdk.Zone
 	}
 	for _, zoneRead := range allZones {
 		zoneName := *zoneRead.GetProperties().GetZoneName()
-		if !p.domainFilter.IsConfigured() || p.domainFilter.Match(zoneName) {
+		if !p.BaseProvider.GetDomainFilter().IsConfigured() || p.BaseProvider.GetDomainFilter().Match(zoneName) {
 			zt.AddZone(zoneRead, zoneName)
 		}
 	}

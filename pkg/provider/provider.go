@@ -27,20 +27,27 @@ import (
 type Provider interface {
 	Records(ctx context.Context) ([]*endpoint.Endpoint, error)
 	ApplyChanges(ctx context.Context, changes *plan.Changes) error
-	PropertyValuesEqual(name string, previous string, current string) bool
 	AdjustEndpoints(endpoints []*endpoint.Endpoint) []*endpoint.Endpoint
+	GetDomainFilter() endpoint.DomainFilter
 }
 
 // BaseProvider implements methods of provider interface that are commonly "ignored" by dns providers
 // Basic implementation of the methods is done to avoid code repetition
-type BaseProvider struct{}
+type BaseProvider struct {
+	domainFilter endpoint.DomainFilter
+}
+
+// NewBaseProvider returns an instance of new BaseProvider
+func NewBaseProvider(domainFilter endpoint.DomainFilter) *BaseProvider {
+	return &BaseProvider{domainFilter}
+}
+
+// GetDomainFilter basic implementation using the common domainFilter attribute
+func (b BaseProvider) GetDomainFilter() endpoint.DomainFilter {
+	return b.domainFilter
+}
 
 // AdjustEndpoints basic implementation of provider interface method
 func (b BaseProvider) AdjustEndpoints(endpoints []*endpoint.Endpoint) []*endpoint.Endpoint {
 	return endpoints
-}
-
-// PropertyValuesEqual basic implementation of provider interface method
-func (b BaseProvider) PropertyValuesEqual(name, previous, current string) bool {
-	return previous == current
 }
