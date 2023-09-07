@@ -1,0 +1,10 @@
+{
+  "httpRequest" : {
+    "method" : "GET",
+    "path" : "/v1/zones"
+  },
+  "httpResponse" : {
+    "body" : [
+    ]
+  }
+}

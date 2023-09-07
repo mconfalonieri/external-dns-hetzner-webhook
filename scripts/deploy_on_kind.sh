@@ -82,6 +82,8 @@ if [ "$KIND_CLUSTER_RUNNING" = "false" ]; then
     kubectl apply -f ./deployments/kind/local-registry-configmap.yaml
     printf "Installing dns mock server...\n"
     helm upgrade --install --namespace dns-mockserver --create-namespace dns-mockserver mockserver/mockserver -f ./deployments/dns-mockserver/dns-mockserver-values.yaml
+    sleep 20
+    curl -v -X PUT -H "Content-Type: application/json" http://dns-mockserver.127.0.0.1.nip.io/mockserver/expectation -d @scripts/expectation-payload.json
 fi
 
 helm upgrade $HELM_RELEASE_NAME $HELM_CHART -f $HELM_VALUES_FILE --install

@@ -49,7 +49,7 @@ sidecars:
 #      - name: REGEXP_DOMAIN_FILTER_EXCLUSION
 #        value: ""
       - name: SERVER_HOST
-        value: ""
+        value: "0.0.0.0"
       - name: IONOS_API_KEY
         value: "test-api-key"
       - name: IONOS_API_URL
