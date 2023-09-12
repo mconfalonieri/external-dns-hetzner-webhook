@@ -79,6 +79,8 @@ EOF
 helm install external-dns-ionos bitnami/external-dns -f external-dns-ionos-values.yaml
 ```
 
+See [here](./cmd/webhook/init/configuration/configuration.go) for all available configuration options of webhook sidecar.
+
 ## Verify the image resource integrity
 
 All official webhooks provided by IONOS are signed using [Cosign](https://docs.sigstore.dev/cosign/overview/).

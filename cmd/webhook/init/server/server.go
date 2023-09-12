@@ -33,7 +33,7 @@ func Init(config configuration.Config, p *webhook.Webhook) *http.Server {
 	r.Post("/records", p.ApplyChanges)
 	r.Post("/adjustendpoints", p.AdjustEndpoints)
 
-	srv := createHTTPServer(fmt.Sprintf("%s:%d", config.ServerHost, config.ServerPort), r)
+	srv := createHTTPServer(fmt.Sprintf("%s:%d", config.ServerHost, config.ServerPort), r, config.ServerReadTimeout, config.ServerWriteTimeout)
 	go func() {
 		log.Infof("starting server on addr: '%s' ", srv.Addr)
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
@@ -43,14 +43,12 @@ func Init(config configuration.Config, p *webhook.Webhook) *http.Server {
 	return srv
 }
 
-func createHTTPServer(addr string, hand http.Handler) *http.Server {
+func createHTTPServer(addr string, hand http.Handler, readTimeout, writeTimeout time.Duration) *http.Server {
 	return &http.Server{
-		ReadTimeout:       5 * time.Second,
-		WriteTimeout:      10 * time.Second,
-		IdleTimeout:       120 * time.Second,
-		ReadHeaderTimeout: 5 * time.Second,
-		Addr:              addr,
-		Handler:           hand,
+		ReadTimeout:  readTimeout,
+		WriteTimeout: writeTimeout,
+		Addr:         addr,
+		Handler:      hand,
 	}
 }
 
