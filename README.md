@@ -1,4 +1,7 @@
-# ExternalDNS - IONOS Webhook
+# ExternalDNS - Hetzner Webhook
+
+**🛈 NOTE**: This Webhook was forked and modified from the [IONOS Webhook](https://github.com/ionos-cloud/external-dns-ionos-webhook)
+to work with Hetzner.
 
 **⚠️ NOTE**: This Webhook is based on a not yet released version of
 [ExternalDNS](https://github.com/kubernetes-sigs/external-dns) -
@@ -9,18 +12,18 @@ ExternalDNS is a Kubernetes add-on for automatically managing
 Domain Name System (DNS) records for Kubernetes services by using different DNS providers.
 By default, Kubernetes manages DNS records internally,
 but ExternalDNS takes this functionality a step further by delegating the management of DNS records to an external DNS
-provider such as IONOS.
-Therefore, the IONOS webhook allows to manage your
-IONOS domains inside your kubernetes cluster with [ExternalDNS](https://github.com/kubernetes-sigs/external-dns).
+provider such as Hetzner.
+Therefore, the Hetzner webhook allows to manage your
+Hetzner domains inside your kubernetes cluster with [ExternalDNS](https://github.com/kubernetes-sigs/external-dns).
 
-To use ExternalDNS with IONOS, you need your IONOS API key or token of the account managing
+To use ExternalDNS with Hetzner, you need your Hetzner API token of the account managing
 your domains.
-For detailed technical instructions on how the IONOS webhook is deployed using the Bitnami Helm charts for ExternalDNS,
+For detailed technical instructions on how the Hetzner webhook is deployed using the Bitnami Helm charts for ExternalDNS,
 see[deployment instructions](#kubernetes-deployment).
 
 ## Kubernetes Deployment
 
-The IONOS webhook is provided as a regular Open Container Initiative (OCI) image released in
+The Hetzner webhook is provided as a regular Open Container Initiative (OCI) image released in
 the [GitHub container registry](https://github.com/ionos-cloud/external-dns-ionos-webhook/pkgs/container/external-dns-ionos-webhook).
 The deployment can be performed in every way Kubernetes supports.
 The following example shows the deployment as
@@ -65,25 +68,25 @@ sidecars:
     env:
       - name: LOG_LEVEL
         value: debug
-      - name: IONOS_API_KEY
+      - name: HETZNER_API_KEY
         valueFrom:
           secretKeyRef:
-            name: ionos-credentials
+            name: hetzner-credentials
             key: api-key
       - name: SERVER_HOST
         value: "0.0.0.0" 
-      - name: IONOS_DEBUG
+      - name: HETZNER_DEBUG
         value: "true"  
 EOF
 # install external-dns with helm
-helm install external-dns-ionos bitnami/external-dns -f external-dns-ionos-values.yaml
+helm install external-dns-hetzner bitnami/external-dns -f external-dns-hetzner-values.yaml
 ```
 
 See [here](./cmd/webhook/init/configuration/configuration.go) for all available configuration options of webhook sidecar.
 
 ## Verify the image resource integrity
 
-All official webhooks provided by IONOS are signed using [Cosign](https://docs.sigstore.dev/cosign/overview/).
+All official webhooks provided by Hetzner are signed using [Cosign](https://docs.sigstore.dev/cosign/overview/).
 The Cosign public key can be found in the [cosign.pub](./cosign.pub) file.
 
 Note: Due to the early development stage of the webhook, the image is not yet signed

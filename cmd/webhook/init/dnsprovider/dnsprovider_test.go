@@ -3,10 +3,11 @@ package dnsprovider
 import (
 	"testing"
 
-	"github.com/ionos-cloud/external-dns-ionos-webhook/internal/ionoscloud"
+	"external-dns-hetzner-webhook/internal/hetznercloud"
 
-	"github.com/ionos-cloud/external-dns-ionos-webhook/cmd/webhook/init/configuration"
-	"github.com/ionos-cloud/external-dns-ionos-webhook/internal/ionoscore"
+	"external-dns-hetzner-webhook/cmd/webhook/init/configuration"
+	"external-dns-hetzner-webhook/internal/hetznercore"
+
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
@@ -22,13 +23,13 @@ func TestInit(t *testing.T) {
 		expectedError string
 	}{
 		{
-			name:         "minimal config for ionos core provider",
+			name:         "minimal config for hetzner core provider",
 			config:       configuration.Config{},
 			env:          map[string]string{"IONOS_API_KEY": "apikey must be there"},
 			providerType: "core",
 		},
 		{
-			name:   "minimal config for ionos cloud provider ( token is jwt with payload iss=ionoscloud )",
+			name:   "minimal config for hetzner cloud provider ( token is jwt with payload iss=hetznercloud )",
 			config: configuration.Config{},
 			env: map[string]string{
 				"IONOS_API_KEY": "algorithm.eyAiaXNzIiA6ICJpb25vc2Nsb3VkIiB9.signature",
@@ -38,7 +39,7 @@ func TestInit(t *testing.T) {
 		{
 			name:          "without api key you are not able to create provider",
 			config:        configuration.Config{},
-			expectedError: "reading ionos ionosConfig failed: env: environment variable \"IONOS_API_KEY\" should not be empty",
+			expectedError: "reading hetzner hetznerConfig failed: env: environment variable \"IONOS_API_KEY\" should not be empty",
 		},
 	}
 
@@ -55,11 +56,11 @@ func TestInit(t *testing.T) {
 			assert.NoErrorf(t, err, "error creating provider")
 			assert.NotNil(t, dnsProvider)
 			if tc.providerType == "core" {
-				_, ok := dnsProvider.(*ionoscore.Provider)
-				assert.True(t, ok, "provider is not of type ionoscore.Provider")
+				_, ok := dnsProvider.(*hetznercore.Provider)
+				assert.True(t, ok, "provider is not of type hetznercore.Provider")
 			} else if tc.providerType == "cloud" {
-				_, ok := dnsProvider.(*ionoscloud.Provider)
-				assert.True(t, ok, "provider is not of type ionoscloud.Provider")
+				_, ok := dnsProvider.(*hetznercloud.Provider)
+				assert.True(t, ok, "provider is not of type hetznercloud.Provider")
 			}
 		})
 	}
