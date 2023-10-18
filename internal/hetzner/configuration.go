@@ -10,7 +10,7 @@ import (
 type Configuration struct {
 	APIKey               string   `env:"HETZNER_API_KEY,notEmpty"`
 	DryRun               bool     `env:"DRY_RUN" envDefault:"false"`
-	Debug                bool     `env:"DEBUG" envDefault:"false"`
+	Debug                bool     `env:"HETZNER_DEBUG" envDefault:"false"`
 	BatchSize            int      `env:"BATCH_SIZE" envDefault:"100"`
 	DefaultTTL           int      `env:"DEFAULT_TTL" envDefault:"7200"`
 	DomainFilter         []string `env:"DOMAIN_FILTER" envDefault:""`

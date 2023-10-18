@@ -10,7 +10,7 @@ import (
 
 func main() {
 	srvOptions := struct {
-		hostname string `env:"SERVER_HOST" envDefault:"127.0.0.1"`
+		hostname string `env:"SERVER_HOST" envDefault:"0.0.0.0"`
 	}{}
 
 	// instantiate the configuration
