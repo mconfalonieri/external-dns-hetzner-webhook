@@ -1,39 +1,32 @@
 package main
 
 import (
-	"fmt"
+	"external-dns-hetzner-webhook/internal/hetzner"
+	"time"
 
-	"github.com/ionos-cloud/external-dns-ionos-webhook/cmd/webhook/init/configuration"
-	"github.com/ionos-cloud/external-dns-ionos-webhook/cmd/webhook/init/dnsprovider"
-	"github.com/ionos-cloud/external-dns-ionos-webhook/cmd/webhook/init/logging"
-	"github.com/ionos-cloud/external-dns-ionos-webhook/cmd/webhook/init/server"
-	"github.com/ionos-cloud/external-dns-ionos-webhook/pkg/webhook"
 	log "github.com/sirupsen/logrus"
-)
-
-const banner = `
-  ___ ___  _  _  ___  ___  
- |_ _/ _ \| \| |/ _ \/ __| 
-  | | (_) | .  | (_) \__ \
- |___\___/|_|\_|\___/|___/
- external-dns-ionos-webhook
- version: %s (%s)
-
-`
-
-var (
-	Version = "local"
-	Gitsha  = "?"
+	"sigs.k8s.io/external-dns/provider/webhook"
 )
 
 func main() {
-	fmt.Printf(banner, Version, Gitsha)
-	logging.Init()
-	config := configuration.Init()
-	provider, err := dnsprovider.Init(config)
+	srvOptions := struct {
+		hostname string `env:"SERVER_HOST" envDefault:"127.0.0.1"`
+	}{}
+
+	// instantiate the configuration
+	config := &hetzner.Configuration{}
+	log.Info("Starting server.")
+	// instantiate the aws provider
+	provider, err := hetzner.NewHetznerProvider(config)
 	if err != nil {
-		log.Fatalf("Failed to initialize DNS provider: %v", err)
+		panic(err)
 	}
-	srv := server.Init(config, webhook.New(provider))
-	server.ShutdownGracefully(srv)
+
+	startedChan := make(chan struct{})
+
+	go webhook.StartHTTPApi(provider, startedChan, 5*time.Second, 5*time.Second, srvOptions.hostname)
+	<-startedChan
+
+	time.Sleep(100000 * time.Second)
+
 }

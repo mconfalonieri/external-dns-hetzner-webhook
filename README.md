@@ -24,7 +24,7 @@ see[deployment instructions](#kubernetes-deployment).
 ## Kubernetes Deployment
 
 The Hetzner webhook is provided as a regular Open Container Initiative (OCI) image released in
-the [GitHub container registry](https://github.com/ionos-cloud/external-dns-ionos-webhook/pkgs/container/external-dns-ionos-webhook).
+the [GitHub container registry](https://github.com/mconfalonieri/external-dns-hetzner-webhook/pkgs/container/external-dns-ionos-webhook).
 The deployment can be performed in every way Kubernetes supports.
 The following example shows the deployment as
 a [sidecar container](https://kubernetes.io/docs/concepts/workloads/pods/#workload-resources-for-managing-pods) in the
@@ -33,13 +33,13 @@ using the [Bitnami Helm charts for ExternalDNS](https://github.com/bitnami/chart
 
 ```shell
 helm repo add bitnami https://charts.bitnami.com/bitnami
-kubectl create secret generic ionos-credentials --from-literal=api-key='<EXAMPLE_PLEASE_REPLACE>'
+kubectl create secret generic hetzner-credentials --from-literal=api-key='<EXAMPLE_PLEASE_REPLACE>'
 
 # create the helm values file
-cat <<EOF > external-dns-ionos-values.yaml
+cat <<EOF > external-dns-hetzner-values.yaml
 image:
   registry: ghcr.io
-  repository: ionos-cloud/external-dns-webhook-provider
+  repository: mconfalonieri/external-dns-webhook-provider
   tag: latest
 
 provider: webhook
@@ -48,8 +48,8 @@ extraArgs:
   webhook-provider-url: http://localhost:8888
 
 sidecars:
-  - name: ionos-webhook
-    image: ghcr.io/ionos-cloud/external-dns-ionos-webhook:$RELEASE_VERSION
+  - name: hetzner-webhook
+    image: ghcr.io/mconfalonieri/external-dns-hetzner-webhook:$RELEASE_VERSION
     ports:
       - containerPort: 8888
         name: http
@@ -94,7 +94,7 @@ by [sigstores transparency log](https://github.com/sigstore/rekor).
 
 ```shell
 export RELEASE_VERSION=latest
-cosign verify --insecure-ignore-tlog --key cosign.pub ghcr.io/ionos-cloud/external-dns-ionos-webhook:$RELEASE_VERSION
+cosign verify --insecure-ignore-tlog --key cosign.pub ghcr.io/mconfalonieri/external-dns-hetzner-webhook:$RELEASE_VERSION
 ```
 
 ## Development
@@ -129,32 +129,4 @@ kubectl -n ingress-nginx annotate service  ingress-nginx-controller "external-dn
  
 # cleanup
 ./scripts/deploy_on_kind.sh clean
-```
-
-### Local acceptance tests
-
-The acceptance tests are run against a kind cluster with ExternalDNS and the webhook deployed.
-The DNS mock server is used to verify the DNS changes. The following diagram shows the test setup:
-
-```mermaid
-flowchart LR
-subgraph local-machine
-  T[<h3>acceptance-test with hurl</h3><ul><li>create HTTP requests</li><li>check HTTP responses</li></ul>] -- 1. create expectations --> M
-  T -- 2. create annotations/ingress --> K
-  T -- 3. verify expectations --> M
-
-  subgraph k8s kind
-    E("external-dns") -. checks .-> K[k8s resources]
-    E -. apply record changes .-> M[dns-mockserver]
-  end
-end
-
-```
-
-For running the acceptance tests locally you need to install [hurl](https://hurl.dev/).
-To check the test run execution, see the [Hurl files](./test/hurl).
-To view the test reports, see the `./build/reports/hurl` directory.
-
-```shell
-scripts/acceptance-tests.sh 
 ```

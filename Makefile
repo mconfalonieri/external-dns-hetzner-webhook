@@ -7,7 +7,7 @@ ifndef $(GOPATH)
     export GOPATH
 endif
 
-ARTIFACT_NAME = external-dns-ionos-webhook
+ARTIFACT_NAME = external-dns-hetzner-webhook
 
 # logging
 LOG_LEVEL = debug
@@ -16,7 +16,7 @@ LOG_FORMAT = auto
 
 
 REGISTRY ?= localhost:5001
-IMAGE_NAME ?= external-dns-ionos-webhook
+IMAGE_NAME ?= external-dns-hetzner-webhook
 IMAGE_TAG ?= latest
 IMAGE = $(REGISTRY)/$(IMAGE_NAME):$(IMAGE_TAG)
 
@@ -91,7 +91,7 @@ unit-test: ## Run unit tests
 
 .PHONY: release-check
 release-check: ## Check if the release will work
-	GITHUB_SERVER_URL=github.com GITHUB_REPOSITORY=ionos-cloud/external-dns-ionos-webhook REGISTRY=$(REGISTRY) IMAGE_NAME=$(IMAGE_NAME) goreleaser release --snapshot --clean --skip-publish
+	GITHUB_SERVER_URL=github.com GITHUB_REPOSITORY=mconfalonieri/external-dns-hetzner-webhook REGISTRY=$(REGISTRY) IMAGE_NAME=$(IMAGE_NAME) goreleaser release --snapshot --clean --skip-publish
 
 ##@ License
 
