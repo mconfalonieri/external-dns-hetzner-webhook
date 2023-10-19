@@ -56,20 +56,6 @@ checksum:
 snapshot:
   name_template: "{{ incpatch .Version }}-next"
 
-docker_signs:
-  - cmd: cosign
-    args:
-      - sign
-      - --tlog-upload=false
-      - --key
-      - env://COSIGN_PRIVATE_KEY
-      - "${artifact}@${digest}"
-      - --yes
-    artifacts: images
-    ids:
-      - external-dns-hetzner-webhook
-    output: true
-
 changelog:
   use: github
   sort: asc
