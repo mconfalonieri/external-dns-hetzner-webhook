@@ -36,20 +36,12 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-const (
-	// Provider-specific properties
-	keyZoneId   = "HETZNER_ZONE_ID"
-	keyRecordId = "HETZNER_RECORD_ID"
-)
-
 // apiClient is an abstraction of the REST API client.
 type apiClient interface {
 	GetZones(ctx context.Context, name string, searchName string, page int, perPage int) (*hdns.ZonesResponse, error)
 	GetRecords(ctx context.Context, zone_id string, page int, perPage int) (*hdns.RecordsResponse, error)
 	CreateRecord(ctx context.Context, record hdns.RecordRequest) (*hdns.RecordResponse, error)
-	GetRecord(ctx context.Context, recordId string) (*hdns.RecordResponse, error)
 	UpdateRecord(ctx context.Context, record hdns.RecordRequest) (*hdns.RecordResponse, error)
-	CreateOrUpdateRecord(ctx context.Context, record hdns.RecordRequest) (*hdns.RecordResponse, error)
 	DeleteRecord(ctx context.Context, recordId string) error
 }
 
@@ -139,7 +131,7 @@ func (p HetznerProvider) AdjustEndpoints(endpoints []*endpoint.Endpoint) ([]*end
 		_, zoneName := p.zoneIDNameMapper.FindZone(ep.DNSName)
 		adjustedTargets := endpoint.Targets{}
 		for _, t := range ep.Targets {
-			adjustedTarget, producedValidTarget := p.makeEndpointTarget(zoneName, t, ep.RecordType)
+			adjustedTarget, producedValidTarget := makeEndpointTarget(zoneName, t, ep.RecordType)
 			if producedValidTarget {
 				adjustedTargets = append(adjustedTargets, adjustedTarget)
 			}
@@ -247,18 +239,21 @@ func (p *HetznerProvider) fetchZones(ctx context.Context) ([]hdns.Zone, error) {
 		if err != nil {
 			return nil, err
 		}
+		zones := resp.Zones
+		allZones = append(allZones, zones...)
 
-		for _, z := range resp.Zones {
-			allZones = append(allZones, z)
-		}
-
-		if resp == nil || resp.Meta.Pagination.LastPage <= resp.Meta.Pagination.Page {
+		if resp.Meta.Pagination.LastPage <= resp.Meta.Pagination.Page {
 			break
 		}
 
 		page = resp.Meta.Pagination.Page + 1
 	}
-
+	if p.debug {
+		log.Debugf("Fetched %d zones:", len(allZones))
+		for _, z := range allZones {
+			log.Debugf("- [ID:%s] %s", z.ID, z.Name)
+		}
+	}
 	return allZones, nil
 }
 
@@ -312,14 +307,13 @@ func makeEndpointName(domain, entryName, epType string) string {
 // requirements:
 // - Records at root of the zone have `@` as the name
 // - A-Records should respect ignored networks and should only contain IPv4 entries
-func (p HetznerProvider) makeEndpointTarget(domain, entryTarget, recordType string) (string, bool) {
+func makeEndpointTarget(domain, entryTarget, recordType string) (string, bool) {
 	if domain == "" {
 		return entryTarget, true
 	}
-	adjustedTarget := entryTarget
 
 	// Trim the trailing dot
-	adjustedTarget = strings.TrimSuffix(entryTarget, ".")
+	adjustedTarget := strings.TrimSuffix(entryTarget, ".")
 	adjustedTarget = strings.TrimSuffix(adjustedTarget, "."+domain)
 
 	return adjustedTarget, true

@@ -5,6 +5,7 @@ go 1.21
 toolchain go1.21.3
 
 require (
+	github.com/codingconcepts/env v0.0.0-20200821220118-a8fbf8d84482
 	github.com/golang/mock v1.6.0
 	github.com/golangci/golangci-lint v1.53.3
 	github.com/google/go-licenses v1.6.0
@@ -16,7 +17,6 @@ require (
 require (
 	github.com/aws/aws-sdk-go v1.44.311 // indirect
 	github.com/cenkalti/backoff/v4 v4.2.1 // indirect
-	github.com/codingconcepts/env v0.0.0-20200821220118-a8fbf8d84482 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect

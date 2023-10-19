@@ -91,10 +91,21 @@ Additional environment variables for domain filtering:
 
 | Environment variable           | Description                        |
 | ------------------------------ | ---------------------------------- |
+| DOMAIN_FILTER                  | Filtered domains                   |
 | EXCLUDE_DOMAIN_FILTER          | Excluded domains                   |
 | REGEXP_DOMAIN_FILTER           | Regex for filtered domains         |
-| EXCLUDE_DOMAIN_FILTER          | Excluded domains                   |
 | REGEXP_DOMAIN_FILTER_EXCLUSION | Regex for excluded domains         |
+
+If the `REGEXP_DOMAIN_FILTER` is set, the following variables will be used to
+build the filter:
+
+ - REGEXP_DOMAIN_FILTER
+ - REGEXP_DOMAIN_FILTER_EXCLUSION
+
+ otherwise, the filter will be built using:
+
+ - DOMAIN_FILTER
+ - EXCLUDE_DOMAIN_FILTER
 
 ## Development
 

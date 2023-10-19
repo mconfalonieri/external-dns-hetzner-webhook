@@ -1,6 +1,7 @@
 package hetzner
 
 import (
+	"regexp"
 	"testing"
 
 	"gotest.tools/assert"
@@ -27,6 +28,42 @@ func Test_GetDomainFilter(t *testing.T) {
 			name:     "No domain filters",
 			config:   Configuration{},
 			expected: endpoint.DomainFilter{},
+		},
+		{
+			name: "Simple domain filter",
+			config: Configuration{
+				DomainFilter: []string{"example.com"},
+			},
+			expected: endpoint.NewDomainFilter([]string{"example.com"}),
+		},
+		{
+			name: "Exclusion domain filter",
+			config: Configuration{
+				ExcludeDomains: []string{"example.com"},
+			},
+			expected: endpoint.NewDomainFilterWithExclusions(nil, []string{"example.com"}),
+		},
+		{
+			name: "Both domain filters",
+			config: Configuration{
+				DomainFilter:   []string{"example-included.com"},
+				ExcludeDomains: []string{"example-excluded.com"},
+			},
+			expected: endpoint.NewDomainFilterWithExclusions(
+				[]string{"example-included.com"},
+				[]string{"example-excluded.com"},
+			),
+		},
+		{
+			name: "Regular expression domain filters",
+			config: Configuration{
+				RegexDomainFilter:    `example-[a-z]+\.com`,
+				RegexDomainExclusion: `[a-z]+-excluded\.com`,
+			},
+			expected: endpoint.NewRegexDomainFilter(
+				regexp.MustCompile(`example-[a-z]+\.com`),
+				regexp.MustCompile(`[a-z]+-excluded\.com`),
+			),
 		},
 	}
 
