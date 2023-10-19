@@ -9,6 +9,7 @@ require (
 	github.com/golangci/golangci-lint v1.53.3
 	github.com/google/go-licenses v1.6.0
 	github.com/sirupsen/logrus v1.9.3
+	gotest.tools v2.2.0+incompatible
 	gotest.tools/gotestsum v1.10.0
 )
 
@@ -28,7 +29,6 @@ require (
 	github.com/stretchr/testify v1.8.4 // indirect
 	go.uber.org/goleak v1.2.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
-	gotest.tools v2.2.0+incompatible // indirect
 	k8s.io/apimachinery v0.27.4 // indirect
 	k8s.io/utils v0.0.0-20230505201702-9f6742963106 // indirect
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
