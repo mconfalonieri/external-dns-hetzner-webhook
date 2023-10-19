@@ -7,16 +7,11 @@ ifndef $(GOPATH)
     export GOPATH
 endif
 
-ARTIFACT_NAME = external-dns-ionos-webhook
-
-# logging
-LOG_LEVEL = debug
-LOG_ENVIRONMENT = production
-LOG_FORMAT = auto
+ARTIFACT_NAME = external-dns-hetzner-webhook
 
 
 REGISTRY ?= localhost:5001
-IMAGE_NAME ?= external-dns-ionos-webhook
+IMAGE_NAME ?= external-dns-hetzner-webhook
 IMAGE_TAG ?= latest
 IMAGE = $(REGISTRY)/$(IMAGE_NAME):$(IMAGE_TAG)
 
@@ -67,7 +62,7 @@ build: ## Build the binary
 
 .PHONY: run
 run:build ## Run the binary on local machine
-	LOG_LEVEL=$(LOG_LEVEL) LOG_ENVIRONMENT=$(LOG_ENVIRONMENT) LOG_FORMAT=$(LOG_FORMAT) build/bin/external-dns-ionos-webhook
+	build/bin/external-dns-hetzner-webhook
 
 ##@ Docker
 
@@ -91,7 +86,7 @@ unit-test: ## Run unit tests
 
 .PHONY: release-check
 release-check: ## Check if the release will work
-	GITHUB_SERVER_URL=github.com GITHUB_REPOSITORY=ionos-cloud/external-dns-ionos-webhook REGISTRY=$(REGISTRY) IMAGE_NAME=$(IMAGE_NAME) goreleaser release --snapshot --clean --skip-publish
+	GITHUB_SERVER_URL=github.com GITHUB_REPOSITORY=mconfalonieri/external-dns-hetzner-webhook REGISTRY=$(REGISTRY) IMAGE_NAME=$(IMAGE_NAME) goreleaser release --snapshot --clean --skip=publish
 
 ##@ License
 

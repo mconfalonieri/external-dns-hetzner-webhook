@@ -6,7 +6,7 @@ image:
 
 provider: webhook
 
-sources: 
+sources:
   - service
 
 logLevel: debug
@@ -16,7 +16,7 @@ extraArgs:
 
 sidecars:
   - name: webhook
-    image: localhost:5001/external-dns-ionos-webhook:latest
+    image: localhost:5001/external-dns-hetzner-webhook:latest
     imagePullPolicy: Always
     ports:
       - containerPort: 8888
@@ -34,25 +34,21 @@ sidecars:
       initialDelaySeconds: 10
       timeoutSeconds: 5
     env:
-      - name: LOG_LEVEL
-        value: debug
-      - name: LOG_FORMAT
-        value: txt
-#      - name: DRY_RUN
-#        value: "true"
-#      - name: DOMAIN_FILTER
-#        value: "alexkrieg.com,alexkrieg.de"
-#      - name: EXCLUDE_DOMAIN_FILTER
-#        value: "test.com,test.de"
-#      - name: REGEXP_DOMAIN_FILTER
-#        value: ""
-#      - name: REGEXP_DOMAIN_FILTER_EXCLUSION
-#        value: ""
+      - name: DRY_RUN
+        value: "true"
+      #      - name: DRY_RUN
+      #        value: "true"
+      #      - name: DOMAIN_FILTER
+      #        value: "alexkrieg.com,alexkrieg.de"
+      #      - name: EXCLUDE_DOMAIN_FILTER
+      #        value: "test.com,test.de"
+      #      - name: REGEXP_DOMAIN_FILTER
+      #        value: ""
+      #      - name: REGEXP_DOMAIN_FILTER_EXCLUSION
+      #        value: ""
       - name: SERVER_HOST
         value: "0.0.0.0"
-      - name: IONOS_API_KEY
+      - name: HETZNER_API_KEY
         value: "test-api-key"
-      - name: IONOS_API_URL
-        value: "http://dns-mockserver.dns-mockserver.svc.cluster.local"
-      - name: IONOS_DEBUG
+      - name: HETZNER_DEBUG
         value: "true"
