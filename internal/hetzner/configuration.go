@@ -11,15 +11,15 @@ import (
 
 // Configuration contains the Hetzner provider's configuration.
 type Configuration struct {
-	APIKey               string   `env:"HETZNER_API_KEY,notEmpty"`
-	DryRun               bool     `env:"DRY_RUN" envDefault:"false"`
-	Debug                bool     `env:"HETZNER_DEBUG" envDefault:"false"`
-	BatchSize            int      `env:"BATCH_SIZE" envDefault:"100"`
-	DefaultTTL           int      `env:"DEFAULT_TTL" envDefault:"7200"`
-	DomainFilter         []string `env:"DOMAIN_FILTER" envDefault:""`
-	ExcludeDomains       []string `env:"EXCLUDE_DOMAIN_FILTER" envDefault:""`
-	RegexDomainFilter    string   `env:"REGEXP_DOMAIN_FILTER" envDefault:""`
-	RegexDomainExclusion string   `env:"REGEXP_DOMAIN_FILTER_EXCLUSION" envDefault:""`
+	APIKey               string   `env:"HETZNER_API_KEY" required:"true"`
+	DryRun               bool     `env:"DRY_RUN" default:"false"`
+	Debug                bool     `env:"HETZNER_DEBUG" default:"false"`
+	BatchSize            int      `env:"BATCH_SIZE" default:"100"`
+	DefaultTTL           int      `env:"DEFAULT_TTL" default:"7200"`
+	DomainFilter         []string `env:"DOMAIN_FILTER" default:""`
+	ExcludeDomains       []string `env:"EXCLUDE_DOMAIN_FILTER" default:""`
+	RegexDomainFilter    string   `env:"REGEXP_DOMAIN_FILTER" default:""`
+	RegexDomainExclusion string   `env:"REGEXP_DOMAIN_FILTER_EXCLUSION" default:""`
 }
 
 // GetDomainFilter returns the domain filter from the configuration.
