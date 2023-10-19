@@ -1,8 +1,9 @@
 package main
 
 import (
-	"external-dns-hetzner-webhook/internal/hetzner"
 	"time"
+
+	"external-dns-hetzner-webhook/internal/hetzner"
 
 	log "github.com/sirupsen/logrus"
 	"sigs.k8s.io/external-dns/provider/webhook"
@@ -37,5 +38,4 @@ func main() {
 	<-startedChan
 
 	time.Sleep(100000 * time.Second)
-
 }

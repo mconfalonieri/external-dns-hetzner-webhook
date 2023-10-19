@@ -108,7 +108,8 @@ func buildTestZones() []hdns.Zone {
 			Modified: hdns.HetznerTime(testTime),
 			Name:     "b.com",
 			TTL:      7200,
-		}}
+		},
+	}
 	return zones
 }
 
@@ -404,7 +405,8 @@ func Test_mergeEndpointsByNameType(t *testing.T) {
 				{"A", "www.delta.com", "6.6.6.6"},
 			},
 			expectedLen: 4,
-		}}
+		},
+	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -550,7 +552,8 @@ func Test_makeEndpointTarget(t *testing.T) {
 				target: "www",
 				valid:  true,
 			},
-		}}
+		},
+	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
