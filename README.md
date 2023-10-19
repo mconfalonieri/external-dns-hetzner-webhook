@@ -51,19 +51,17 @@ sidecars:
         name: http
     livenessProbe:
       httpGet:
-        path: /health
+        path: /
         port: http
       initialDelaySeconds: 10
       timeoutSeconds: 5
     readinessProbe:
       httpGet:
-        path: /health
+        path: /
         port: http
       initialDelaySeconds: 10
       timeoutSeconds: 5
     env:
-      - name: LOG_LEVEL
-        value: debug
       - name: HETZNER_API_KEY
         valueFrom:
           secretKeyRef:
@@ -119,7 +117,7 @@ The webhook can be deployed locally with a kind cluster. As a prerequisite, you 
 - [kubectl](https://kubernetes.io/docs/tasks/tools/)
 
 ```shell
-# setup the kind cluster and deploy external-dns with ionos webhook and a dns mockserver
+# setup the kind cluster and deploy external-dns with Hetzner webhook and a dns mockserver
 ./scripts/deploy_on_kind.sh
 
 # check if the webhook is running

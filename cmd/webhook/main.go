@@ -15,8 +15,8 @@ func main() {
 
 	// instantiate the configuration
 	config := &hetzner.Configuration{}
-	log.Info("Starting server.")
-	// instantiate the aws provider
+	log.Infof("Starting server on %s", srvOptions.hostname)
+	// instantiate the Hetzner provider
 	provider, err := hetzner.NewHetznerProvider(config)
 	if err != nil {
 		panic(err)

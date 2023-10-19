@@ -9,11 +9,6 @@ endif
 
 ARTIFACT_NAME = external-dns-hetzner-webhook
 
-# logging
-LOG_LEVEL = debug
-LOG_ENVIRONMENT = production
-LOG_FORMAT = auto
-
 
 REGISTRY ?= localhost:5001
 IMAGE_NAME ?= external-dns-hetzner-webhook
@@ -67,7 +62,7 @@ build: ## Build the binary
 
 .PHONY: run
 run:build ## Run the binary on local machine
-	LOG_LEVEL=$(LOG_LEVEL) LOG_ENVIRONMENT=$(LOG_ENVIRONMENT) LOG_FORMAT=$(LOG_FORMAT) build/bin/external-dns-ionos-webhook
+	build/bin/external-dns-hetzner-webhook
 
 ##@ Docker
 

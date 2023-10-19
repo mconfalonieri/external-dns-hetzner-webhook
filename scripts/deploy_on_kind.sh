@@ -8,10 +8,10 @@ LOCAL_REGISTRY_NAME=kind-registry
 LOCAL_REGISTRY_RUNNING=$(docker ps -a | grep -q $LOCAL_REGISTRY_NAME && echo "true" || echo "false")
 
 # docker
-IMAGE_EXTERNAL_DNS_WEBHOOK_PROVIDER=ghcr.io/ionos-cloud/external-dns-webhook-provider:latest
+IMAGE_EXTERNAL_DNS_WEBHOOK_PROVIDER=ghcr.io/hetzner-cloud/external-dns-webhook-provider:latest
 
 IMAGE_REGISTRY=localhost:$LOCAL_REGISTRY_PORT
-IMAGE_NAME=external-dns-ionos-webhook
+IMAGE_NAME=external-dns-hetzner-webhook
 IMAGE=$IMAGE_REGISTRY/$IMAGE_NAME
 
 #kind
@@ -22,7 +22,7 @@ KIND_CLUSTER_WAIT=60s
 
 ## helm
 HELM_CHART=bitnami/external-dns
-HELM_RELEASE_NAME=ionos-external-dns
+HELM_RELEASE_NAME=hetzner-external-dns
 HELM_VALUES_FILE=deployments/helm/local-kind-values.yaml
 
 HELM_CHART_REPO_URL=https://charts.bitnami.com/bitnami
