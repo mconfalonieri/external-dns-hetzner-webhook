@@ -85,7 +85,6 @@ The following environment variables are available:
 | HETZNER_DEBUG   | Enables debugging messages         | Default: `false`           |
 | BATCH_SIZE      | Number of zones per call           | Default: `100`, max: `100` |
 | DEFAULT_TTL     | Default TTL if not specified       | Default: `7200`            |
-| DOMAIN_FILTER   | Filtered domains                   |                            |
 
 Additional environment variables for domain filtering:
 
