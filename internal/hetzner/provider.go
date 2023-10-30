@@ -59,6 +59,13 @@ type HetznerProvider struct {
 
 // NewHetznerProvider creates a new HetznerProvider instance.
 func NewHetznerProvider(config *Configuration) (*HetznerProvider, error) {
+	var logLevel log.Level
+	if config.Debug {
+		logLevel = log.DebugLevel
+	} else {
+		logLevel = log.InfoLevel
+	}
+	log.SetLevel(logLevel)
 	return &HetznerProvider{
 		client: &hdns.Client{
 			ApiKey: config.APIKey,
@@ -107,6 +114,7 @@ func (c *hetznerChanges) Empty() bool {
 func (p *HetznerProvider) Zones(ctx context.Context) ([]hdns.Zone, error) {
 	result := []hdns.Zone{}
 
+	log.Debug("Fetching all zones.")
 	zones, err := p.fetchZones(ctx)
 	if err != nil {
 		return nil, err
@@ -114,7 +122,10 @@ func (p *HetznerProvider) Zones(ctx context.Context) ([]hdns.Zone, error) {
 
 	for _, zone := range zones {
 		if p.domainFilter.Match(zone.Name) {
+			log.Debugf("Adding fetched zone [%s]", zone.Name)
 			result = append(result, zone)
+		} else {
+			log.Debugf("Discarding fetched zone [%s]", zone.Name)
 		}
 	}
 
@@ -187,6 +198,7 @@ func (p *HetznerProvider) Records(ctx context.Context) ([]*endpoint.Endpoint, er
 
 	endpoints := []*endpoint.Endpoint{}
 	for _, zone := range zones {
+		log.Debugf("Fetching all records from zone [%s].", zone.Name)
 		records, err := p.fetchRecords(ctx, zone.ID)
 		if err != nil {
 			return nil, err
@@ -201,10 +213,13 @@ func (p *HetznerProvider) Records(ctx context.Context) ([]*endpoint.Endpoint, er
 				if r.Name == "@" {
 					name = zone.Name
 				}
-
+				log.Debugf("Adding endpoint [%s] of supported type %s.", name, r.Type)
 				ep := endpoint.NewEndpoint(name, string(r.Type), r.Value)
 				ep.RecordTTL = endpoint.TTL(r.TTL)
 				endpoints = append(endpoints, ep)
+			} else {
+				log.Debugf("Discarding record [%s.%s] on unsupported type %s.", r.Name,
+					zone.Name, r.Type)
 			}
 		}
 	}
@@ -663,6 +678,7 @@ func processDeleteActions(
 
 // ApplyChanges applies the given set of generic changes to the provider.
 func (p *HetznerProvider) ApplyChanges(ctx context.Context, planChanges *plan.Changes) error {
+	log.Debug("Applying changes.")
 	// TODO: This should only retrieve zones affected by the given `planChanges`.
 	recordsByZoneID, zoneIDNameMapper, err := p.getRecordsByZoneID(ctx)
 	if err != nil {

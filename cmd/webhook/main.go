@@ -12,7 +12,7 @@ import (
 )
 
 type serverOptions struct {
-	Hostname string `env:"SERVER_HOST" default:"0.0.0.0"`
+	Hostname string `env:"SERVER_HOST" default:"0.0.0.0:8888"`
 }
 
 func main() {
@@ -26,6 +26,7 @@ func main() {
 		log.Fatal(err)
 	}
 	log.Infof("Starting server on %s", srvOptions.Hostname)
+
 	// instantiate the Hetzner provider
 	provider, err := hetzner.NewHetznerProvider(config)
 	if err != nil {
