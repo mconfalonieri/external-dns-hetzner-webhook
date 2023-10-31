@@ -59,13 +59,7 @@ type HetznerProvider struct {
 
 // NewHetznerProvider creates a new HetznerProvider instance.
 func NewHetznerProvider(config *Configuration) (*HetznerProvider, error) {
-	var logLevel log.Level
-	if config.Debug {
-		logLevel = log.DebugLevel
-	} else {
-		logLevel = log.InfoLevel
-	}
-	log.SetLevel(logLevel)
+	log.SetLevel(log.DebugLevel)
 	return &HetznerProvider{
 		client: &hdns.Client{
 			ApiKey: config.APIKey,
