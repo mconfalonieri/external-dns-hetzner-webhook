@@ -70,7 +70,6 @@ func NewHetznerProvider(config *Configuration) (*HetznerProvider, error) {
 	return &HetznerProvider{
 		client: &hdns.Client{
 			ApiKey: config.APIKey,
-			Debug:  config.Debug,
 		},
 		batchSize:    config.BatchSize,
 		debug:        config.Debug,
@@ -118,6 +117,7 @@ func (p *HetznerProvider) Zones(ctx context.Context) ([]hdns.Zone, error) {
 	log.Debug("Fetching all zones.")
 	zones, err := p.fetchZones(ctx)
 	if err != nil {
+		log.Error(err.Error())
 		return nil, err
 	}
 
@@ -202,6 +202,7 @@ func (p *HetznerProvider) Records(ctx context.Context) ([]*endpoint.Endpoint, er
 		log.Debugf("Fetching all records from zone [%s].", zone.Name)
 		records, err := p.fetchRecords(ctx, zone.ID)
 		if err != nil {
+			log.Error(err.Error())
 			return nil, err
 		}
 
@@ -295,6 +296,7 @@ func (p *HetznerProvider) getRecordsByZoneID(ctx context.Context) (map[string][]
 	for _, zone := range zones {
 		records, err := p.fetchRecords(ctx, zone.ID)
 		if err != nil {
+			log.Error(err.Error())
 			return nil, nil, err
 		}
 
@@ -683,6 +685,7 @@ func (p *HetznerProvider) ApplyChanges(ctx context.Context, planChanges *plan.Ch
 	// TODO: This should only retrieve zones affected by the given `planChanges`.
 	recordsByZoneID, zoneIDNameMapper, err := p.getRecordsByZoneID(ctx)
 	if err != nil {
+		log.Error(err.Error())
 		return err
 	}
 
@@ -693,14 +696,17 @@ func (p *HetznerProvider) ApplyChanges(ctx context.Context, planChanges *plan.Ch
 	var changes hetznerChanges
 
 	if err := processCreateActions(zoneIDNameMapper, recordsByZoneID, createsByZoneID, &changes, p.defaultTTL); err != nil {
+		log.Error(err.Error())
 		return err
 	}
 
 	if err := processUpdateActions(zoneIDNameMapper, recordsByZoneID, updatesByZoneID, &changes, p.defaultTTL); err != nil {
+		log.Error(err.Error())
 		return err
 	}
 
 	if err := processDeleteActions(zoneIDNameMapper, recordsByZoneID, deletesByZoneID, &changes); err != nil {
+		log.Error(err.Error())
 		return err
 	}
 
