@@ -59,7 +59,14 @@ type HetznerProvider struct {
 
 // NewHetznerProvider creates a new HetznerProvider instance.
 func NewHetznerProvider(config *Configuration) (*HetznerProvider, error) {
-	log.SetLevel(log.DebugLevel)
+	var logLevel log.Level
+	if config.Debug {
+		logLevel = log.DebugLevel
+	} else {
+		logLevel = log.InfoLevel
+	}
+	log.SetLevel(logLevel)
+
 	return &HetznerProvider{
 		client: &hdns.Client{
 			ApiKey: config.APIKey,
@@ -69,7 +76,7 @@ func NewHetznerProvider(config *Configuration) (*HetznerProvider, error) {
 		debug:        config.Debug,
 		dryRun:       config.DryRun,
 		defaultTTL:   config.DefaultTTL,
-		domainFilter: config.GetDomainFilter(),
+		domainFilter: GetDomainFilter(*config),
 	}, nil
 }
 
@@ -244,6 +251,7 @@ func (p *HetznerProvider) fetchZones(ctx context.Context) ([]hdns.Zone, error) {
 	allZones := []hdns.Zone{}
 	page := 1
 	for {
+		log.Debugf("Getting %d results from page %d", p.batchSize, page)
 		resp, err := p.client.GetZones(ctx, "", "", page, p.batchSize)
 		if err != nil {
 			return nil, err
@@ -257,12 +265,11 @@ func (p *HetznerProvider) fetchZones(ctx context.Context) ([]hdns.Zone, error) {
 
 		page = resp.Meta.Pagination.Page + 1
 	}
-	if p.debug {
-		log.Debugf("Fetched %d zones:", len(allZones))
-		for _, z := range allZones {
-			log.Debugf("- [ID:%s] %s", z.ID, z.Name)
-		}
+	log.Debugf("Fetched %d zones:", len(allZones))
+	for _, z := range allZones {
+		log.Debugf("- [ID:%s] %s", z.ID, z.Name)
 	}
+
 	return allZones, nil
 }
 

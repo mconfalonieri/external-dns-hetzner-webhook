@@ -17,7 +17,7 @@ func Test_GetDomainFilter(t *testing.T) {
 	}
 
 	run := func(t *testing.T, tc testCase) {
-		actual := tc.config.GetDomainFilter()
+		actual := GetDomainFilter(tc.config)
 		actualJSON, _ := actual.MarshalJSON()
 		expectedJSON, _ := tc.expected.MarshalJSON()
 		assert.DeepEqual(t, actualJSON, expectedJSON)

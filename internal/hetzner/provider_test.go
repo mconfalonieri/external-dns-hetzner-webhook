@@ -157,7 +157,7 @@ func Test_NewHetznerProvider(t *testing.T) {
 	assert.Equal(t, cfg.BatchSize, p.batchSize)
 	assert.Equal(t, cfg.DefaultTTL, p.defaultTTL)
 	actualJSON, _ := p.domainFilter.MarshalJSON()
-	expectedJSON, _ := cfg.GetDomainFilter().MarshalJSON()
+	expectedJSON, _ := GetDomainFilter(cfg).MarshalJSON()
 	assert.DeepEqual(t, actualJSON, expectedJSON)
 }
 

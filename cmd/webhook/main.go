@@ -22,7 +22,7 @@ func main() {
 	}
 	// instantiate the configuration
 	config := &hetzner.Configuration{}
-	if err := env.Set(&srvOptions); err != nil {
+	if err := env.Set(&config); err != nil {
 		log.Fatal(err)
 	}
 	log.Infof("Starting server on %s", srvOptions.Hostname)
