@@ -14,10 +14,11 @@ import (
 )
 
 func loop(status *server.HealthStatus) {
-	exitSignal := make(chan os.Signal)
+	exitSignal := make(chan os.Signal, 1)
 	signal.Notify(exitSignal, syscall.SIGINT, syscall.SIGTERM)
-	<-exitSignal
+	signal := <-exitSignal
 
+	log.Infof("Signal %s received. Shutting down the webhook.", signal.String())
 	status.SetHealth(false)
 	status.SetReady(false)
 }
@@ -30,6 +31,7 @@ func main() {
 	}
 
 	// Start health server
+	log.Infof("Starting liveness and readiness server on %s", serverOptions.GetHealthAddress())
 	healthStatus := server.HealthStatus{}
 	healthServer := server.HealthServer{}
 	go healthServer.Start(&healthStatus, nil, *serverOptions)
@@ -46,6 +48,7 @@ func main() {
 		panic(err)
 	}
 
+	log.Infof("Starting webhook server on %s", serverOptions.GetHealthAddress())
 	startedChan := make(chan struct{})
 	go webhook.StartHTTPApi(
 		provider, startedChan,
@@ -57,5 +60,6 @@ func main() {
 	healthStatus.SetHealth(true)
 	healthStatus.SetReady(true)
 
+	// Loops until a signal tells us to exit
 	loop(&healthStatus)
 }
