@@ -56,11 +56,15 @@ type HealthServer struct {
 // healthy flag is set to "true" and 503/Service Unavailable otherwise.
 func (s HealthServer) livenessHandler(w http.ResponseWriter, r *http.Request) {
 	healthy := s.status.IsHealthy()
-	if healthy == true {
-		w.Write([]byte(http.StatusText(http.StatusOK)))
+	var err error
+	if healthy {
+		_, err = w.Write([]byte(http.StatusText(http.StatusOK)))
 	} else {
 		w.WriteHeader(http.StatusServiceUnavailable)
-		w.Write([]byte(http.StatusText(http.StatusServiceUnavailable)))
+		_, err = w.Write([]byte(http.StatusText(http.StatusServiceUnavailable)))
+	}
+	if err != nil {
+		log.Warn("Could not answer to a liveness probe: ", err.Error())
 	}
 }
 
@@ -68,11 +72,15 @@ func (s HealthServer) livenessHandler(w http.ResponseWriter, r *http.Request) {
 // healthy flag is set to "true" and 503/Service Unavailable otherwise.
 func (s HealthServer) readinessHandler(w http.ResponseWriter, r *http.Request) {
 	ready := s.status.IsReady()
-	if ready == true {
-		w.Write([]byte(http.StatusText(http.StatusOK)))
+	var err error
+	if ready {
+		_, err = w.Write([]byte(http.StatusText(http.StatusOK)))
 	} else {
 		w.WriteHeader(http.StatusServiceUnavailable)
-		w.Write([]byte(http.StatusText(http.StatusServiceUnavailable)))
+		_, err = w.Write([]byte(http.StatusText(http.StatusServiceUnavailable)))
+	}
+	if err != nil {
+		log.Warn("Could not answer to a readiness probe: ", err.Error())
 	}
 }
 
