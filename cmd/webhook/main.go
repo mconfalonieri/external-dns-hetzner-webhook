@@ -1,11 +1,12 @@
 package main
 
 import (
-	"external-dns-hetzner-webhook/internal/hetzner"
-	"external-dns-hetzner-webhook/internal/server"
 	"os"
 	"os/signal"
 	"syscall"
+
+	"external-dns-hetzner-webhook/internal/hetzner"
+	"external-dns-hetzner-webhook/internal/server"
 
 	log "github.com/sirupsen/logrus"
 	"sigs.k8s.io/external-dns/provider/webhook"

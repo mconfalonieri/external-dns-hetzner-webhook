@@ -6,6 +6,7 @@ toolchain go1.21.3
 
 require (
 	github.com/codingconcepts/env v0.0.0-20200821220118-a8fbf8d84482
+	github.com/golang/mock v1.6.0
 	github.com/golangci/golangci-lint v1.53.3
 	github.com/google/go-licenses v1.6.0
 	github.com/sirupsen/logrus v1.9.3
