@@ -28,6 +28,10 @@ a [sidecar container](https://kubernetes.io/docs/concepts/workloads/pods/#worklo
 ExternalDNS pod
 using the [Bitnami Helm charts for ExternalDNS](https://github.com/bitnami/charts/tree/main/bitnami/external-dns).
 
+⚠️  Webhooks are still an experimental feature of External DNS. The image used in this configuration example
+was created by me from the External DNS' master branch to test the webhook and is specific for Linux/amd64.
+This notice and configuration file will be updated once a webhook version of External DNS will be released.
+
 ```shell
 helm repo add bitnami https://charts.bitnami.com/bitnami
 kubectl create secret generic hetzner-credentials --from-literal=api-key='<EXAMPLE_PLEASE_REPLACE>'
@@ -37,9 +41,9 @@ You can then create the helm values file, for example
 
 ```yaml
 image:
-  registry: ghcr.io
-  repository: mconfalonieri/external-dns-webhook-provider
-  tag: latest
+  registry: docker.io
+  repository: mconfalonieri/external-dns
+  tag: v0.13.6-142-gd8f408b8
 
 provider: webhook
 
@@ -73,14 +77,6 @@ sidecars:
           secretKeyRef:
             name: hetzner-credentials
             key: api-key
-      - name: WEBHOOK_HOST
-        value: "localhost"
-      - name: WEBHOOK_PORT
-        value: 8888
-      - name: HEALTH_HOST
-        value: "0.0.0.0"
-      - name: HEALTH_PORT
-        value: 8080
 ```
 
 And then:
@@ -101,7 +97,7 @@ The following environment variables are available:
 | DEFAULT_TTL     | Default TTL if not specified     | Default: `7200`            |
 | WEBHOOK_HOST    | Webhook hostname or IP address   | Default: `localhost`       |
 | WEBHOOK_PORT    | Webhook port                     | Default: `8888`            |
-| HEALTH_HOST     | Liveness and readiness hostname  | Default: `localhost`       |
+| HEALTH_HOST     | Liveness and readiness hostname  | Default: `0.0.0.0`         |
 | HEALTH_PORT     | Liveness and readiness port      | Default: `8080`            |
 | READ_TIMEOUT    | Servers' read timeout in ms      | Default: `60000`           |
 | WRITE_TIMEOUT   | Servers' write timeout in ms     | Default: `60000`           |
