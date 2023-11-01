@@ -32,17 +32,22 @@ import (
 	"sigs.k8s.io/external-dns/plan"
 	"sigs.k8s.io/external-dns/provider"
 
-	hdns "github.com/panta/go-hetzner-dns"
+	hdns "github.com/jobstoit/hetzner-dns-go/dns"
 	log "github.com/sirupsen/logrus"
 )
 
 // apiClient is an abstraction of the REST API client.
 type apiClient interface {
-	GetZones(ctx context.Context, name string, searchName string, page int, perPage int) (*hdns.ZonesResponse, error)
-	GetRecords(ctx context.Context, zone_id string, page int, perPage int) (*hdns.RecordsResponse, error)
-	CreateRecord(ctx context.Context, record hdns.RecordRequest) (*hdns.RecordResponse, error)
-	UpdateRecord(ctx context.Context, record hdns.RecordRequest) (*hdns.RecordResponse, error)
-	DeleteRecord(ctx context.Context, recordId string) error
+	// GetZones returns the available zones.
+	GetZones(ctx context.Context, opts hdns.ZoneListOpts) ([]*hdns.Zone, *hdns.Response, error)
+	// GetRecords returns the records for a given zone.
+	GetRecords(ctx context.Context, opts hdns.RecordListOpts) ([]*hdns.Record, *hdns.Response, error)
+	// CreateRecord creates a record.
+	CreateRecord(ctx context.Context, opts hdns.RecordCreateOpts) (*hdns.Record, *hdns.Response, error)
+	// UpdateRecord updates a single record.
+	UpdateRecord(ctx context.Context, record *hdns.Record, opts hdns.RecordUpdateOpts) (*hdns.Record, *hdns.Response, error)
+	// DeleteRecord deletes a single record.
+	DeleteRecord(ctx context.Context, record *hdns.Record) (*hdns.Response, error)
 }
 
 // HetznerProvider contains the logic for connecting to the Hetzner DNS API.
@@ -68,9 +73,7 @@ func NewHetznerProvider(config *Configuration) (*HetznerProvider, error) {
 	log.SetLevel(logLevel)
 
 	return &HetznerProvider{
-		client: &hdns.Client{
-			ApiKey: config.APIKey,
-		},
+		client:       NewHetznerDNS(config.APIKey),
 		batchSize:    config.BatchSize,
 		debug:        config.Debug,
 		dryRun:       config.DryRun,
@@ -79,33 +82,29 @@ func NewHetznerProvider(config *Configuration) (*HetznerProvider, error) {
 	}, nil
 }
 
-// hetznerChangeCreate contains a create request.
 type hetznerChangeCreate struct {
 	Domain  string
-	Request *hdns.RecordRequest
+	Options *hdns.RecordCreateOpts
 }
 
-// hetznerChangeUpdate contains an update request.
 type hetznerChangeUpdate struct {
 	Domain       string
 	DomainRecord hdns.Record
-	Request      *hdns.RecordRequest
+	Options      *hdns.RecordUpdateOpts
 }
 
-// hetznerChangedelete contains a delete request.
 type hetznerChangeDelete struct {
 	Domain   string
 	RecordID string
 }
 
-// hetznerChanges contains all changes to apply to DNS
+// HetznerChange contains all changes to apply to DNS
 type hetznerChanges struct {
 	Creates []*hetznerChangeCreate
 	Updates []*hetznerChangeUpdate
 	Deletes []*hetznerChangeDelete
 }
 
-// Empty is true if there are no changes.
 func (c *hetznerChanges) Empty() bool {
 	return len(c.Creates) == 0 && len(c.Updates) == 0 && len(c.Deletes) == 0
 }
@@ -114,19 +113,14 @@ func (c *hetznerChanges) Empty() bool {
 func (p *HetznerProvider) Zones(ctx context.Context) ([]hdns.Zone, error) {
 	result := []hdns.Zone{}
 
-	log.Debug("Fetching all zones.")
 	zones, err := p.fetchZones(ctx)
 	if err != nil {
-		log.Error(err.Error())
 		return nil, err
 	}
 
 	for _, zone := range zones {
 		if p.domainFilter.Match(zone.Name) {
-			log.Debugf("Adding fetched zone [%s]", zone.Name)
 			result = append(result, zone)
-		} else {
-			log.Debugf("Discarding fetched zone [%s]", zone.Name)
 		}
 	}
 
@@ -135,7 +129,6 @@ func (p *HetznerProvider) Zones(ctx context.Context) ([]hdns.Zone, error) {
 	return result, nil
 }
 
-// AdjustEndpoints adjusts the endpoint conforming to Hetzner's requirements.
 func (p HetznerProvider) AdjustEndpoints(endpoints []*endpoint.Endpoint) ([]*endpoint.Endpoint, error) {
 	adjustedEndpoints := []*endpoint.Endpoint{}
 
@@ -143,7 +136,7 @@ func (p HetznerProvider) AdjustEndpoints(endpoints []*endpoint.Endpoint) ([]*end
 		_, zoneName := p.zoneIDNameMapper.FindZone(ep.DNSName)
 		adjustedTargets := endpoint.Targets{}
 		for _, t := range ep.Targets {
-			adjustedTarget, producedValidTarget := makeEndpointTarget(zoneName, t, ep.RecordType)
+			adjustedTarget, producedValidTarget := p.makeEndpointTarget(zoneName, t, ep.RecordType)
 			if producedValidTarget {
 				adjustedTargets = append(adjustedTargets, adjustedTarget)
 			}
@@ -156,8 +149,7 @@ func (p HetznerProvider) AdjustEndpoints(endpoints []*endpoint.Endpoint) ([]*end
 	return adjustedEndpoints, nil
 }
 
-// mergeEndpointsByNameType merges endpoints with the same Name and Type into a
-// single endpoint with multiple Targets.
+// Merge Endpoints with the same Name and Type into a single endpoint with multiple Targets.
 func mergeEndpointsByNameType(endpoints []*endpoint.Endpoint) []*endpoint.Endpoint {
 	endpointsByNameType := map[string][]*endpoint.Endpoint{}
 
@@ -199,10 +191,8 @@ func (p *HetznerProvider) Records(ctx context.Context) ([]*endpoint.Endpoint, er
 
 	endpoints := []*endpoint.Endpoint{}
 	for _, zone := range zones {
-		log.Debugf("Fetching all records from zone [%s].", zone.Name)
 		records, err := p.fetchRecords(ctx, zone.ID)
 		if err != nil {
-			log.Error(err.Error())
 			return nil, err
 		}
 
@@ -215,13 +205,10 @@ func (p *HetznerProvider) Records(ctx context.Context) ([]*endpoint.Endpoint, er
 				if r.Name == "@" {
 					name = zone.Name
 				}
-				log.Debugf("Adding endpoint [%s] of supported type %s.", name, r.Type)
+
 				ep := endpoint.NewEndpoint(name, string(r.Type), r.Value)
-				ep.RecordTTL = endpoint.TTL(r.TTL)
+				ep.RecordTTL = endpoint.TTL(r.Ttl)
 				endpoints = append(endpoints, ep)
-			} else {
-				log.Debugf("Discarding record [%s.%s] on unsupported type %s.", r.Name,
-					zone.Name, r.Type)
 			}
 		}
 	}
@@ -238,43 +225,51 @@ func (p *HetznerProvider) Records(ctx context.Context) ([]*endpoint.Endpoint, er
 	return endpoints, nil
 }
 
-// fetchRecords fetches all records for a given zone.
 func (p *HetznerProvider) fetchRecords(ctx context.Context, zoneID string) ([]hdns.Record, error) {
-	resp, err := p.client.GetRecords(ctx, zoneID, 0, 0)
-	if err != nil {
-		return nil, err
-	}
-	return resp.Records, nil
-}
-
-// fetchZones fetches all the zones.
-func (p *HetznerProvider) fetchZones(ctx context.Context) ([]hdns.Zone, error) {
-	allZones := []hdns.Zone{}
-	page := 1
+	allRecords := []hdns.Record{}
+	listOptions := &hdns.RecordListOpts{ListOpts: hdns.ListOpts{PerPage: p.batchSize}, ZoneID: zoneID}
 	for {
-		log.Debugf("Getting %d results from page %d", p.batchSize, page)
-		resp, err := p.client.GetZones(ctx, "", "", page, p.batchSize)
+		records, resp, err := p.client.GetRecords(ctx, *listOptions)
 		if err != nil {
 			return nil, err
 		}
-		zones := resp.Zones
-		allZones = append(allZones, zones...)
+		for _, r := range records {
+			allRecords = append(allRecords, *r)
+		}
 
-		if resp.Meta.Pagination.LastPage <= resp.Meta.Pagination.Page {
+		if resp == nil || resp.Meta.Pagination == nil || resp.Meta.Pagination.LastPage <= resp.Meta.Pagination.Page {
 			break
 		}
 
-		page = resp.Meta.Pagination.Page + 1
+		listOptions.Page = resp.Meta.Pagination.Page + 1
 	}
-	log.Debugf("Fetched %d zones:", len(allZones))
-	for _, z := range allZones {
-		log.Debugf("- [ID:%s] %s", z.ID, z.Name)
+
+	return allRecords, nil
+}
+
+func (p *HetznerProvider) fetchZones(ctx context.Context) ([]hdns.Zone, error) {
+	allZones := []hdns.Zone{}
+	listOptions := &hdns.ZoneListOpts{ListOpts: hdns.ListOpts{PerPage: p.batchSize}}
+	for {
+		zones, resp, err := p.client.GetZones(ctx, *listOptions)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, z := range zones {
+			allZones = append(allZones, *z)
+		}
+
+		if resp == nil || resp.Meta.Pagination == nil || resp.Meta.Pagination.LastPage <= resp.Meta.Pagination.Page {
+			break
+		}
+
+		listOptions.Page = resp.Meta.Pagination.Page + 1
 	}
 
 	return allZones, nil
 }
 
-// ensureZoneIDMappingPresent ensures that all the zone IDs are mapped.
 func (p *HetznerProvider) ensureZoneIDMappingPresent(zones []hdns.Zone) {
 	zoneIDNameMapper := provider.ZoneIDName{}
 	for _, z := range zones {
@@ -283,7 +278,6 @@ func (p *HetznerProvider) ensureZoneIDMappingPresent(zones []hdns.Zone) {
 	p.zoneIDNameMapper = zoneIDNameMapper
 }
 
-// getRecordsByZoneID returns the records for a given zone.
 func (p *HetznerProvider) getRecordsByZoneID(ctx context.Context) (map[string][]hdns.Record, provider.ZoneIDName, error) {
 	recordsByZoneID := map[string][]hdns.Record{}
 
@@ -296,7 +290,6 @@ func (p *HetznerProvider) getRecordsByZoneID(ctx context.Context) (map[string][]
 	for _, zone := range zones {
 		records, err := p.fetchRecords(ctx, zone.ID)
 		if err != nil {
-			log.Error(err.Error())
 			return nil, nil, err
 		}
 
@@ -306,8 +299,7 @@ func (p *HetznerProvider) getRecordsByZoneID(ctx context.Context) (map[string][]
 	return recordsByZoneID, p.zoneIDNameMapper, nil
 }
 
-// makeEndpointName makes a endpoint name that conforms to Hetzner DNS
-// requirements:
+// Make a endpoint name that conforms to Hetzner DNS requirements:
 // - Records at root of the zone have `@` as the name
 func makeEndpointName(domain, entryName, epType string) string {
 	// Trim the domain off the name if present.
@@ -321,17 +313,17 @@ func makeEndpointName(domain, entryName, epType string) string {
 	return adjustedName
 }
 
-// makeEndpointTarget makes a endpoint name that conforms to Hetzner DNS
-// requirements:
+// Make a endpoint name that conforms to Hetzner DNS requirements:
 // - Records at root of the zone have `@` as the name
 // - A-Records should respect ignored networks and should only contain IPv4 entries
-func makeEndpointTarget(domain, entryTarget, recordType string) (string, bool) {
+func (p HetznerProvider) makeEndpointTarget(domain, entryTarget, recordType string) (string, bool) {
 	if domain == "" {
 		return entryTarget, true
 	}
+	adjustedTarget := entryTarget
 
 	// Trim the trailing dot
-	adjustedTarget := strings.TrimSuffix(entryTarget, ".")
+	adjustedTarget = strings.TrimSuffix(entryTarget, ".")
 	adjustedTarget = strings.TrimSuffix(adjustedTarget, "."+domain)
 
 	return adjustedTarget, true
@@ -354,20 +346,23 @@ func (p *HetznerProvider) submitChanges(ctx context.Context, changes *hetznerCha
 			continue
 		}
 
-		err := p.client.DeleteRecord(ctx, d.RecordID)
+		_, err := p.client.DeleteRecord(ctx, &hdns.Record{ID: d.RecordID})
 		if err != nil {
 			return err
 		}
 	}
 
 	for _, c := range changes.Creates {
-		ttl := c.Request.TTL
+		ttl := -1
+		if c.Options.Ttl != nil {
+			ttl = *c.Options.Ttl
+		}
 		log.WithFields(log.Fields{
 			"domain":     c.Domain,
-			"zoneID":     c.Request.ZoneID,
-			"dnsName":    c.Request.Name,
-			"recordType": c.Request.Type,
-			"value":      c.Request.Value,
+			"zoneID":     c.Options.Zone.ID,
+			"dnsName":    c.Options.Name,
+			"recordType": c.Options.Type,
+			"value":      c.Options.Value,
 			"ttl":        ttl,
 		}).Debug("Creating domain record")
 
@@ -375,20 +370,23 @@ func (p *HetznerProvider) submitChanges(ctx context.Context, changes *hetznerCha
 			continue
 		}
 
-		_, err := p.client.CreateRecord(ctx, *c.Request)
+		_, _, err := p.client.CreateRecord(ctx, hdns.RecordCreateOpts{Name: c.Options.Name, Ttl: c.Options.Ttl, Type: c.Options.Type, Value: c.Options.Value, Zone: c.Options.Zone})
 		if err != nil {
 			return err
 		}
 	}
 
 	for _, u := range changes.Updates {
-		ttl := u.Request.TTL
+		ttl := -1
+		if u.Options.Ttl != nil {
+			ttl = *u.Options.Ttl
+		}
 		log.WithFields(log.Fields{
 			"domain":     u.Domain,
-			"zoneID":     u.Request.ZoneID,
-			"dnsName":    u.Request.Name,
-			"recordType": u.Request.Type,
-			"value":      u.Request.Value,
+			"zoneID":     u.Options.Zone.ID,
+			"dnsName":    u.Options.Name,
+			"recordType": u.Options.Type,
+			"value":      u.Options.Value,
 			"ttl":        ttl,
 		}).Debug("Updating domain record")
 
@@ -396,7 +394,7 @@ func (p *HetznerProvider) submitChanges(ctx context.Context, changes *hetznerCha
 			continue
 		}
 
-		_, err := p.client.UpdateRecord(ctx, *u.Request)
+		_, _, err := p.client.UpdateRecord(ctx, &u.DomainRecord, hdns.RecordUpdateOpts{Name: u.Options.Name, Ttl: u.Options.Ttl, Type: u.Options.Type, Value: u.Options.Value, Zone: u.Options.Zone})
 		if err != nil {
 			return err
 		}
@@ -449,7 +447,6 @@ func processCreateActions(
 	recordsByZoneID map[string][]hdns.Record,
 	createsByZoneID map[string][]*endpoint.Endpoint,
 	changes *hetznerChanges,
-	defaultTTL int,
 ) error {
 	// Process endpoints that need to be created.
 	for zoneID, endpoints := range createsByZoneID {
@@ -474,10 +471,10 @@ func processCreateActions(
 				}).Warn("Preexisting records exist which should not exist for creation actions.")
 			}
 
-			ttl := defaultTTL
+			var ttl *int = nil
 			configuredTTL, ttlIsSet := getTTLFromEndpoint(ep)
 			if ttlIsSet {
-				ttl = configuredTTL
+				ttl = &configuredTTL
 			}
 
 			for _, target := range ep.Targets {
@@ -486,17 +483,25 @@ func processCreateActions(
 					"dnsName":    ep.DNSName,
 					"recordType": ep.RecordType,
 					"target":     target,
-					"ttl":        ttl,
+					"ttl": func() interface{} {
+						if ttl != nil {
+							return *ttl
+						}
+						return "default"
+					}(),
 				}).Warn("Creating new target")
 
 				changes.Creates = append(changes.Creates, &hetznerChangeCreate{
 					Domain: zoneName,
-					Request: &hdns.RecordRequest{
-						Name:   makeEndpointName(zoneName, ep.DNSName, ep.RecordType),
-						TTL:    ttl,
-						Type:   ep.RecordType,
-						Value:  target,
-						ZoneID: zoneID,
+					Options: &hdns.RecordCreateOpts{
+						Name:  makeEndpointName(zoneName, ep.DNSName, ep.RecordType),
+						Ttl:   ttl,
+						Type:  hdns.RecordType(ep.RecordType),
+						Value: target,
+						Zone: &hdns.Zone{
+							ID:   zoneID,
+							Name: zoneName,
+						},
 					},
 				})
 			}
@@ -511,7 +516,6 @@ func processUpdateActions(
 	recordsByZoneID map[string][]hdns.Record,
 	updatesByZoneID map[string][]*endpoint.Endpoint,
 	changes *hetznerChanges,
-	defaultTTL int,
 ) error {
 	// Generate creates and updates based on existing
 	for zoneID, updates := range updatesByZoneID {
@@ -550,10 +554,10 @@ func processUpdateActions(
 				matchingRecordsByTarget[r.Value] = r
 			}
 
-			ttl := defaultTTL
+			var ttl *int = nil
 			configuredTTL, ttlIsSet := getTTLFromEndpoint(ep)
 			if ttlIsSet {
-				ttl = configuredTTL
+				ttl = &configuredTTL
 			}
 
 			// Generate create and delete actions based on existence of a record for each target.
@@ -564,18 +568,26 @@ func processUpdateActions(
 						"dnsName":    ep.DNSName,
 						"recordType": ep.RecordType,
 						"target":     target,
-						"ttl":        ttl,
+						"ttl": func() interface{} {
+							if ttl != nil {
+								return *ttl
+							}
+							return "default"
+						}(),
 					}).Warn("Updating existing target")
 
 					changes.Updates = append(changes.Updates, &hetznerChangeUpdate{
 						Domain:       zoneName,
 						DomainRecord: record,
-						Request: &hdns.RecordRequest{
-							Name:   makeEndpointName(zoneName, ep.DNSName, ep.RecordType),
-							TTL:    ttl,
-							Type:   ep.RecordType,
-							Value:  target,
-							ZoneID: zoneID,
+						Options: &hdns.RecordUpdateOpts{
+							Name:  makeEndpointName(zoneName, ep.DNSName, ep.RecordType),
+							Ttl:   ttl,
+							Type:  hdns.RecordType(ep.RecordType),
+							Value: target,
+							Zone: &hdns.Zone{
+								ID:   zoneID,
+								Name: zoneName,
+							},
 						},
 					})
 
@@ -587,17 +599,25 @@ func processUpdateActions(
 						"dnsName":    ep.DNSName,
 						"recordType": ep.RecordType,
 						"target":     target,
-						"ttl":        ttl,
+						"ttl": func() interface{} {
+							if ttl != nil {
+								return *ttl
+							}
+							return "default"
+						}(),
 					}).Warn("No target to update - creating new target")
 
 					changes.Creates = append(changes.Creates, &hetznerChangeCreate{
 						Domain: zoneName,
-						Request: &hdns.RecordRequest{
-							Name:   makeEndpointName(zoneName, ep.DNSName, ep.RecordType),
-							TTL:    ttl,
-							Type:   ep.RecordType,
-							Value:  target,
-							ZoneID: zoneID,
+						Options: &hdns.RecordCreateOpts{
+							Name:  makeEndpointName(zoneName, ep.DNSName, ep.RecordType),
+							Ttl:   ttl,
+							Type:  hdns.RecordType(ep.RecordType),
+							Value: target,
+							Zone: &hdns.Zone{
+								ID:   zoneID,
+								Name: zoneName,
+							},
 						},
 					})
 				}
@@ -681,11 +701,9 @@ func processDeleteActions(
 
 // ApplyChanges applies the given set of generic changes to the provider.
 func (p *HetznerProvider) ApplyChanges(ctx context.Context, planChanges *plan.Changes) error {
-	log.Debug("Applying changes.")
 	// TODO: This should only retrieve zones affected by the given `planChanges`.
 	recordsByZoneID, zoneIDNameMapper, err := p.getRecordsByZoneID(ctx)
 	if err != nil {
-		log.Error(err.Error())
 		return err
 	}
 
@@ -695,18 +713,15 @@ func (p *HetznerProvider) ApplyChanges(ctx context.Context, planChanges *plan.Ch
 
 	var changes hetznerChanges
 
-	if err := processCreateActions(zoneIDNameMapper, recordsByZoneID, createsByZoneID, &changes, p.defaultTTL); err != nil {
-		log.Error(err.Error())
+	if err := processCreateActions(zoneIDNameMapper, recordsByZoneID, createsByZoneID, &changes); err != nil {
 		return err
 	}
 
-	if err := processUpdateActions(zoneIDNameMapper, recordsByZoneID, updatesByZoneID, &changes, p.defaultTTL); err != nil {
-		log.Error(err.Error())
+	if err := processUpdateActions(zoneIDNameMapper, recordsByZoneID, updatesByZoneID, &changes); err != nil {
 		return err
 	}
 
 	if err := processDeleteActions(zoneIDNameMapper, recordsByZoneID, deletesByZoneID, &changes); err != nil {
-		log.Error(err.Error())
 		return err
 	}
 

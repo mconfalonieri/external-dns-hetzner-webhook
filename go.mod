@@ -20,7 +20,6 @@ require (
 	github.com/cenkalti/backoff/v4 v4.2.1 // indirect
 	github.com/gliderlabs/ssh v0.3.5 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
-	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/google/go-replayers/httpreplay v1.2.0 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/google/pprof v0.0.0-20221103000818-d260c55eee4c // indirect
@@ -127,6 +126,7 @@ require (
 	github.com/jgautheron/goconst v1.5.1 // indirect
 	github.com/jingyugao/rowserrcheck v1.1.1 // indirect
 	github.com/jirfag/go-printf-func-name v0.0.0-20200119135958-7558a9eaa5af // indirect
+	github.com/jobstoit/hetzner-dns-go v0.1.1
 	github.com/julz/importas v0.1.0 // indirect
 	github.com/kevinburke/ssh_config v1.2.0 // indirect
 	github.com/kisielk/errcheck v1.6.3 // indirect
@@ -159,7 +159,6 @@ require (
 	github.com/nunnatsa/ginkgolinter v0.12.1 // indirect
 	github.com/olekukonko/tablewriter v0.0.5 // indirect
 	github.com/otiai10/copy v1.6.0 // indirect
-	github.com/panta/go-hetzner-dns v0.0.0-20210217122151-0df462200341
 	github.com/pelletier/go-toml/v2 v2.1.0 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/polyfloyd/go-errorlint v1.4.2 // indirect

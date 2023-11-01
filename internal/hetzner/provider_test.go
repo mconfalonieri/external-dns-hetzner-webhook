@@ -4,28 +4,38 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"reflect"
 	"testing"
 	"time"
 
+	hdns "github.com/jobstoit/hetzner-dns-go/dns"
+	hschema "github.com/jobstoit/hetzner-dns-go/dns/schema"
 	"gotest.tools/assert"
 	"sigs.k8s.io/external-dns/endpoint"
-
-	hdns "github.com/panta/go-hetzner-dns"
+	"sigs.k8s.io/external-dns/provider"
 )
 
 type zonesResponse struct {
-	resp *hdns.ZonesResponse
-	err  error
+	zones []*hdns.Zone
+	resp  *hdns.Response
+	err   error
 }
 
 type recordsResponse struct {
-	resp *hdns.RecordsResponse
-	err  error
+	records []*hdns.Record
+	resp    *hdns.Response
+	err     error
 }
 
 type recordResponse struct {
-	resp *hdns.RecordResponse
+	record *hdns.Record
+	resp   *hdns.Response
+	err    error
+}
+
+type deleteResponse struct {
+	resp *hdns.Response
 	err  error
 }
 
@@ -34,42 +44,64 @@ type mockClient struct {
 	getRecords   recordsResponse
 	createRecord recordResponse
 	updateRecord recordResponse
-	deleteRecord error
+	deleteRecord deleteResponse
 	adjustZone   bool
 }
 
-func (m *mockClient) GetZones(ctx context.Context, name string, searchName string, page int, perPage int) (*hdns.ZonesResponse, error) {
+func (m *mockClient) GetZones(ctx context.Context, opts hdns.ZoneListOpts) ([]*hdns.Zone, *hdns.Response, error) {
 	r := m.getZones
-	return r.resp, r.err
+	return r.zones, r.resp, r.err
 }
 
-func (m *mockClient) GetRecords(ctx context.Context, zoneId string, page int, perPage int) (*hdns.RecordsResponse, error) {
+func (m *mockClient) GetRecords(ctx context.Context, opts hdns.RecordListOpts) ([]*hdns.Record, *hdns.Response, error) {
 	r := m.getRecords
 	if m.adjustZone {
-		for idx, rec := range r.resp.Records {
-			rec.ZoneID = zoneId
-			r.resp.Records[idx] = rec
+		for idx, rec := range r.records {
+			if rec != nil {
+				rec.Zone.ID = opts.ZoneID
+			}
+			r.records[idx] = rec
 		}
 	}
-	return r.resp, r.err
+	return r.records, r.resp, r.err
 }
 
-func (m *mockClient) CreateRecord(ctx context.Context, record hdns.RecordRequest) (*hdns.RecordResponse, error) {
+func (m *mockClient) CreateRecord(ctx context.Context, opts hdns.RecordCreateOpts) (*hdns.Record, *hdns.Response, error) {
 	r := m.createRecord
-	return r.resp, r.err
+	return r.record, r.resp, r.err
 }
 
-func (m *mockClient) UpdateRecord(ctx context.Context, record hdns.RecordRequest) (*hdns.RecordResponse, error) {
+func (m *mockClient) UpdateRecord(ctx context.Context, record *hdns.Record, opts hdns.RecordUpdateOpts) (*hdns.Record, *hdns.Response, error) {
 	r := m.updateRecord
-	return r.resp, r.err
+	return r.record, r.resp, r.err
 }
 
-func (m *mockClient) DeleteRecord(ctx context.Context, recordId string) error {
+func (m *mockClient) DeleteRecord(ctx context.Context, record *hdns.Record) (*hdns.Response, error) {
 	r := m.deleteRecord
-	return r
+	return r.resp, r.err
 }
 
 var (
+	unpointedZones = func(zones []*hdns.Zone) []hdns.Zone {
+		ret := make([]hdns.Zone, len(zones))
+		for i, z := range zones {
+			if z == nil {
+				continue
+			}
+			ret[i] = *z
+		}
+		return ret
+	}
+	unpointedRecords = func(records []*hdns.Record) []hdns.Record {
+		ret := make([]hdns.Record, len(records))
+		for i, r := range records {
+			if r == nil {
+				continue
+			}
+			ret[i] = *r
+		}
+		return ret
+	}
 	checkErr = func(t *testing.T, err error, errExp bool) {
 		isErr := (err != nil)
 		if (isErr && !errExp) || (!isErr && errExp) {
@@ -83,8 +115,8 @@ var (
 				DNSName:       r.Name,
 				SetIdentifier: r.ID,
 				Targets:       []string{r.Value},
-				RecordTTL:     endpoint.TTL(r.TTL),
-				RecordType:    r.Type,
+				RecordTTL:     endpoint.TTL(r.Ttl),
+				RecordType:    string(r.Type),
 			}
 			endpoints = append(endpoints, &e)
 		}
@@ -93,21 +125,21 @@ var (
 	testTime = time.Date(2021, 8, 15, 14, 30, 45, 100, time.Local)
 )
 
-func buildTestZones() []hdns.Zone {
-	zones := []hdns.Zone{
+func buildTestZones() []*hdns.Zone {
+	zones := []*hdns.Zone{
 		{
 			ID:       "id_a",
-			Created:  hdns.HetznerTime(testTime),
-			Modified: hdns.HetznerTime(testTime),
+			Created:  hschema.HdnsTime(testTime),
+			Modified: hschema.HdnsTime(testTime),
 			Name:     "a.com",
-			TTL:      7200,
+			Ttl:      7200,
 		},
 		{
 			ID:       "id_b",
-			Created:  hdns.HetznerTime(testTime),
-			Modified: hdns.HetznerTime(testTime),
+			Created:  hschema.HdnsTime(testTime),
+			Modified: hschema.HdnsTime(testTime),
 			Name:     "b.com",
-			TTL:      7200,
+			Ttl:      7200,
 		},
 	}
 	return zones
@@ -115,27 +147,27 @@ func buildTestZones() []hdns.Zone {
 
 func buildTestRecord(params [3]string, zoneId string) *hdns.Record {
 	return &hdns.Record{
-		Type:     params[0],
+		Type:     hdns.RecordType(params[0]),
 		ID:       "id_" + params[1],
 		Name:     params[1],
 		Value:    params[2],
-		ZoneID:   zoneId,
-		Created:  hdns.HetznerTime(testTime),
-		Modified: hdns.HetznerTime(testTime),
-		TTL:      7200,
+		Zone:     &hdns.Zone{ID: zoneId},
+		Created:  hschema.HdnsTime(testTime),
+		Modified: hschema.HdnsTime(testTime),
+		Ttl:      7200,
 	}
 }
 
-func buildTestRecords(zoneId string) []hdns.Record {
+func buildTestRecords(zoneId string) []*hdns.Record {
 	fixture := [][3]string{
 		{"A", "www", "127.0.0.1"},
 		{"MX", "mail", "127.0.0.1"},
 		{"CNAME", "ftp", "www.a.com"},
 	}
-	records := make([]hdns.Record, len(fixture))
-	for _, f := range fixture {
+	records := make([]*hdns.Record, len(fixture))
+	for i, f := range fixture {
 		rec := buildTestRecord(f, zoneId)
-		records = append(records, *rec)
+		records[i] = rec
 	}
 	return records
 }
@@ -185,7 +217,7 @@ func Test_Empty(t *testing.T) {
 				Creates: []*hetznerChangeCreate{
 					{
 						Domain:  "a.com",
-						Request: &hdns.RecordRequest{},
+						Options: &hdns.RecordCreateOpts{},
 					},
 				},
 			},
@@ -197,7 +229,7 @@ func Test_Empty(t *testing.T) {
 					{
 						Domain:       "a.com",
 						DomainRecord: hdns.Record{},
-						Request:      &hdns.RecordRequest{},
+						Options:      &hdns.RecordUpdateOpts{},
 					},
 				},
 			},
@@ -219,14 +251,14 @@ func Test_Empty(t *testing.T) {
 				Creates: []*hetznerChangeCreate{
 					{
 						Domain:  "a.com",
-						Request: &hdns.RecordRequest{},
+						Options: &hdns.RecordCreateOpts{},
 					},
 				},
 				Updates: []*hetznerChangeUpdate{
 					{
 						Domain:       "a.com",
 						DomainRecord: hdns.Record{},
-						Request:      &hdns.RecordRequest{},
+						Options:      &hdns.RecordUpdateOpts{},
 					},
 				},
 				Deletes: []*hetznerChangeDelete{
@@ -251,8 +283,8 @@ func Test_Zones(t *testing.T) {
 		name     string
 		provider HetznerProvider
 		expected struct {
-			resp []hdns.Zone
-			err  bool
+			zones []hdns.Zone
+			err   bool
 		}
 	}
 
@@ -264,7 +296,7 @@ func Test_Zones(t *testing.T) {
 			checkErr(t, err, true)
 		} else {
 			checkErr(t, err, false)
-			assert.Equal(t, reflect.DeepEqual(resp, tc.expected.resp), true)
+			assert.Equal(t, reflect.DeepEqual(resp, tc.expected.zones), true)
 		}
 	}
 
@@ -274,10 +306,10 @@ func Test_Zones(t *testing.T) {
 			provider: HetznerProvider{
 				client: &mockClient{
 					getZones: zonesResponse{
-						resp: &hdns.ZonesResponse{
-							Zones: testZones,
+						zones: testZones,
+						resp: &hdns.Response{
 							Meta: hdns.Meta{
-								Pagination: hdns.Pagination{
+								Pagination: &hdns.Pagination{
 									Page:         1,
 									PerPage:      100,
 									LastPage:     1,
@@ -294,9 +326,11 @@ func Test_Zones(t *testing.T) {
 				domainFilter: endpoint.DomainFilter{},
 			},
 			expected: struct {
-				resp []hdns.Zone
-				err  bool
-			}{resp: testZones},
+				zones []hdns.Zone
+				err   bool
+			}{
+				zones: unpointedZones(testZones),
+			},
 		},
 		{
 			name: "Error returned",
@@ -313,9 +347,11 @@ func Test_Zones(t *testing.T) {
 				domainFilter: endpoint.DomainFilter{},
 			},
 			expected: struct {
-				resp []hdns.Zone
-				err  bool
-			}{err: true},
+				zones []hdns.Zone
+				err   bool
+			}{
+				err: true,
+			},
 		},
 	}
 
@@ -334,7 +370,7 @@ func Test_AdjustEndpoints(t *testing.T) {
 		expected []*endpoint.Endpoint
 	}
 
-	endpoints := toEndpoints(buildTestRecords("id_a"))
+	endpoints := toEndpoints(unpointedRecords(buildTestRecords("id_a")))
 
 	run := func(t *testing.T, tc testCase) {
 		actual, _ := tc.provider.AdjustEndpoints(tc.input)
@@ -447,10 +483,11 @@ func Test_Records(t *testing.T) {
 			provider: HetznerProvider{
 				client: &mockClient{
 					getZones: zonesResponse{
-						resp: &hdns.ZonesResponse{
-							Zones: testZones,
+						zones: testZones,
+						resp: &hdns.Response{
+							Response: &http.Response{StatusCode: http.StatusOK},
 							Meta: hdns.Meta{
-								Pagination: hdns.Pagination{
+								Pagination: &hdns.Pagination{
 									Page:         1,
 									PerPage:      100,
 									LastPage:     1,
@@ -460,8 +497,9 @@ func Test_Records(t *testing.T) {
 						},
 					},
 					getRecords: recordsResponse{
-						resp: &hdns.RecordsResponse{
-							Records: testRecords,
+						records: testRecords,
+						resp: &hdns.Response{
+							Response: &http.Response{StatusCode: http.StatusOK},
 						},
 					},
 					adjustZone: true,
@@ -506,6 +544,7 @@ func Test_makeEndpointName(t *testing.T) {
 func Test_makeEndpointTarget(t *testing.T) {
 	type testCase struct {
 		name     string
+		provider HetznerProvider
 		input    [3]string
 		expected struct {
 			target string
@@ -514,14 +553,25 @@ func Test_makeEndpointTarget(t *testing.T) {
 	}
 
 	run := func(t *testing.T, tc testCase) {
-		target, valid := makeEndpointTarget(tc.input[0], tc.input[1], tc.input[2])
+		target, valid := tc.provider.makeEndpointTarget(tc.input[0], tc.input[1], tc.input[2])
 		assert.DeepEqual(t, target, tc.expected.target)
 		assert.Equal(t, valid, tc.expected.valid)
 	}
 
 	testCases := []testCase{
 		{
-			name:  "No domain provided",
+			name: "No domain provided",
+			provider: HetznerProvider{
+				client:       &mockClient{},
+				batchSize:    100,
+				debug:        true,
+				dryRun:       false,
+				defaultTTL:   7200,
+				domainFilter: endpoint.DomainFilter{},
+				zoneIDNameMapper: provider.ZoneIDName{
+					"1": "a.com",
+				},
+			},
 			input: [3]string{"", "www.a.com", "A"},
 			expected: struct {
 				target string
@@ -532,7 +582,18 @@ func Test_makeEndpointTarget(t *testing.T) {
 			},
 		},
 		{
-			name:  "Domain removed",
+			name: "Domain removed",
+			provider: HetznerProvider{
+				client:       &mockClient{},
+				batchSize:    100,
+				debug:        true,
+				dryRun:       false,
+				defaultTTL:   7200,
+				domainFilter: endpoint.DomainFilter{},
+				zoneIDNameMapper: provider.ZoneIDName{
+					"1": "a.com",
+				},
+			},
 			input: [3]string{"a.com", "www.a.com", "A"},
 			expected: struct {
 				target string
@@ -543,7 +604,18 @@ func Test_makeEndpointTarget(t *testing.T) {
 			},
 		},
 		{
-			name:  "Trailing dot removed",
+			name: "Trailing dot removed",
+			provider: HetznerProvider{
+				client:       &mockClient{},
+				batchSize:    100,
+				debug:        true,
+				dryRun:       false,
+				defaultTTL:   7200,
+				domainFilter: endpoint.DomainFilter{},
+				zoneIDNameMapper: provider.ZoneIDName{
+					"1": "a.com",
+				},
+			},
 			input: [3]string{"a.com", "www.", "A"},
 			expected: struct {
 				target string
