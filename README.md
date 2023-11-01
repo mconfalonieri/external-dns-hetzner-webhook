@@ -29,7 +29,7 @@ ExternalDNS pod
 using the [Bitnami Helm charts for ExternalDNS](https://github.com/bitnami/charts/tree/main/bitnami/external-dns).
 
 ⚠️  Webhooks are still an experimental feature of External DNS. The image used in this configuration example
-was created by me from the External DNS' master branch to test the webhook.
+was created by me from the External DNS master branch to test the webhook.
 This notice and configuration file will be updated once a webhook version of External DNS will be released.
 
 ```shell
@@ -132,7 +132,7 @@ consideration:
   setting one of the required `TXT` records;
 - if `WEBHOOK_HOST` and `HEALTH_HOST` are set to the same address/hostname or
   one of them is set to `0.0.0.0` remember to use different ports.
-- if your records doon't get deleted when applications are uninstalled, you
+- if your records don't get deleted when applications are uninstalled, you
   might want to verify the policy in use for ExternalDNS: if it's `upsert-only`
   no deletion will occur. It must be set to `sync` for deletions to be
   processed.
