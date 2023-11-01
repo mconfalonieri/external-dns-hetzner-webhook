@@ -53,7 +53,7 @@ extraArgs:
 
 sidecars:
   - name: hetzner-webhook
-    image: ghcr.io/mconfalonieri/external-dns-hetzner-webhook:v1.0.0
+    image: ghcr.io/mconfalonieri/external-dns-hetzner-webhook:v0.5.0
     ports:
       - containerPort: 8888
         name: webhook
