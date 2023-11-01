@@ -1,9 +1,11 @@
 package main
 
 import (
-	"time"
-
 	"external-dns-hetzner-webhook/internal/hetzner"
+	"external-dns-hetzner-webhook/internal/server"
+	"os"
+	"os/signal"
+	"syscall"
 
 	log "github.com/sirupsen/logrus"
 	"sigs.k8s.io/external-dns/provider/webhook"
@@ -11,32 +13,49 @@ import (
 	"github.com/codingconcepts/env"
 )
 
-type serverOptions struct {
-	Hostname string `env:"SERVER_HOST" default:"0.0.0.0:8888"`
+func loop(status *server.HealthStatus) {
+	exitSignal := make(chan os.Signal)
+	signal.Notify(exitSignal, syscall.SIGINT, syscall.SIGTERM)
+	<-exitSignal
+
+	status.SetHealth(false)
+	status.SetReady(false)
 }
 
 func main() {
-	srvOptions := serverOptions{}
-	if err := env.Set(&srvOptions); err != nil {
+	// Read server options
+	serverOptions := &server.ServerOptions{}
+	if err := env.Set(serverOptions); err != nil {
 		log.Fatal(err)
 	}
-	// instantiate the configuration
-	config := &hetzner.Configuration{}
-	if err := env.Set(config); err != nil {
+
+	// Start health server
+	healthStatus := server.HealthStatus{}
+	healthServer := server.HealthServer{}
+	go healthServer.Start(&healthStatus, nil, *serverOptions)
+
+	// Read provider configuration
+	providerConfig := &hetzner.Configuration{}
+	if err := env.Set(providerConfig); err != nil {
 		log.Fatal(err)
 	}
-	log.Infof("Starting server on %s", srvOptions.Hostname)
 
 	// instantiate the Hetzner provider
-	provider, err := hetzner.NewHetznerProvider(config)
+	provider, err := hetzner.NewHetznerProvider(providerConfig)
 	if err != nil {
 		panic(err)
 	}
 
 	startedChan := make(chan struct{})
-
-	go webhook.StartHTTPApi(provider, startedChan, 5*time.Second, 5*time.Second, srvOptions.Hostname)
+	go webhook.StartHTTPApi(
+		provider, startedChan,
+		serverOptions.GetReadTimeout(),
+		serverOptions.GetWriteTimeout(),
+		serverOptions.GetWebhookAddress(),
+	)
 	<-startedChan
+	healthStatus.SetHealth(true)
+	healthStatus.SetReady(true)
 
-	time.Sleep(100000 * time.Second)
+	loop(&healthStatus)
 }

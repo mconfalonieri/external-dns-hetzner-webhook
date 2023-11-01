@@ -3,8 +3,7 @@
 ⚠️  This software is experimental and **NOT FIT FOR PRODUCTION USE!**
 
 **🛈 NOTE**: This Webhook was forked and modified from the [IONOS Webhook](https://github.com/ionos-cloud/external-dns-ionos-webhook)
-to work with Hetzner. It contains parts from the original Hetzner provider that was removed from the main tree.
-
+to work with Hetzner. It also contains huge parts from the original Hetzner provider that was removed from the main tree.
 
 ExternalDNS is a Kubernetes add-on for automatically managing
 Domain Name System (DNS) records for Kubernetes services by using different DNS providers.
@@ -32,9 +31,11 @@ using the [Bitnami Helm charts for ExternalDNS](https://github.com/bitnami/chart
 ```shell
 helm repo add bitnami https://charts.bitnami.com/bitnami
 kubectl create secret generic hetzner-credentials --from-literal=api-key='<EXAMPLE_PLEASE_REPLACE>'
+```
+You can then create the helm values file, for example
+`external-dns-hetzner-values.yaml`:
 
-# create the helm values file
-cat <<EOF > external-dns-hetzner-values.yaml
+```yaml
 image:
   registry: ghcr.io
   repository: mconfalonieri/external-dns-webhook-provider
@@ -44,22 +45,25 @@ provider: webhook
 
 extraArgs:
   webhook-provider-url: http://localhost:8888
+  txt-prefix: reg-
 
 sidecars:
   - name: hetzner-webhook
-    image: ghcr.io/mconfalonieri/external-dns-hetzner-webhook:$RELEASE_VERSION
+    image: ghcr.io/mconfalonieri/external-dns-hetzner-webhook:v1.0.0
     ports:
       - containerPort: 8888
+        name: webhook
+      - containerPort: 8080
         name: http
     livenessProbe:
       httpGet:
-        path: /
+        path: /health
         port: http
       initialDelaySeconds: 10
       timeoutSeconds: 5
     readinessProbe:
       httpGet:
-        path: /
+        path: /ready
         port: http
       initialDelaySeconds: 10
       timeoutSeconds: 5
@@ -69,24 +73,38 @@ sidecars:
           secretKeyRef:
             name: hetzner-credentials
             key: api-key
-      - name: SERVER_HOST
-        value: "0.0.0.0" 
-      - name: HETZNER_DEBUG
-        value: "true"  
-EOF
+      - name: WEBHOOK_HOST
+        value: "localhost"
+      - name: WEBHOOK_PORT
+        value: 8888
+      - name: HEALTH_HOST
+        value: "0.0.0.0"
+      - name: HEALTH_PORT
+        value: 8080
+```
+
+And then:
+
+```shell
 # install external-dns with helm
 helm install external-dns-hetzner bitnami/external-dns -f external-dns-hetzner-values.yaml
 ```
 
 The following environment variables are available:
 
-| Variable        | Description                        | Notes                      |
-| --------------- | ---------------------------------- | -------------------------- |
-| HETZNER_API_KEY | Hetzner API token                  | Mandatory                  |
-| DRY_RUN         | If set, changes won't be applied   | Default: `false`           |
-| HETZNER_DEBUG   | Enables debugging messages         | Default: `false`           |
-| BATCH_SIZE      | Number of zones per call           | Default: `100`, max: `100` |
-| DEFAULT_TTL     | Default TTL if not specified       | Default: `7200`            |
+| Variable        | Description                      | Notes                      |
+| --------------- | -------------------------------- | -------------------------- |
+| HETZNER_API_KEY | Hetzner API token                | Mandatory                  |
+| DRY_RUN         | If set, changes won't be applied | Default: `false`           |
+| HETZNER_DEBUG   | Enables debugging messages       | Default: `false`           |
+| BATCH_SIZE      | Number of zones per call         | Default: `100`, max: `100` |
+| DEFAULT_TTL     | Default TTL if not specified     | Default: `7200`            |
+| WEBHOOK_HOST    | Webhook hostname or IP address   | Default: `localhost`       |
+| WEBHOOK_PORT    | Webhook port                     | Default: `8888`            |
+| HEALTH_HOST     | Liveness and readiness hostname  | Default: `localhost`       |
+| HEALTH_PORT     | Liveness and readiness port      | Default: `8080`            |
+| READ_TIMEOUT    | Servers' read timeout in ms      | Default: `60000`           |
+| WRITE_TIMEOUT   | Servers' write timeout in ms     | Default: `60000`           |
 
 Additional environment variables for domain filtering:
 
@@ -108,36 +126,18 @@ build the filter:
  - DOMAIN_FILTER
  - EXCLUDE_DOMAIN_FILTER
 
+## Tweaking the configuration
+
+While tweaking the configuration, there are some points to take into
+consideration:
+
+- if you are using `--registry=txt` (default) for `external-dns`, remember to
+  set `--txt-prefix=<prefix>` too, or you will receive a 422 response back when
+  setting one of the required `TXT` records;
+- if `WEBHOOK_HOST` and `HEALTH_HOST` are set to the same address/hostname or
+  one of them is set to `0.0.0.0` remember to use different ports.
+
 ## Development
 
-The basic development tasks are provided by make. Run `make help` to see the available targets.
-
-### Local deployment
-
-The webhook can be deployed locally with a kind cluster. As a prerequisite, you need to install:
-
-- [Docker](https://docs.docker.com/get-docker/),
-- [Helm](https://https://helm.sh/ ) with the repos:
-
- ```shell
-  helm repo add bitnami https://charts.bitnami.com/bitnami
-  helm repo add mockserver https://www.mock-server.com
-  helm repo update
-  ```
-
-- [kind](https://kind.sigs.k8s.io/docs/user/quick-start/)
-- [kubectl](https://kubernetes.io/docs/tasks/tools/)
-
-```shell
-# setup the kind cluster and deploy external-dns with Hetzner webhook and a dns mockserver
-./scripts/deploy_on_kind.sh
-
-# check if the webhook is running
-kubectl get pods -l app.kubernetes.io/name=external-dns -o wide
-
-# trigger a DNS change e.g. with annotating the ingress controller service
-kubectl -n ingress-nginx annotate service  ingress-nginx-controller "external-dns.alpha.kubernetes.io/internal-hostname=nginx.internal.example.org." 
- 
-# cleanup
-./scripts/deploy_on_kind.sh clean
-```
+The basic development tasks are provided by make. Run `make help` to see the
+available targets.
