@@ -1,5 +1,7 @@
 # ExternalDNS - Hetzner Webhook
 
+⚠️  This software is experimental and **NOT FIT FOR PRODUCTION USE!**
+
 **🛈 NOTE**: This Webhook was forked and modified from the [IONOS Webhook](https://github.com/ionos-cloud/external-dns-ionos-webhook)
 to work with Hetzner. It contains parts from the original Hetzner provider that was removed from the main tree.
 
