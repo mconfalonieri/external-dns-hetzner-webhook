@@ -320,10 +320,9 @@ func (p HetznerProvider) makeEndpointTarget(domain, entryTarget, recordType stri
 	if domain == "" {
 		return entryTarget, true
 	}
-	adjustedTarget := entryTarget
 
 	// Trim the trailing dot
-	adjustedTarget = strings.TrimSuffix(entryTarget, ".")
+	adjustedTarget := strings.TrimSuffix(entryTarget, ".")
 	adjustedTarget = strings.TrimSuffix(adjustedTarget, "."+domain)
 
 	return adjustedTarget, true
