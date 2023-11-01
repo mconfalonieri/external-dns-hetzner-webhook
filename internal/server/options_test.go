@@ -14,9 +14,9 @@ func Test_ServerOptions_defaults(t *testing.T) {
 		t.Fail()
 	}
 	assert.DeepEqual(t, s.WebhookHost, "localhost")
-	assert.DeepEqual(t, s.WebhookPort, 8888)
+	assert.DeepEqual(t, s.WebhookPort, uint16(8888))
 	assert.DeepEqual(t, s.HealthHost, "0.0.0.0")
-	assert.DeepEqual(t, s.WebhookHost, 8080)
+	assert.DeepEqual(t, s.HealthPort, uint16(8080))
 	assert.DeepEqual(t, s.ReadTimeout, 60000)
 	assert.DeepEqual(t, s.WriteTimeout, 60000)
 }

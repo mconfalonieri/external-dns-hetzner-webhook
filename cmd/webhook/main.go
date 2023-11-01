@@ -48,7 +48,7 @@ func main() {
 		panic(err)
 	}
 
-	log.Infof("Starting webhook server on %s", serverOptions.GetHealthAddress())
+	log.Infof("Starting webhook server on %s", serverOptions.GetWebhookAddress())
 	startedChan := make(chan struct{})
 	go webhook.StartHTTPApi(
 		provider, startedChan,

@@ -40,5 +40,5 @@ func (o ServerOptions) GetReadTimeout() time.Duration {
 
 // GetWriteTimeout returns the read timeout in milliseconds.
 func (o ServerOptions) GetWriteTimeout() time.Duration {
-	return time.Duration(o.ReadTimeout) * time.Millisecond
+	return time.Duration(o.WriteTimeout) * time.Millisecond
 }
