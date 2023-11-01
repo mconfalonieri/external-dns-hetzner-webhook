@@ -132,6 +132,10 @@ consideration:
   setting one of the required `TXT` records;
 - if `WEBHOOK_HOST` and `HEALTH_HOST` are set to the same address/hostname or
   one of them is set to `0.0.0.0` remember to use different ports.
+- if your records doon't get deleted when applications are uninstalled, you
+  might want to verify the policy in use for ExternalDNS: if it's `upsert-only`
+  no deletion will occur. It must be set to `sync` for deletions to be
+  processed.
 
 ## Development
 
