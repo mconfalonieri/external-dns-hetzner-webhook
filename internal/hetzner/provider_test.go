@@ -154,10 +154,8 @@ func toEndpoints(records []hdns.Record) []*endpoint.Endpoint {
 	return endpoints
 }
 
-var (
-	// test time used in records.
-	testTime = time.Date(2021, 8, 15, 14, 30, 45, 100, time.Local)
-)
+// test time used in records.
+var testTime = time.Date(2021, 8, 15, 14, 30, 45, 100, time.Local)
 
 // buildTestZones bulids some test zones.
 func buildTestZones() []*hdns.Zone {
@@ -573,7 +571,6 @@ func Test_fetchRecords(t *testing.T) {
 
 // Test_fetchZones tests HetznerProvider.fetchZones().
 func Test_fetchZones(t *testing.T) {
-
 }
 
 // Test_ensureZoneIDMappingPresent tests
