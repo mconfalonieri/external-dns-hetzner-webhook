@@ -1,27 +1,23 @@
-package hetzner
-
 /*
-This file was MODIFIED from the original to use panta/go-hetzner-dns library
-and to be used as a standalone webhook server.
-
-Copyright 2023 Marco Confalonieri.
----
-Original file:
-
-Copyright 2017 The Kubernetes Authors.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+ * This file was MODIFIED from the original provider to be used as a standalone
+ * webhook server.
+ *
+ * Copyright 2023 Marco Confalonieri.
+ * Copyright 2017 The Kubernetes Authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package hetzner
 
 import (
 	"context"
@@ -82,29 +78,33 @@ func NewHetznerProvider(config *Configuration) (*HetznerProvider, error) {
 	}, nil
 }
 
+// hetznerChangeCreate stores the information for a create request.
 type hetznerChangeCreate struct {
 	Domain  string
 	Options *hdns.RecordCreateOpts
 }
 
+// hetznerChangeCreate stores the information for an update request.
 type hetznerChangeUpdate struct {
 	Domain       string
 	DomainRecord hdns.Record
 	Options      *hdns.RecordUpdateOpts
 }
 
+// hetznerChangeCreate stores the information for a delete request.
 type hetznerChangeDelete struct {
 	Domain   string
 	RecordID string
 }
 
-// HetznerChange contains all changes to apply to DNS
+// HetznerChange contains all changes to apply to DNS.
 type hetznerChanges struct {
 	Creates []*hetznerChangeCreate
 	Updates []*hetznerChangeUpdate
 	Deletes []*hetznerChangeDelete
 }
 
+// Empty returns true if there are no changes left.
 func (c *hetznerChanges) Empty() bool {
 	return len(c.Creates) == 0 && len(c.Updates) == 0 && len(c.Deletes) == 0
 }
@@ -129,6 +129,8 @@ func (p *HetznerProvider) Zones(ctx context.Context) ([]hdns.Zone, error) {
 	return result, nil
 }
 
+// AdjustEndpoints adjusts the endpoints according to the provider's
+// requirements.
 func (p HetznerProvider) AdjustEndpoints(endpoints []*endpoint.Endpoint) ([]*endpoint.Endpoint, error) {
 	adjustedEndpoints := []*endpoint.Endpoint{}
 
@@ -149,7 +151,8 @@ func (p HetznerProvider) AdjustEndpoints(endpoints []*endpoint.Endpoint) ([]*end
 	return adjustedEndpoints, nil
 }
 
-// Merge Endpoints with the same Name and Type into a single endpoint with multiple Targets.
+// mergeEndpointsByNameType merges Endpoints with the same Name and Type into a
+// single endpoint with multiple Targets.
 func mergeEndpointsByNameType(endpoints []*endpoint.Endpoint) []*endpoint.Endpoint {
 	endpointsByNameType := map[string][]*endpoint.Endpoint{}
 
@@ -225,6 +228,7 @@ func (p *HetznerProvider) Records(ctx context.Context) ([]*endpoint.Endpoint, er
 	return endpoints, nil
 }
 
+// fetchRecords fetches all records for a given zoneID.
 func (p *HetznerProvider) fetchRecords(ctx context.Context, zoneID string) ([]hdns.Record, error) {
 	allRecords := []hdns.Record{}
 	listOptions := &hdns.RecordListOpts{ListOpts: hdns.ListOpts{PerPage: p.batchSize}, ZoneID: zoneID}
@@ -247,6 +251,7 @@ func (p *HetznerProvider) fetchRecords(ctx context.Context, zoneID string) ([]hd
 	return allRecords, nil
 }
 
+// fetchZones fetches all the zones.
 func (p *HetznerProvider) fetchZones(ctx context.Context) ([]hdns.Zone, error) {
 	allZones := []hdns.Zone{}
 	listOptions := &hdns.ZoneListOpts{ListOpts: hdns.ListOpts{PerPage: p.batchSize}}
@@ -270,6 +275,8 @@ func (p *HetznerProvider) fetchZones(ctx context.Context) ([]hdns.Zone, error) {
 	return allZones, nil
 }
 
+// ensureZoneIDMappingPresent prepares the zoneIDNameMapper, that associates
+// each ZoneID woth the zone name.
 func (p *HetznerProvider) ensureZoneIDMappingPresent(zones []hdns.Zone) {
 	zoneIDNameMapper := provider.ZoneIDName{}
 	for _, z := range zones {
@@ -278,6 +285,8 @@ func (p *HetznerProvider) ensureZoneIDMappingPresent(zones []hdns.Zone) {
 	p.zoneIDNameMapper = zoneIDNameMapper
 }
 
+// getRecordsByZoneID returns a map that associates each ZoneID with the
+// records contained in that zone.
 func (p *HetznerProvider) getRecordsByZoneID(ctx context.Context) (map[string][]hdns.Record, provider.ZoneIDName, error) {
 	recordsByZoneID := map[string][]hdns.Record{}
 
@@ -299,8 +308,10 @@ func (p *HetznerProvider) getRecordsByZoneID(ctx context.Context) (map[string][]
 	return recordsByZoneID, p.zoneIDNameMapper, nil
 }
 
-// Make a endpoint name that conforms to Hetzner DNS requirements:
-// - Records at root of the zone have `@` as the name
+// makeEndpointName makes a endpoint name that conforms to Hetzner DNS
+// requirements:
+//   - the adjusted name must be without domain,
+//   - records at root of the zone have `@` as the name.
 func makeEndpointName(domain, entryName, epType string) string {
 	// Trim the domain off the name if present.
 	adjustedName := strings.TrimSuffix(entryName, "."+domain)
@@ -313,9 +324,11 @@ func makeEndpointName(domain, entryName, epType string) string {
 	return adjustedName
 }
 
-// Make a endpoint name that conforms to Hetzner DNS requirements:
-// - Records at root of the zone have `@` as the name
-// - A-Records should respect ignored networks and should only contain IPv4 entries
+// MakeEndpointTarget makes a endpoint target that conforms to Hetzner DNS
+// requirements:
+//   - Records at root of the zone have `@` as the name
+//   - A-Records should respect ignored networks and should only contain IPv4
+//     entries.
 func (p HetznerProvider) makeEndpointTarget(domain, entryTarget, recordType string) (string, bool) {
 	if domain == "" {
 		return entryTarget, true
@@ -402,6 +415,7 @@ func (p *HetznerProvider) submitChanges(ctx context.Context, changes *hetznerCha
 	return nil
 }
 
+// endpointsByZoneID arranges the endpoints in a map by zone ID.
 func endpointsByZoneID(zoneIDNameMapper provider.ZoneIDName, endpoints []*endpoint.Endpoint) map[string][]*endpoint.Endpoint {
 	endpointsByZoneID := make(map[string][]*endpoint.Endpoint)
 
@@ -417,6 +431,7 @@ func endpointsByZoneID(zoneIDNameMapper provider.ZoneIDName, endpoints []*endpoi
 	return endpointsByZoneID
 }
 
+// getMatchingDomainRecords returns the records that match an endpoint.
 func getMatchingDomainRecords(records []hdns.Record, zoneName string, ep *endpoint.Endpoint) []hdns.Record {
 	var name string
 	if ep.DNSName != zoneName {
@@ -434,6 +449,8 @@ func getMatchingDomainRecords(records []hdns.Record, zoneName string, ep *endpoi
 	return result
 }
 
+// getTTLFromEndpoint returns the configured TTL or -1 if not configured. A
+// second boolean value is returned indicating if the value was configured.
 func getTTLFromEndpoint(ep *endpoint.Endpoint) (int, bool) {
 	if ep.RecordTTL.IsConfigured() {
 		return int(ep.RecordTTL), true
@@ -441,6 +458,7 @@ func getTTLFromEndpoint(ep *endpoint.Endpoint) (int, bool) {
 	return -1, false
 }
 
+// processCreateActions processes the create requests.
 func processCreateActions(
 	zoneIDNameMapper provider.ZoneIDName,
 	recordsByZoneID map[string][]hdns.Record,
@@ -510,6 +528,7 @@ func processCreateActions(
 	return nil
 }
 
+// processUpdateActions processes the update requests.
 func processUpdateActions(
 	zoneIDNameMapper provider.ZoneIDName,
 	recordsByZoneID map[string][]hdns.Record,
@@ -642,6 +661,7 @@ func processUpdateActions(
 	return nil
 }
 
+// processDeleteActions processes the delete requests.
 func processDeleteActions(
 	zoneIDNameMapper provider.ZoneIDName,
 	recordsByZoneID map[string][]hdns.Record,
