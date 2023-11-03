@@ -1,9 +1,23 @@
+/*
+ * Copyright 2023 Marco Confalonieri.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package hetzner
 
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net/http"
 	"reflect"
 	"testing"
@@ -16,29 +30,34 @@ import (
 	"sigs.k8s.io/external-dns/provider"
 )
 
+// zonesResponse simulates a response that returns a list of zones.
 type zonesResponse struct {
 	zones []*hdns.Zone
 	resp  *hdns.Response
 	err   error
 }
 
+// recordsResponse simulates a response that returns a list of records.
 type recordsResponse struct {
 	records []*hdns.Record
 	resp    *hdns.Response
 	err     error
 }
 
+// recordResponse simulates a response that returns a single record.
 type recordResponse struct {
 	record *hdns.Record
 	resp   *hdns.Response
 	err    error
 }
 
+// deleteResponse simulates a response to a record deletion request.
 type deleteResponse struct {
 	resp *hdns.Response
 	err  error
 }
 
+// mockClient represents the mock client used to simulate calls to the DNS API.
 type mockClient struct {
 	getZones     zonesResponse
 	getRecords   recordsResponse
@@ -48,11 +67,13 @@ type mockClient struct {
 	adjustZone   bool
 }
 
+// GetZones simulates a request to get a list of zones.
 func (m *mockClient) GetZones(ctx context.Context, opts hdns.ZoneListOpts) ([]*hdns.Zone, *hdns.Response, error) {
 	r := m.getZones
 	return r.zones, r.resp, r.err
 }
 
+// GetRecords simulates a request to get a list of records for a given zone.
 func (m *mockClient) GetRecords(ctx context.Context, opts hdns.RecordListOpts) ([]*hdns.Record, *hdns.Response, error) {
 	r := m.getRecords
 	if m.adjustZone {
@@ -66,65 +87,77 @@ func (m *mockClient) GetRecords(ctx context.Context, opts hdns.RecordListOpts) (
 	return r.records, r.resp, r.err
 }
 
+// CreateRecord simulates a request to create a DNS record.
 func (m *mockClient) CreateRecord(ctx context.Context, opts hdns.RecordCreateOpts) (*hdns.Record, *hdns.Response, error) {
 	r := m.createRecord
 	return r.record, r.resp, r.err
 }
 
+// UpdateRecord simulates a request to update a DNS record.
 func (m *mockClient) UpdateRecord(ctx context.Context, record *hdns.Record, opts hdns.RecordUpdateOpts) (*hdns.Record, *hdns.Response, error) {
 	r := m.updateRecord
 	return r.record, r.resp, r.err
 }
 
+// DeleteRecord simulates a request to delete a DNS record.
 func (m *mockClient) DeleteRecord(ctx context.Context, record *hdns.Record) (*hdns.Response, error) {
 	r := m.deleteRecord
 	return r.resp, r.err
 }
 
-var (
-	unpointedZones = func(zones []*hdns.Zone) []hdns.Zone {
-		ret := make([]hdns.Zone, len(zones))
-		for i, z := range zones {
-			if z == nil {
-				continue
-			}
-			ret[i] = *z
+// unpointedZones transforms a slice of zone pointers into a slice of zones.
+func unpointedZones(zones []*hdns.Zone) []hdns.Zone {
+	ret := make([]hdns.Zone, len(zones))
+	for i, z := range zones {
+		if z == nil {
+			continue
 		}
-		return ret
+		ret[i] = *z
 	}
-	unpointedRecords = func(records []*hdns.Record) []hdns.Record {
-		ret := make([]hdns.Record, len(records))
-		for i, r := range records {
-			if r == nil {
-				continue
-			}
-			ret[i] = *r
-		}
-		return ret
-	}
-	checkErr = func(t *testing.T, err error, errExp bool) {
-		isErr := (err != nil)
-		if (isErr && !errExp) || (!isErr && errExp) {
-			t.Fail()
-		}
-	}
-	toEndpoints = func(records []hdns.Record) []*endpoint.Endpoint {
-		endpoints := make([]*endpoint.Endpoint, 0, len(records))
-		for _, r := range records {
-			e := endpoint.Endpoint{
-				DNSName:       r.Name,
-				SetIdentifier: r.ID,
-				Targets:       []string{r.Value},
-				RecordTTL:     endpoint.TTL(r.Ttl),
-				RecordType:    string(r.Type),
-			}
-			endpoints = append(endpoints, &e)
-		}
-		return endpoints
-	}
-	testTime = time.Date(2021, 8, 15, 14, 30, 45, 100, time.Local)
-)
+	return ret
+}
 
+// unpointedRecords transforms a slice of record pointers into a slice of
+// records.
+func unpointedRecords(records []*hdns.Record) []hdns.Record {
+	ret := make([]hdns.Record, len(records))
+	for i, r := range records {
+		if r == nil {
+			continue
+		}
+		ret[i] = *r
+	}
+	return ret
+}
+
+// checkError checks if an error is thrown when expected.
+func checkError(t *testing.T, err error, errExp bool) {
+	isErr := (err != nil)
+	if (isErr && !errExp) || (!isErr && errExp) {
+		t.Fail()
+	}
+}
+
+// toEndpoints transforms a slice of records in a slice of endpoint pointers.
+func toEndpoints(records []hdns.Record) []*endpoint.Endpoint {
+	endpoints := make([]*endpoint.Endpoint, 0, len(records))
+	for _, r := range records {
+		e := endpoint.Endpoint{
+			DNSName:       r.Name,
+			SetIdentifier: r.ID,
+			Targets:       []string{r.Value},
+			RecordTTL:     endpoint.TTL(r.Ttl),
+			RecordType:    string(r.Type),
+		}
+		endpoints = append(endpoints, &e)
+	}
+	return endpoints
+}
+
+// test time used in records.
+var testTime = time.Date(2021, 8, 15, 14, 30, 45, 100, time.Local)
+
+// buildTestZones bulids some test zones.
 func buildTestZones() []*hdns.Zone {
 	zones := []*hdns.Zone{
 		{
@@ -145,6 +178,11 @@ func buildTestZones() []*hdns.Zone {
 	return zones
 }
 
+// buildTestRecord builds a record according to parameters. The indexes of
+// the params argument must contain:
+// - 0: the record type
+// - 1: the record name
+// - 2: the record value
 func buildTestRecord(params [3]string, zoneId string) *hdns.Record {
 	return &hdns.Record{
 		Type:     hdns.RecordType(params[0]),
@@ -158,6 +196,7 @@ func buildTestRecord(params [3]string, zoneId string) *hdns.Record {
 	}
 }
 
+// buildTestRecords builds some test records for the given zoneId.
 func buildTestRecords(zoneId string) []*hdns.Record {
 	fixture := [][3]string{
 		{"A", "www", "127.0.0.1"},
@@ -172,6 +211,7 @@ func buildTestRecords(zoneId string) []*hdns.Record {
 	return records
 }
 
+// Test_NewHetznerProvider tests NewHetznerProvider().
 func Test_NewHetznerProvider(t *testing.T) {
 	cfg := Configuration{
 		APIKey:       "testKey",
@@ -193,7 +233,8 @@ func Test_NewHetznerProvider(t *testing.T) {
 	assert.DeepEqual(t, actualJSON, expectedJSON)
 }
 
-func Test_Empty(t *testing.T) {
+// Test_hetznerChanges_Empty tests hetznerChanges.Empty().
+func Test_hetznerChanges_Empty(t *testing.T) {
 	type testCase struct {
 		name     string
 		changes  hetznerChanges
@@ -278,6 +319,7 @@ func Test_Empty(t *testing.T) {
 	}
 }
 
+// Test_Zones tests HetznerProvider.Zones().
 func Test_Zones(t *testing.T) {
 	type testCase struct {
 		name     string
@@ -292,10 +334,8 @@ func Test_Zones(t *testing.T) {
 
 	run := func(t *testing.T, tc testCase) {
 		resp, err := tc.provider.Zones(context.Background())
-		if tc.expected.err {
-			checkErr(t, err, true)
-		} else {
-			checkErr(t, err, false)
+		checkError(t, err, tc.expected.err)
+		if !tc.expected.err {
 			assert.Equal(t, reflect.DeepEqual(resp, tc.expected.zones), true)
 		}
 	}
@@ -362,6 +402,7 @@ func Test_Zones(t *testing.T) {
 	}
 }
 
+// Test_AdjustEndpoints tests HetznerProvider.AdjustEndpoints().
 func Test_AdjustEndpoints(t *testing.T) {
 	type testCase struct {
 		name     string
@@ -396,6 +437,8 @@ func Test_AdjustEndpoints(t *testing.T) {
 	}
 }
 
+// Test_mergeEndpointsByNameType tests
+// hetznerProvider.mergeEndpointsByNameType().
 func Test_mergeEndpointsByNameType(t *testing.T) {
 	mkEndpoint := func(params [3]string) *endpoint.Endpoint {
 		return &endpoint.Endpoint{
@@ -451,6 +494,7 @@ func Test_mergeEndpointsByNameType(t *testing.T) {
 	}
 }
 
+// Test_Records tests HetznerProvider.Records().
 func Test_Records(t *testing.T) {
 	type testCase struct {
 		name     string
@@ -466,13 +510,8 @@ func Test_Records(t *testing.T) {
 
 	run := func(t *testing.T, tc testCase) {
 		actual, err := tc.provider.Records(context.Background())
-		if tc.expected.err {
-			checkErr(t, err, true)
-		} else {
-			checkErr(t, err, false)
-			for i, r := range actual {
-				fmt.Printf("[%d] type{%s} id{%s} name{%s} value{%v}\n", i, r.RecordType, r.SetIdentifier, r.DNSName, r.Targets)
-			}
+		checkError(t, err, tc.expected.err)
+		if err != nil {
 			assert.Equal(t, len(actual), tc.expected.endpoints)
 		}
 	}
@@ -526,21 +565,28 @@ func Test_Records(t *testing.T) {
 	}
 }
 
+// Test_fetchRecords tests HetznerProvider.fetchRecords().
 func Test_fetchRecords(t *testing.T) {
 }
 
+// Test_fetchZones tests HetznerProvider.fetchZones().
 func Test_fetchZones(t *testing.T) {
 }
 
+// Test_ensureZoneIDMappingPresent tests
+// HetznerProvider.ensureZoneIDMappingPresent().
 func Test_ensureZoneIDMappingPresent(t *testing.T) {
 }
 
+// Test_getRecordsByZoneID tests HetznerProvider.Test_getRecordsByZoneID()
 func Test_getRecordsByZoneID(t *testing.T) {
 }
 
+// Test_makeEndpointName tests makeEndpointName().
 func Test_makeEndpointName(t *testing.T) {
 }
 
+// Test_makeEndpointTarget tests HetznerProvider.makeEndpointTarget().
 func Test_makeEndpointTarget(t *testing.T) {
 	type testCase struct {
 		name     string
@@ -634,26 +680,34 @@ func Test_makeEndpointTarget(t *testing.T) {
 	}
 }
 
+// Test_submitChanges tests HetznerProvider.submitChanges().
 func Test_submitChanges(t *testing.T) {
 }
 
+// Test_endpointsByZoneID tests endpointsByZoneID().
 func Test_endpointsByZoneID(t *testing.T) {
 }
 
+// Test_getMatchingDomainRecords tests getMatchingDomainRecords().
 func Test_getMatchingDomainRecords(t *testing.T) {
 }
 
+// Test_getTTLFromEndpoint tests getTTLFromEndpoint().
 func Test_getTTLFromEndpoint(t *testing.T) {
 }
 
+// Test_processCreateActions tests processCreateActions().
 func Test_processCreateActions(t *testing.T) {
 }
 
+// Test_processUpdateActions tests processUpdateActions().
 func Test_processUpdateActions(t *testing.T) {
 }
 
+// Test_processDeleteActions tests processDeleteActions().
 func Test_processDeleteActions(t *testing.T) {
 }
 
+// Test_ApplyChanges tests HetznerProvider.ApplyChanges().
 func Test_ApplyChanges(t *testing.T) {
 }
