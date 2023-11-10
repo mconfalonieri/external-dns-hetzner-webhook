@@ -337,6 +337,7 @@ func (p HetznerProvider) makeEndpointTarget(domain, entryTarget, recordType stri
 	// Trim the trailing dot
 	adjustedTarget := strings.TrimSuffix(entryTarget, ".")
 	adjustedTarget = strings.TrimSuffix(adjustedTarget, "."+domain)
+	// In CNAMEs we need the trailing dot!
 	if recordType == "CNAME" {
 		adjustedTarget = adjustedTarget + "."
 	}
