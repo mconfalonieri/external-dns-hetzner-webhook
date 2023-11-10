@@ -131,7 +131,12 @@ consideration:
 - if your records don't get deleted when applications are uninstalled, you
   might want to verify the policy in use for ExternalDNS: if it's `upsert-only`
   no deletion will occur. It must be set to `sync` for deletions to be
-  processed.
+  processed. Please add the following to `external-dns-hetzner-values.yaml` if
+  you want this strategy:
+  
+  ```yaml
+  updateStrategy: sync
+  ```
 
 ## Development
 
