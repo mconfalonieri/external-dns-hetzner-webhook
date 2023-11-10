@@ -134,9 +134,7 @@ consideration:
   you want this strategy:
   
   ```yaml
-  extraArgs:
-    ...
-    policy: sync
+  policy: sync
   ```
 
 ## Development
