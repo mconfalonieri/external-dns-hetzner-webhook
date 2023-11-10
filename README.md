@@ -39,9 +39,9 @@ You can then create the helm values file, for example
 
 ```yaml
 image:
-  registry: docker.io
-  repository: bitnami/external-dns
-  tag: latest
+  registry: registry.k8s.io
+  repository: external-dns/external-dns
+  tag: v0.14.0
 
 provider: webhook
 
