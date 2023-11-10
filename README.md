@@ -43,7 +43,6 @@ image:
   repository: external-dns/external-dns
   tag: v0.14.0
 
-updateStrategy: sync
 provider: webhook
 
 extraArgs:
@@ -135,7 +134,9 @@ consideration:
   you want this strategy:
   
   ```yaml
-  updateStrategy: sync
+  extraArgs:
+    ...
+    policy: sync
   ```
 
 ## Development
