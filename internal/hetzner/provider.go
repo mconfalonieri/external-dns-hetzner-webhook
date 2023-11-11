@@ -495,6 +495,9 @@ func processCreateActions(
 			}
 
 			for _, target := range ep.Targets {
+				if ep.RecordType == "CNAME" && !strings.HasSuffix(target, ".") {
+					target += "."
+				}
 				log.WithFields(log.Fields{
 					"zoneName":   zoneName,
 					"dnsName":    ep.DNSName,
@@ -580,6 +583,9 @@ func processUpdateActions(
 
 			// Generate create and delete actions based on existence of a record for each target.
 			for _, target := range ep.Targets {
+				if ep.RecordType == "CNAME" && !strings.HasSuffix(target, ".") {
+					target += "."
+				}
 				if record, ok := matchingRecordsByTarget[target]; ok {
 					log.WithFields(log.Fields{
 						"zoneName":   zoneName,

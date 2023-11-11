@@ -28,9 +28,7 @@ a [sidecar container](https://kubernetes.io/docs/concepts/workloads/pods/#worklo
 ExternalDNS pod
 using the [Bitnami Helm charts for ExternalDNS](https://github.com/bitnami/charts/tree/main/bitnami/external-dns).
 
-⚠️  Webhooks are still an experimental feature of External DNS. The image used in this configuration example
-was created by me from the External DNS master branch to test the webhook.
-This notice and configuration file will be updated once a webhook version of External DNS will be released.
+⚠️  This webhook requires at least ExternalDNS v0.14.0.
 
 ```shell
 helm repo add bitnami https://charts.bitnami.com/bitnami
@@ -41,9 +39,9 @@ You can then create the helm values file, for example
 
 ```yaml
 image:
-  registry: docker.io
-  repository: mconfalonieri/external-dns
-  tag: v0.13.6-142-gd8f408b8
+  registry: registry.k8s.io
+  repository: external-dns/external-dns
+  tag: v0.14.0
 
 provider: webhook
 
@@ -53,7 +51,7 @@ extraArgs:
 
 sidecars:
   - name: hetzner-webhook
-    image: ghcr.io/mconfalonieri/external-dns-hetzner-webhook:v0.5.0
+    image: ghcr.io/mconfalonieri/external-dns-hetzner-webhook:v0.5.1
     ports:
       - containerPort: 8888
         name: webhook
@@ -127,15 +125,17 @@ build the filter:
 While tweaking the configuration, there are some points to take into
 consideration:
 
-- if you are using `--registry=txt` (default) for `external-dns`, remember to
-  set `--txt-prefix=<prefix>` too, or you will receive a 422 response back when
-  setting one of the required `TXT` records;
 - if `WEBHOOK_HOST` and `HEALTH_HOST` are set to the same address/hostname or
   one of them is set to `0.0.0.0` remember to use different ports.
 - if your records don't get deleted when applications are uninstalled, you
   might want to verify the policy in use for ExternalDNS: if it's `upsert-only`
   no deletion will occur. It must be set to `sync` for deletions to be
-  processed.
+  processed. Please add the following to `external-dns-hetzner-values.yaml` if
+  you want this strategy:
+  
+  ```yaml
+  policy: sync
+  ```
 
 ## Development
 
