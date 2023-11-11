@@ -3,7 +3,7 @@
 ⚠️  This software is experimental and **NOT FIT FOR PRODUCTION USE!**
 
 **🛈 NOTE**: This Webhook was forked and modified from the [IONOS Webhook](https://github.com/ionos-cloud/external-dns-ionos-webhook)
-to work with Hetzner. It also contains huge parts from the original Hetzner provider that was removed from the main tree.
+to work with Hetzner. It also contains huge parts from [DrBu7cher's Hetzner provider](https://github.com/DrBu7cher/external-dns/tree/readding_hcloud_provider).
 
 ExternalDNS is a Kubernetes add-on for automatically managing
 Domain Name System (DNS) records for Kubernetes services by using different DNS providers.
