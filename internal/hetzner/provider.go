@@ -337,10 +337,6 @@ func (p HetznerProvider) makeEndpointTarget(domain, entryTarget, recordType stri
 	// Trim the trailing dot
 	adjustedTarget := strings.TrimSuffix(entryTarget, ".")
 	adjustedTarget = strings.TrimSuffix(adjustedTarget, "."+domain)
-	// In CNAMEs we need the trailing dot!
-	if recordType == "CNAME" {
-		adjustedTarget = adjustedTarget + "."
-	}
 
 	return adjustedTarget, true
 }
@@ -499,6 +495,9 @@ func processCreateActions(
 			}
 
 			for _, target := range ep.Targets {
+				if ep.RecordType == "CNAME" && !strings.HasSuffix(target, ".") {
+					target += "."
+				}
 				log.WithFields(log.Fields{
 					"zoneName":   zoneName,
 					"dnsName":    ep.DNSName,
@@ -584,6 +583,9 @@ func processUpdateActions(
 
 			// Generate create and delete actions based on existence of a record for each target.
 			for _, target := range ep.Targets {
+				if ep.RecordType == "CNAME" && !strings.HasSuffix(target, ".") {
+					target += "."
+				}
 				if record, ok := matchingRecordsByTarget[target]; ok {
 					log.WithFields(log.Fields{
 						"zoneName":   zoneName,
