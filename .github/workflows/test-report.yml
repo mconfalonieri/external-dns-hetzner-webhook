@@ -29,7 +29,6 @@ jobs:
       if: success() || failure()
       with:
         name: Unit Test Results
-        artifact: unit-test-reports
         path: ./build/reports/**-test.xml
         reporter: java-junit
         fail-on-error: 'true'
