@@ -9,7 +9,7 @@ ExternalDNS is a Kubernetes add-on for automatically managing
 Domain Name System (DNS) records for Kubernetes services by using different DNS providers.
 By default, Kubernetes manages DNS records internally,
 but ExternalDNS takes this functionality a step further by delegating the management of DNS records to an external DNS
-provider such as Hetzner.
+provider such as this one.
 Therefore, the Hetzner webhook allows to manage your
 Hetzner domains inside your kubernetes cluster with [ExternalDNS](https://github.com/kubernetes-sigs/external-dns).
 
