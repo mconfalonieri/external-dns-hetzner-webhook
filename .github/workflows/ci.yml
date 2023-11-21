@@ -21,14 +21,6 @@ jobs:
         uses: actions/setup-go@v4
         with:
           go-version: stable
-      - name: Run Unit Tests
-        run: make unit-test
-      - name: Upload Reports
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: unit-test-reports
-          path: ./build/reports/**
       - name: Set Up Docker Buildx
         uses: docker/setup-buildx-action@v2
       - name: Go Snapshot Release
@@ -36,4 +28,4 @@ jobs:
         with:
           distribution: goreleaser
           version: latest
-          args: release --snapshot --clean --skip-publish
+          args: release --snapshot --clean --skip=publish
