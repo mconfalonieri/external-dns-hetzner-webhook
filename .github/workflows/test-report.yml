@@ -12,6 +12,16 @@ jobs:
   report:
     runs-on: ubuntu-22.04
     steps:
+    - name: Checkout Code
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+    - name: Git Fetch
+      run: git fetch --force --tags
+    - name: Setup go
+      uses: actions/setup-go@v4
+      with:
+        go-version: stable
     - name: Run Unit Tests
       run: make unit-test
     - name: Upload Reports
