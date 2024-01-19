@@ -18,6 +18,7 @@ package hetzner
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"reflect"
 	"testing"
@@ -25,7 +26,8 @@ import (
 
 	hdns "github.com/jobstoit/hetzner-dns-go/dns"
 	hschema "github.com/jobstoit/hetzner-dns-go/dns/schema"
-	"gotest.tools/assert"
+	"github.com/stretchr/testify/assert"
+
 	"sigs.k8s.io/external-dns/endpoint"
 	"sigs.k8s.io/external-dns/provider"
 )
@@ -132,6 +134,7 @@ func unpointedRecords(records []*hdns.Record) []hdns.Record {
 
 // checkError checks if an error is thrown when expected.
 func checkError(t *testing.T, err error, errExp bool) {
+	fmt.Println("CheckError: ", err, errExp)
 	isErr := (err != nil)
 	if (isErr && !errExp) || (!isErr && errExp) {
 		t.Fail()
@@ -230,7 +233,7 @@ func Test_NewHetznerProvider(t *testing.T) {
 	assert.Equal(t, cfg.DefaultTTL, p.defaultTTL)
 	actualJSON, _ := p.domainFilter.MarshalJSON()
 	expectedJSON, _ := GetDomainFilter(cfg).MarshalJSON()
-	assert.DeepEqual(t, actualJSON, expectedJSON)
+	assert.Equal(t, actualJSON, expectedJSON)
 }
 
 // Test_hetznerChanges_Empty tests hetznerChanges.Empty().
@@ -511,14 +514,14 @@ func Test_Records(t *testing.T) {
 	run := func(t *testing.T, tc testCase) {
 		actual, err := tc.provider.Records(context.Background())
 		checkError(t, err, tc.expected.err)
-		if err != nil {
+		if err == nil {
 			assert.Equal(t, len(actual), tc.expected.endpoints)
 		}
 	}
 
 	testCases := []testCase{
 		{
-			name: "All records",
+			name: "All records returned",
 			provider: HetznerProvider{
 				client: &mockClient{
 					getZones: zonesResponse{
@@ -556,6 +559,28 @@ func Test_Records(t *testing.T) {
 				endpoints: 4, // MX test records will not show up
 			},
 		},
+		{
+			name: "Error in zones",
+			provider: HetznerProvider{
+				client: &mockClient{
+					getZones: zonesResponse{
+						err: errors.New("test zones error"),
+					},
+					adjustZone: true,
+				},
+				batchSize:    100,
+				debug:        true,
+				dryRun:       false,
+				defaultTTL:   7200,
+				domainFilter: endpoint.DomainFilter{},
+			},
+			expected: struct {
+				endpoints int
+				err       bool
+			}{
+				err: true,
+			},
+		},
 	}
 
 	for _, tc := range testCases {
@@ -567,10 +592,167 @@ func Test_Records(t *testing.T) {
 
 // Test_fetchRecords tests HetznerProvider.fetchRecords().
 func Test_fetchRecords(t *testing.T) {
+	type testCase struct {
+		name     string
+		provider HetznerProvider
+		input    string
+		expected struct {
+			endpoints int
+			err       bool
+		}
+	}
+
+	testRecords := buildTestRecords("id_a")
+
+	run := func(t *testing.T, tc testCase) {
+		actual, err := tc.provider.fetchRecords(context.Background(), tc.input)
+		checkError(t, err, tc.expected.err)
+		if err != nil {
+			assert.Equal(t, len(actual), tc.expected.endpoints)
+		}
+	}
+
+	testCases := []testCase{
+		{
+			name: "All records",
+			provider: HetznerProvider{
+				client: &mockClient{
+					getRecords: recordsResponse{
+						records: testRecords,
+						resp: &hdns.Response{
+							Response: &http.Response{StatusCode: http.StatusOK},
+						},
+					},
+					adjustZone: true,
+				},
+				batchSize:    100,
+				debug:        true,
+				dryRun:       false,
+				defaultTTL:   7200,
+				domainFilter: endpoint.DomainFilter{},
+			},
+			expected: struct {
+				endpoints int
+				err       bool
+			}{
+				endpoints: 4, // MX test records will not show up
+			},
+		},
+		{
+			name: "Error",
+			provider: HetznerProvider{
+				client: &mockClient{
+					getRecords: recordsResponse{
+						err: errors.New("records test error"),
+					},
+					adjustZone: true,
+				},
+				batchSize:    100,
+				debug:        true,
+				dryRun:       false,
+				defaultTTL:   7200,
+				domainFilter: endpoint.DomainFilter{},
+			},
+			expected: struct {
+				endpoints int
+				err       bool
+			}{
+				err: true,
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			run(t, tc)
+		})
+	}
 }
 
 // Test_fetchZones tests HetznerProvider.fetchZones().
 func Test_fetchZones(t *testing.T) {
+	type testCase struct {
+		name     string
+		provider HetznerProvider
+		expected struct {
+			zones []hdns.Zone
+			err   bool
+		}
+	}
+
+	testZones := buildTestZones()
+
+	run := func(t *testing.T, tc testCase) {
+		actual, err := tc.provider.fetchZones(context.Background())
+		checkError(t, err, tc.expected.err)
+		if err == nil {
+			assert.ElementsMatch(t, actual, tc.expected.zones)
+		}
+	}
+
+	testCases := []testCase{
+		{
+			name: "Zones returned",
+			provider: HetznerProvider{
+				client: &mockClient{
+					getZones: zonesResponse{
+						zones: testZones,
+						resp: &hdns.Response{
+							Response: &http.Response{StatusCode: http.StatusOK},
+							Meta: hdns.Meta{
+								Pagination: &hdns.Pagination{
+									Page:         1,
+									PerPage:      100,
+									LastPage:     1,
+									TotalEntries: len(testZones),
+								},
+							},
+						},
+					},
+					adjustZone: true,
+				},
+				batchSize:    100,
+				debug:        true,
+				dryRun:       false,
+				defaultTTL:   7200,
+				domainFilter: endpoint.DomainFilter{},
+			},
+			expected: struct {
+				zones []hdns.Zone
+				err   bool
+			}{
+				zones: unpointedZones(testZones), // 2 zones returned
+			},
+		},
+		{
+			name: "Error returned",
+			provider: HetznerProvider{
+				client: &mockClient{
+					getZones: zonesResponse{
+						err: errors.New("zones test error"),
+					},
+					adjustZone: true,
+				},
+				batchSize:    100,
+				debug:        true,
+				dryRun:       false,
+				defaultTTL:   7200,
+				domainFilter: endpoint.DomainFilter{},
+			},
+			expected: struct {
+				zones []hdns.Zone
+				err   bool
+			}{
+				err: true,
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			run(t, tc)
+		})
+	}
 }
 
 // Test_ensureZoneIDMappingPresent tests
@@ -600,7 +782,7 @@ func Test_makeEndpointTarget(t *testing.T) {
 
 	run := func(t *testing.T, tc testCase) {
 		target, valid := tc.provider.makeEndpointTarget(tc.input[0], tc.input[1], tc.input[2])
-		assert.DeepEqual(t, target, tc.expected.target)
+		assert.Equal(t, target, tc.expected.target)
 		assert.Equal(t, valid, tc.expected.valid)
 	}
 
