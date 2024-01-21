@@ -276,7 +276,7 @@ func (p *HetznerProvider) fetchZones(ctx context.Context) ([]hdns.Zone, error) {
 }
 
 // ensureZoneIDMappingPresent prepares the zoneIDNameMapper, that associates
-// each ZoneID woth the zone name.
+// each ZoneID with the zone name.
 func (p *HetznerProvider) ensureZoneIDMappingPresent(zones []hdns.Zone) {
 	zoneIDNameMapper := provider.ZoneIDName{}
 	for _, z := range zones {

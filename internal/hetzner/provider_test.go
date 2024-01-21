@@ -18,7 +18,6 @@ package hetzner
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net/http"
 	"reflect"
 	"testing"
@@ -134,7 +133,6 @@ func unpointedRecords(records []*hdns.Record) []hdns.Record {
 
 // checkError checks if an error is thrown when expected.
 func checkError(t *testing.T, err error, errExp bool) {
-	fmt.Println("CheckError: ", err, errExp)
 	isErr := (err != nil)
 	if (isErr && !errExp) || (!isErr && errExp) {
 		t.Fail()
@@ -521,7 +519,7 @@ func Test_Records(t *testing.T) {
 
 	testCases := []testCase{
 		{
-			name: "All records returned",
+			name: "Records returned",
 			provider: HetznerProvider{
 				client: &mockClient{
 					getZones: zonesResponse{
@@ -758,14 +756,267 @@ func Test_fetchZones(t *testing.T) {
 // Test_ensureZoneIDMappingPresent tests
 // HetznerProvider.ensureZoneIDMappingPresent().
 func Test_ensureZoneIDMappingPresent(t *testing.T) {
+	type testCase struct {
+		name     string
+		provider HetznerProvider
+		input    []hdns.Zone
+		expected map[string]string
+	}
+
+	run := func(t *testing.T, tc testCase) {
+		tc.provider.ensureZoneIDMappingPresent(tc.input)
+		actual := tc.provider.zoneIDNameMapper
+		assert.EqualValues(t, actual, tc.expected)
+	}
+
+	testCases := []testCase{
+		{
+			name:     "empty zones",
+			provider: HetznerProvider{},
+			input:    []hdns.Zone{},
+			expected: map[string]string{},
+		},
+		{
+			name:     "some zones",
+			provider: HetznerProvider{},
+			input: []hdns.Zone{
+				{
+					ID:   "id_zone1",
+					Name: "zone1",
+				},
+				{
+					ID:   "id_zone2",
+					Name: "zone2",
+				},
+			},
+			expected: map[string]string{
+				"id_zone1": "zone1",
+				"id_zone2": "zone2",
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			run(t, tc)
+		})
+	}
 }
 
-// Test_getRecordsByZoneID tests HetznerProvider.Test_getRecordsByZoneID()
+// Test_getRecordsByZoneID tests HetznerProvider.getRecordsByZoneID()
 func Test_getRecordsByZoneID(t *testing.T) {
+	type testCase struct {
+		name     string
+		provider HetznerProvider
+		expected struct {
+			records map[string][]hdns.Record
+			zones   provider.ZoneIDName
+			err     bool
+		}
+	}
+
+	testZones := buildTestZones()
+	testRecords := buildTestRecords("id_a")
+
+	run := func(t *testing.T, tc testCase) {
+		actualRecords, actualZones, err := tc.provider.getRecordsByZoneID(context.Background())
+		checkError(t, err, tc.expected.err)
+		if err == nil {
+			assert.Equal(t, len(actualRecords["id_a"]), len(testRecords))
+			assert.Equal(t, len(actualRecords["id_b"]), len(testRecords))
+			assert.EqualValues(t, actualZones, tc.expected.zones)
+		}
+	}
+
+	testCases := []testCase{
+		{
+			name: "Zones returned",
+			provider: HetznerProvider{
+				client: &mockClient{
+					getZones: zonesResponse{
+						zones: testZones,
+						resp: &hdns.Response{
+							Response: &http.Response{StatusCode: http.StatusOK},
+							Meta: hdns.Meta{
+								Pagination: &hdns.Pagination{
+									Page:         1,
+									PerPage:      100,
+									LastPage:     1,
+									TotalEntries: len(testZones),
+								},
+							},
+						},
+					},
+					getRecords: recordsResponse{
+						records: testRecords,
+						resp: &hdns.Response{
+							Response: &http.Response{StatusCode: http.StatusOK},
+							Meta: hdns.Meta{
+								Pagination: &hdns.Pagination{
+									Page:         1,
+									PerPage:      100,
+									LastPage:     1,
+									TotalEntries: len(testRecords),
+								},
+							},
+						},
+					},
+					adjustZone: true,
+				},
+				batchSize:    100,
+				debug:        true,
+				dryRun:       false,
+				defaultTTL:   7200,
+				domainFilter: endpoint.DomainFilter{},
+			},
+			expected: struct {
+				records map[string][]hdns.Record
+				zones   provider.ZoneIDName
+				err     bool
+			}{
+				records: map[string][]hdns.Record{
+					"id_a": unpointedRecords(buildTestRecords("id_a")),
+					"id_b": unpointedRecords(buildTestRecords("id_b")),
+				},
+				zones: provider.ZoneIDName{
+					"id_a": "a.com",
+					"id_b": "b.com",
+				}, // 2 zones returned
+			},
+		},
+		{
+			name: "Zone error returned",
+			provider: HetznerProvider{
+				client: &mockClient{
+					getZones: zonesResponse{
+						err: errors.New("test zone error"),
+					},
+					adjustZone: true,
+				},
+				batchSize:    100,
+				debug:        true,
+				dryRun:       false,
+				defaultTTL:   7200,
+				domainFilter: endpoint.DomainFilter{},
+			},
+			expected: struct {
+				records map[string][]hdns.Record
+				zones   provider.ZoneIDName
+				err     bool
+			}{
+				err: true,
+			},
+		},
+		{
+			name: "Records error returned",
+			provider: HetznerProvider{
+				client: &mockClient{
+					getZones: zonesResponse{
+						zones: testZones,
+						resp: &hdns.Response{
+							Response: &http.Response{StatusCode: http.StatusOK},
+							Meta: hdns.Meta{
+								Pagination: &hdns.Pagination{
+									Page:         1,
+									PerPage:      100,
+									LastPage:     1,
+									TotalEntries: len(testZones),
+								},
+							},
+						},
+					},
+					getRecords: recordsResponse{
+						err: errors.New("test records error"),
+					},
+					adjustZone: true,
+				},
+				batchSize:    100,
+				debug:        true,
+				dryRun:       false,
+				defaultTTL:   7200,
+				domainFilter: endpoint.DomainFilter{},
+			},
+			expected: struct {
+				records map[string][]hdns.Record
+				zones   provider.ZoneIDName
+				err     bool
+			}{
+				err: true,
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			run(t, tc)
+		})
+	}
 }
 
 // Test_makeEndpointName tests makeEndpointName().
 func Test_makeEndpointName(t *testing.T) {
+	type testCase struct {
+		name  string
+		input struct {
+			domain    string
+			entryName string
+			epType    string
+		}
+		expected string
+	}
+
+	testCases := []testCase{
+		{
+			name: "Adjustment not required",
+			input: struct {
+				domain    string
+				entryName string
+				epType    string
+			}{
+				domain:    "a.com",
+				entryName: "test",
+				epType:    "A",
+			},
+			expected: "test",
+		},
+		{
+			name: "Adjustment required",
+			input: struct {
+				domain    string
+				entryName string
+				epType    string
+			}{
+				domain:    "a.com",
+				entryName: "test.a.com",
+				epType:    "A",
+			},
+			expected: "test",
+		},
+		{
+			name: "top entry",
+			input: struct {
+				domain    string
+				entryName string
+				epType    string
+			}{
+				domain:    "a.com",
+				entryName: "a.com",
+				epType:    "A",
+			},
+			expected: "@",
+		},
+	}
+
+	run := func(t *testing.T, tc testCase) {
+		actual := makeEndpointName(tc.input.domain, tc.input.entryName, tc.input.epType)
+		assert.Equal(t, actual, tc.expected)
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			run(t, tc)
+		})
+	}
 }
 
 // Test_makeEndpointTarget tests HetznerProvider.makeEndpointTarget().
