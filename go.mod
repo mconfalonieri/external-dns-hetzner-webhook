@@ -10,6 +10,7 @@ require (
 	github.com/golangci/golangci-lint v1.53.3
 	github.com/google/go-licenses v1.6.0
 	github.com/sirupsen/logrus v1.9.3
+	github.com/stretchr/testify v1.8.4
 	gotest.tools v2.2.0+incompatible
 	gotest.tools/gotestsum v1.10.0
 )
@@ -35,7 +36,6 @@ require (
 	github.com/sagikazarmark/locafero v0.3.0 // indirect
 	github.com/sagikazarmark/slog-shim v0.1.0 // indirect
 	github.com/sourcegraph/conc v0.3.0 // indirect
-	github.com/stretchr/testify v1.8.4 // indirect
 	go.uber.org/goleak v1.2.1 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	k8s.io/apimachinery v0.28.2 // indirect
