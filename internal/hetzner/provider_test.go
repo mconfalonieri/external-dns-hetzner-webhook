@@ -1122,6 +1122,8 @@ func Test_submitChanges(t *testing.T) {
 		expectedErr bool
 	}
 
+	testTTL := 7200
+
 	run := func(t *testing.T, tc testCase) {
 		err := tc.provider.submitChanges(context.Background(), tc.input)
 		checkError(t, err, tc.expectedErr)
@@ -1209,6 +1211,225 @@ func Test_submitChanges(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "creations",
+			provider: HetznerProvider{
+				client:       &mockClient{},
+				batchSize:    100,
+				debug:        true,
+				dryRun:       false,
+				defaultTTL:   7200,
+				domainFilter: endpoint.DomainFilter{},
+				zoneIDNameMapper: provider.ZoneIDName{
+					"1": "a.com",
+				},
+			},
+			input: &hetznerChanges{
+				Creates: []*hetznerChangeCreate{
+					{
+						Domain: "a.com",
+						Options: &hdns.RecordCreateOpts{
+							Name:  "www",
+							Zone:  &hdns.Zone{ID: "a_zone_id"},
+							Type:  "A",
+							Value: "127.0.0.1",
+							Ttl:   &testTTL,
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "creation error",
+			provider: HetznerProvider{
+				client: &mockClient{
+					createRecord: recordResponse{
+						err: errors.New("test creation error"),
+					},
+				},
+				batchSize:    100,
+				debug:        true,
+				dryRun:       false,
+				defaultTTL:   7200,
+				domainFilter: endpoint.DomainFilter{},
+				zoneIDNameMapper: provider.ZoneIDName{
+					"1": "a.com",
+				},
+			},
+			input: &hetznerChanges{
+				Creates: []*hetznerChangeCreate{
+					{
+						Domain: "a.com",
+						Options: &hdns.RecordCreateOpts{
+							Name:  "www",
+							Zone:  &hdns.Zone{ID: "a_zone_id"},
+							Type:  "A",
+							Value: "127.0.0.1",
+							Ttl:   &testTTL,
+						},
+					},
+				},
+			},
+			expectedErr: true,
+		},
+		{
+			name: "creation dry run",
+			provider: HetznerProvider{
+				client: &mockClient{
+					createRecord: recordResponse{
+						err: errors.New("test creation error"),
+					},
+				},
+				batchSize:    100,
+				debug:        true,
+				dryRun:       true,
+				defaultTTL:   7200,
+				domainFilter: endpoint.DomainFilter{},
+				zoneIDNameMapper: provider.ZoneIDName{
+					"1": "a.com",
+				},
+			},
+			input: &hetznerChanges{
+				Creates: []*hetznerChangeCreate{
+					{
+						Domain: "a.com",
+						Options: &hdns.RecordCreateOpts{
+							Name:  "www",
+							Zone:  &hdns.Zone{ID: "a_zone_id"},
+							Type:  "A",
+							Value: "127.0.0.1",
+							Ttl:   &testTTL,
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "updates",
+			provider: HetznerProvider{
+				client:       &mockClient{},
+				batchSize:    100,
+				debug:        true,
+				dryRun:       false,
+				defaultTTL:   7200,
+				domainFilter: endpoint.DomainFilter{},
+				zoneIDNameMapper: provider.ZoneIDName{
+					"1": "a.com",
+				},
+			},
+			input: &hetznerChanges{
+				Updates: []*hetznerChangeUpdate{
+					{
+						Domain: "a.com",
+						DomainRecord: hdns.Record{
+							Zone: &hdns.Zone{
+								ID: "id_zone_a",
+							},
+							Name:  "www",
+							Type:  "A",
+							Value: "127.0.0.1",
+							Ttl:   testTTL,
+						},
+						Options: &hdns.RecordUpdateOpts{
+							Zone: &hdns.Zone{
+								ID: "id_zone_a",
+							},
+							Name:  "www1",
+							Type:  "A",
+							Value: "127.0.0.1",
+							Ttl:   &testTTL,
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "update error",
+			provider: HetznerProvider{
+				client: &mockClient{
+					updateRecord: recordResponse{
+						err: errors.New("test update error"),
+					},
+				},
+				batchSize:    100,
+				debug:        true,
+				dryRun:       false,
+				defaultTTL:   7200,
+				domainFilter: endpoint.DomainFilter{},
+				zoneIDNameMapper: provider.ZoneIDName{
+					"1": "a.com",
+				},
+			},
+			input: &hetznerChanges{
+				Updates: []*hetznerChangeUpdate{
+					{
+						Domain: "a.com",
+						DomainRecord: hdns.Record{
+							Zone: &hdns.Zone{
+								ID: "id_zone_a",
+							},
+							Name:  "www",
+							Type:  "A",
+							Value: "127.0.0.1",
+							Ttl:   testTTL,
+						},
+						Options: &hdns.RecordUpdateOpts{
+							Zone: &hdns.Zone{
+								ID: "id_zone_a",
+							},
+							Name:  "www1",
+							Type:  "A",
+							Value: "127.0.0.1",
+							Ttl:   &testTTL,
+						},
+					},
+				},
+			},
+			expectedErr: true,
+		},
+		{
+			name: "update dry run",
+			provider: HetznerProvider{
+				client: &mockClient{
+					updateRecord: recordResponse{
+						err: errors.New("test update error"),
+					},
+				},
+				batchSize:    100,
+				debug:        true,
+				dryRun:       true,
+				defaultTTL:   7200,
+				domainFilter: endpoint.DomainFilter{},
+				zoneIDNameMapper: provider.ZoneIDName{
+					"1": "a.com",
+				},
+			},
+			input: &hetznerChanges{
+				Updates: []*hetznerChangeUpdate{
+					{
+						Domain: "a.com",
+						DomainRecord: hdns.Record{
+							Zone: &hdns.Zone{
+								ID: "id_zone_a",
+							},
+							Name:  "www",
+							Type:  "A",
+							Value: "127.0.0.1",
+							Ttl:   testTTL,
+						},
+						Options: &hdns.RecordUpdateOpts{
+							Zone: &hdns.Zone{
+								ID: "id_zone_a",
+							},
+							Name:  "www1",
+							Type:  "A",
+							Value: "127.0.0.1",
+							Ttl:   &testTTL,
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for _, tc := range testCases {
@@ -1220,14 +1441,225 @@ func Test_submitChanges(t *testing.T) {
 
 // Test_endpointsByZoneID tests endpointsByZoneID().
 func Test_endpointsByZoneID(t *testing.T) {
+	type testCase struct {
+		name  string
+		input struct {
+			zoneIDNameMapper provider.ZoneIDName
+			endpoints        []*endpoint.Endpoint
+		}
+		expected map[string][]*endpoint.Endpoint
+	}
+
+	testCases := []testCase{
+		{
+			name: "empty input",
+			input: struct {
+				zoneIDNameMapper provider.ZoneIDName
+				endpoints        []*endpoint.Endpoint
+			}{
+				zoneIDNameMapper: provider.ZoneIDName{
+					"id_a": "a.com",
+					"id_b": "b.com",
+				},
+				endpoints: []*endpoint.Endpoint{},
+			},
+			expected: map[string][]*endpoint.Endpoint{},
+		},
+		{
+			name: "some input",
+			input: struct {
+				zoneIDNameMapper provider.ZoneIDName
+				endpoints        []*endpoint.Endpoint
+			}{
+				zoneIDNameMapper: provider.ZoneIDName{
+					"id_a": "a.com",
+					"id_b": "b.com",
+				},
+				endpoints: []*endpoint.Endpoint{
+					{
+						DNSName:    "www.a.com",
+						RecordType: "A",
+						Targets: endpoint.Targets{
+							"127.0.0.1",
+						},
+					},
+					{
+						DNSName:    "www.b.com",
+						RecordType: "A",
+						Targets: endpoint.Targets{
+							"127.0.0.1",
+						},
+					}},
+			},
+			expected: map[string][]*endpoint.Endpoint{
+				"id_a": {
+					&endpoint.Endpoint{
+						DNSName:    "www.a.com",
+						RecordType: "A",
+						Targets: endpoint.Targets{
+							"127.0.0.1",
+						},
+					},
+				},
+				"id_b": {
+					&endpoint.Endpoint{
+						DNSName:    "www.b.com",
+						RecordType: "A",
+						Targets: endpoint.Targets{
+							"127.0.0.1",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	run := func(t *testing.T, tc testCase) {
+		actual := endpointsByZoneID(tc.input.zoneIDNameMapper, tc.input.endpoints)
+		assert.Equal(t, actual, tc.expected)
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			run(t, tc)
+		})
+	}
 }
 
 // Test_getMatchingDomainRecords tests getMatchingDomainRecords().
 func Test_getMatchingDomainRecords(t *testing.T) {
+	type testCase struct {
+		name  string
+		input struct {
+			records  []hdns.Record
+			zoneName string
+			ep       *endpoint.Endpoint
+		}
+		expected []hdns.Record
+	}
+
+	testCases := []testCase{
+		{
+			name: "no matches",
+			input: struct {
+				records  []hdns.Record
+				zoneName string
+				ep       *endpoint.Endpoint
+			}{
+				records: []hdns.Record{
+					{
+						ID: "a",
+						Zone: &hdns.Zone{
+							ID:   "id_zone_a",
+							Name: "a.com",
+						},
+						Name: "www",
+					},
+				},
+				zoneName: "a.com",
+				ep: &endpoint.Endpoint{
+					DNSName: "ftp.a.com",
+				},
+			},
+			expected: []hdns.Record{},
+		},
+		{
+			name: "matches",
+			input: struct {
+				records  []hdns.Record
+				zoneName string
+				ep       *endpoint.Endpoint
+			}{
+				records: []hdns.Record{
+					{
+						ID: "a",
+						Zone: &hdns.Zone{
+							ID:   "id_zone_a",
+							Name: "a.com",
+						},
+						Name: "www",
+					},
+				},
+				zoneName: "a.com",
+				ep: &endpoint.Endpoint{
+					DNSName: "www.a.com",
+				},
+			},
+			expected: []hdns.Record{
+				{
+					ID: "a",
+					Zone: &hdns.Zone{
+						ID:   "id_zone_a",
+						Name: "a.com",
+					},
+					Name: "www",
+				},
+			},
+		},
+	}
+
+	run := func(t *testing.T, tc testCase) {
+		actual := getMatchingDomainRecords(tc.input.records, tc.input.zoneName, tc.input.ep)
+		assert.ElementsMatch(t, actual, tc.expected)
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			run(t, tc)
+		})
+	}
 }
 
 // Test_getTTLFromEndpoint tests getTTLFromEndpoint().
 func Test_getTTLFromEndpoint(t *testing.T) {
+	type testCase struct {
+		name     string
+		input    *endpoint.Endpoint
+		expected struct {
+			ttl        int
+			configured bool
+		}
+	}
+
+	testCases := []testCase{
+		{
+			name: "TTL configured",
+			input: &endpoint.Endpoint{
+				RecordTTL: 7200,
+			},
+			expected: struct {
+				ttl        int
+				configured bool
+			}{
+				ttl:        7200,
+				configured: true,
+			},
+		},
+		{
+			name: "TTL not configured",
+			input: &endpoint.Endpoint{
+				RecordTTL: -1,
+			},
+			expected: struct {
+				ttl        int
+				configured bool
+			}{
+				ttl:        -1,
+				configured: false,
+			},
+		}}
+
+	run := func(t *testing.T, tc testCase) {
+		actualTTL, actualConfigured := getTTLFromEndpoint(tc.input)
+		assert.Equal(t, actualTTL, tc.expected.ttl)
+		assert.Equal(t, actualConfigured, tc.expected.configured)
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			run(t, tc)
+		})
+	}
 }
 
 // Test_processCreateActions tests processCreateActions().
