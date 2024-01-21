@@ -1489,7 +1489,8 @@ func Test_endpointsByZoneID(t *testing.T) {
 						Targets: endpoint.Targets{
 							"127.0.0.1",
 						},
-					}},
+					},
+				},
 			},
 			expected: map[string][]*endpoint.Endpoint{
 				"id_a": {
@@ -1647,7 +1648,8 @@ func Test_getTTLFromEndpoint(t *testing.T) {
 				ttl:        -1,
 				configured: false,
 			},
-		}}
+		},
+	}
 
 	run := func(t *testing.T, tc testCase) {
 		actualTTL, actualConfigured := getTTLFromEndpoint(tc.input)
