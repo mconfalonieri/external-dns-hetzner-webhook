@@ -1115,6 +1115,107 @@ func Test_makeEndpointTarget(t *testing.T) {
 
 // Test_submitChanges tests HetznerProvider.submitChanges().
 func Test_submitChanges(t *testing.T) {
+	type testCase struct {
+		name        string
+		provider    HetznerProvider
+		input       *hetznerChanges
+		expectedErr bool
+	}
+
+	run := func(t *testing.T, tc testCase) {
+		err := tc.provider.submitChanges(context.Background(), tc.input)
+		checkError(t, err, tc.expectedErr)
+	}
+
+	testCases := []testCase{
+		{
+			name:        "no changes",
+			provider:    HetznerProvider{},
+			input:       &hetznerChanges{},
+			expectedErr: false,
+		},
+		{
+			name: "deletions",
+			provider: HetznerProvider{
+				client:       &mockClient{},
+				batchSize:    100,
+				debug:        true,
+				dryRun:       false,
+				defaultTTL:   7200,
+				domainFilter: endpoint.DomainFilter{},
+				zoneIDNameMapper: provider.ZoneIDName{
+					"1": "a.com",
+				},
+			},
+			input: &hetznerChanges{
+				Deletes: []*hetznerChangeDelete{
+					{
+						Domain:   "a.com",
+						RecordID: "id_record_a",
+					},
+				},
+			},
+		},
+		{
+			name: "deletion error",
+			provider: HetznerProvider{
+				client: &mockClient{
+					deleteRecord: deleteResponse{
+						err: errors.New("test delete error"),
+					},
+				},
+				batchSize:    100,
+				debug:        true,
+				dryRun:       false,
+				defaultTTL:   7200,
+				domainFilter: endpoint.DomainFilter{},
+				zoneIDNameMapper: provider.ZoneIDName{
+					"1": "a.com",
+				},
+			},
+			input: &hetznerChanges{
+				Deletes: []*hetznerChangeDelete{
+					{
+						Domain:   "a.com",
+						RecordID: "id_record_a",
+					},
+				},
+			},
+			expectedErr: true,
+		},
+		{
+			name: "deletion dry run",
+			provider: HetznerProvider{
+				client: &mockClient{
+					deleteRecord: deleteResponse{
+						err: errors.New("test delete error"),
+					},
+				},
+				batchSize:    100,
+				debug:        true,
+				dryRun:       true,
+				defaultTTL:   7200,
+				domainFilter: endpoint.DomainFilter{},
+				zoneIDNameMapper: provider.ZoneIDName{
+					"1": "a.com",
+				},
+			},
+			input: &hetznerChanges{
+				Deletes: []*hetznerChangeDelete{
+					{
+						Domain:   "a.com",
+						RecordID: "id_record_a",
+					},
+				},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			run(t, tc)
+		})
+	}
 }
 
 // Test_endpointsByZoneID tests endpointsByZoneID().
