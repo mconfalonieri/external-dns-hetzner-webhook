@@ -1678,6 +1678,7 @@ func Test_processCreateActions(t *testing.T) {
 			changes hetznerChanges
 		}
 	}
+	testTTL := 7200
 
 	testCases := []testCase{
 		{
@@ -1756,6 +1757,28 @@ func Test_processCreateActions(t *testing.T) {
 							Targets:    endpoint.Targets{"127.0.0.1"},
 							RecordType: "A",
 							RecordTTL:  7200,
+						},
+					},
+				},
+			},
+			expected: struct {
+				err     bool
+				changes hetznerChanges
+			}{
+				changes: hetznerChanges{
+					Creates: []*hetznerChangeCreate{
+						{
+							Domain: "a.com",
+							Options: &hdns.RecordCreateOpts{
+								Name:  "www",
+								Ttl:   &testTTL,
+								Type:  "A",
+								Value: "127.0.0.1",
+								Zone: &hdns.Zone{
+									ID:   "id_a",
+									Name: "a.com",
+								},
+							},
 						},
 					},
 				},
