@@ -475,7 +475,7 @@ func processCreateActions(
 			continue
 		}
 
-		records := recordsByZoneID[zoneName]
+		records := recordsByZoneID[zoneID]
 
 		for _, ep := range endpoints {
 			// Warn if there are existing records since we expect to create only new records.
