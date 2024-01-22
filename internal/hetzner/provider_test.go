@@ -1784,6 +1784,61 @@ func Test_processCreateActions(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "new record created",
+			input: struct {
+				zoneIDNameMapper provider.ZoneIDName
+				recordsByZoneID  map[string][]hdns.Record
+				createsByZoneID  map[string][]*endpoint.Endpoint
+			}{
+				zoneIDNameMapper: provider.ZoneIDName{
+					"id_a": "a.com",
+					"id_b": "b.com",
+				},
+				recordsByZoneID: map[string][]hdns.Record{
+					"id_a": {
+						hdns.Record{
+							Type:  "A",
+							Name:  "ftp",
+							Value: "127.0.0.1",
+							Ttl:   7200,
+						},
+					},
+				},
+				createsByZoneID: map[string][]*endpoint.Endpoint{
+					"id_a": {
+						&endpoint.Endpoint{
+							DNSName:    "www.a.com",
+							Targets:    endpoint.Targets{"127.0.0.1"},
+							RecordType: "A",
+							RecordTTL:  7200,
+						},
+					},
+				},
+			},
+			expected: struct {
+				err     bool
+				changes hetznerChanges
+			}{
+				changes: hetznerChanges{
+					Creates: []*hetznerChangeCreate{
+						{
+							Domain: "a.com",
+							Options: &hdns.RecordCreateOpts{
+								Name:  "www",
+								Ttl:   &testTTL,
+								Type:  "A",
+								Value: "127.0.0.1",
+								Zone: &hdns.Zone{
+									ID:   "id_a",
+									Name: "a.com",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 
 	run := func(t *testing.T, tc testCase) {
