@@ -1862,10 +1862,361 @@ func Test_processCreateActions(t *testing.T) {
 
 // Test_processUpdateActions tests processUpdateActions().
 func Test_processUpdateActions(t *testing.T) {
+	type testCase struct {
+		name  string
+		input struct {
+			zoneIDNameMapper provider.ZoneIDName
+			recordsByZoneID  map[string][]hdns.Record
+			createsByZoneID  map[string][]*endpoint.Endpoint
+		}
+		expected struct {
+			err     bool
+			changes hetznerChanges
+		}
+	}
+	testTTL := 7200
+
+	testCases := []testCase{
+		{
+			name: "empty changeset",
+			input: struct {
+				zoneIDNameMapper provider.ZoneIDName
+				recordsByZoneID  map[string][]hdns.Record
+				createsByZoneID  map[string][]*endpoint.Endpoint
+			}{
+				zoneIDNameMapper: provider.ZoneIDName{
+					"id_a": "a.com",
+					"id_b": "b.com",
+				},
+				recordsByZoneID: map[string][]hdns.Record{
+					"id_a": {
+						hdns.Record{
+							Type:  "A",
+							Name:  "www",
+							Value: "127.0.0.1",
+						},
+					},
+				},
+				createsByZoneID: map[string][]*endpoint.Endpoint{},
+			},
+		},
+		{
+			name: "empty changeset with key present",
+			input: struct {
+				zoneIDNameMapper provider.ZoneIDName
+				recordsByZoneID  map[string][]hdns.Record
+				createsByZoneID  map[string][]*endpoint.Endpoint
+			}{
+				zoneIDNameMapper: provider.ZoneIDName{
+					"id_a": "a.com",
+					"id_b": "b.com",
+				},
+				recordsByZoneID: map[string][]hdns.Record{
+					"id_a": {
+						hdns.Record{
+							Type:  "A",
+							Name:  "www",
+							Value: "127.0.0.1",
+						},
+					},
+				},
+				createsByZoneID: map[string][]*endpoint.Endpoint{
+					"id_a": {},
+				},
+			},
+		},
+		{
+			name: "record already created",
+			input: struct {
+				zoneIDNameMapper provider.ZoneIDName
+				recordsByZoneID  map[string][]hdns.Record
+				createsByZoneID  map[string][]*endpoint.Endpoint
+			}{
+				zoneIDNameMapper: provider.ZoneIDName{
+					"id_a": "a.com",
+					"id_b": "b.com",
+				},
+				recordsByZoneID: map[string][]hdns.Record{
+					"id_a": {
+						hdns.Record{
+							Type:  "A",
+							Name:  "www",
+							Value: "127.0.0.1",
+							Ttl:   7200,
+						},
+					},
+				},
+				createsByZoneID: map[string][]*endpoint.Endpoint{
+					"id_a": {
+						&endpoint.Endpoint{
+							DNSName:    "www.a.com",
+							Targets:    endpoint.Targets{"127.0.0.1"},
+							RecordType: "A",
+							RecordTTL:  7200,
+						},
+					},
+				},
+			},
+			expected: struct {
+				err     bool
+				changes hetznerChanges
+			}{
+				changes: hetznerChanges{
+					Creates: []*hetznerChangeCreate{
+						{
+							Domain: "a.com",
+							Options: &hdns.RecordCreateOpts{
+								Name:  "www",
+								Ttl:   &testTTL,
+								Type:  "A",
+								Value: "127.0.0.1",
+								Zone: &hdns.Zone{
+									ID:   "id_a",
+									Name: "a.com",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "new record created",
+			input: struct {
+				zoneIDNameMapper provider.ZoneIDName
+				recordsByZoneID  map[string][]hdns.Record
+				createsByZoneID  map[string][]*endpoint.Endpoint
+			}{
+				zoneIDNameMapper: provider.ZoneIDName{
+					"id_a": "a.com",
+					"id_b": "b.com",
+				},
+				recordsByZoneID: map[string][]hdns.Record{
+					"id_a": {
+						hdns.Record{
+							Type:  "A",
+							Name:  "ftp",
+							Value: "127.0.0.1",
+							Ttl:   7200,
+						},
+					},
+				},
+				createsByZoneID: map[string][]*endpoint.Endpoint{
+					"id_a": {
+						&endpoint.Endpoint{
+							DNSName:    "www.a.com",
+							Targets:    endpoint.Targets{"127.0.0.1"},
+							RecordType: "A",
+							RecordTTL:  7200,
+						},
+					},
+				},
+			},
+			expected: struct {
+				err     bool
+				changes hetznerChanges
+			}{
+				changes: hetznerChanges{
+					Creates: []*hetznerChangeCreate{
+						{
+							Domain: "a.com",
+							Options: &hdns.RecordCreateOpts{
+								Name:  "www",
+								Ttl:   &testTTL,
+								Type:  "A",
+								Value: "127.0.0.1",
+								Zone: &hdns.Zone{
+									ID:   "id_a",
+									Name: "a.com",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	run := func(t *testing.T, tc testCase) {
+		changes := hetznerChanges{}
+		err := processCreateActions(tc.input.zoneIDNameMapper, tc.input.recordsByZoneID,
+			tc.input.createsByZoneID, &changes)
+		checkError(t, err, tc.expected.err)
+		if err == nil {
+			assert.ElementsMatch(t, changes.Deletes, tc.expected.changes.Deletes)
+			assert.ElementsMatch(t, changes.Updates, tc.expected.changes.Updates)
+			assert.ElementsMatch(t, changes.Creates, tc.expected.changes.Creates)
+		}
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			run(t, tc)
+		})
+	}
 }
 
 // Test_processDeleteActions tests processDeleteActions().
 func Test_processDeleteActions(t *testing.T) {
+	type testCase struct {
+		name  string
+		input struct {
+			zoneIDNameMapper provider.ZoneIDName
+			recordsByZoneID  map[string][]hdns.Record
+			deletesByZoneID  map[string][]*endpoint.Endpoint
+		}
+		expected struct {
+			err     bool
+			changes hetznerChanges
+		}
+	}
+
+	testCases := []testCase{
+		{
+			name: "No deletes created",
+			input: struct {
+				zoneIDNameMapper provider.ZoneIDName
+				recordsByZoneID  map[string][]hdns.Record
+				deletesByZoneID  map[string][]*endpoint.Endpoint
+			}{
+				zoneIDNameMapper: provider.ZoneIDName{
+					"id_a": "a.com",
+					"id_b": "b.com",
+				},
+				recordsByZoneID: map[string][]hdns.Record{
+					"id_a": {
+						hdns.Record{
+							Type:  "A",
+							Name:  "ftp",
+							Value: "127.0.0.1",
+							Ttl:   7200,
+						},
+					},
+				},
+				deletesByZoneID: map[string][]*endpoint.Endpoint{
+					"id_a": {
+						&endpoint.Endpoint{
+							DNSName:    "www.a.com",
+							Targets:    endpoint.Targets{"127.0.0.1"},
+							RecordType: "A",
+							RecordTTL:  7200,
+						},
+					},
+				},
+			},
+			expected: struct {
+				err     bool
+				changes hetznerChanges
+			}{
+				changes: hetznerChanges{},
+			},
+		},
+		{
+			name: "Delete performed",
+			input: struct {
+				zoneIDNameMapper provider.ZoneIDName
+				recordsByZoneID  map[string][]hdns.Record
+				deletesByZoneID  map[string][]*endpoint.Endpoint
+			}{
+				zoneIDNameMapper: provider.ZoneIDName{
+					"id_a": "a.com",
+					"id_b": "b.com",
+				},
+				recordsByZoneID: map[string][]hdns.Record{
+					"id_a": {
+						hdns.Record{
+							Type:  "A",
+							Name:  "ftp",
+							Value: "127.0.0.1",
+							Ttl:   7200,
+							ID:    "FTP-A-ID",
+						},
+					},
+				},
+				deletesByZoneID: map[string][]*endpoint.Endpoint{
+					"id_a": {
+						&endpoint.Endpoint{
+							DNSName:    "ftp.a.com",
+							Targets:    endpoint.Targets{"127.0.0.1"},
+							RecordType: "A",
+							RecordTTL:  7200,
+						},
+					},
+				},
+			},
+			expected: struct {
+				err     bool
+				changes hetznerChanges
+			}{
+				changes: hetznerChanges{
+					Deletes: []*hetznerChangeDelete{
+						{
+							Domain:   "a.com",
+							RecordID: "FTP-A-ID",
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "Record not found",
+			input: struct {
+				zoneIDNameMapper provider.ZoneIDName
+				recordsByZoneID  map[string][]hdns.Record
+				deletesByZoneID  map[string][]*endpoint.Endpoint
+			}{
+				zoneIDNameMapper: provider.ZoneIDName{
+					"id_a": "a.com",
+					"id_b": "b.com",
+				},
+				recordsByZoneID: map[string][]hdns.Record{
+					"id_a": {
+						hdns.Record{
+							Type:  "A",
+							Name:  "ftp",
+							Value: "127.0.0.1",
+							Ttl:   7200,
+							ID:    "FTP-A-ID",
+						},
+					},
+				},
+				deletesByZoneID: map[string][]*endpoint.Endpoint{
+					"id_b": {
+						&endpoint.Endpoint{
+							DNSName:    "ftp.b.com",
+							Targets:    endpoint.Targets{"127.0.0.1"},
+							RecordType: "A",
+							RecordTTL:  7200,
+						},
+					},
+				},
+			},
+			expected: struct {
+				err     bool
+				changes hetznerChanges
+			}{
+				changes: hetznerChanges{},
+			},
+		},
+	}
+
+	run := func(t *testing.T, tc testCase) {
+		changes := hetznerChanges{}
+		err := processDeleteActions(tc.input.zoneIDNameMapper, tc.input.recordsByZoneID,
+			tc.input.deletesByZoneID, &changes)
+		checkError(t, err, tc.expected.err)
+		if err == nil {
+			assert.ElementsMatch(t, changes.Deletes, tc.expected.changes.Deletes)
+			assert.ElementsMatch(t, changes.Updates, tc.expected.changes.Updates)
+			assert.ElementsMatch(t, changes.Creates, tc.expected.changes.Creates)
+		}
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			run(t, tc)
+		})
+	}
 }
 
 // Test_ApplyChanges tests HetznerProvider.ApplyChanges().
