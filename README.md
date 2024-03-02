@@ -30,10 +30,22 @@ using the [Bitnami Helm charts for ExternalDNS](https://github.com/bitnami/chart
 
 ⚠️  This webhook requires at least ExternalDNS v0.14.0.
 
+The webhook can be installed using either the Bitnami chart or the ExternalDNS one.
+
+First, create the Hetzner secret:
+
+```yaml
+kubectl create secret generic hetzner-credentials --from-literal=api-key='<EXAMPLE_PLEASE_REPLACE>' -n external-dns
+```
+
+### Using the Bitnami chart
+
+Skip this if you already have the Bitnami repository added:
+
 ```shell
 helm repo add bitnami https://charts.bitnami.com/bitnami
-kubectl create secret generic hetzner-credentials --from-literal=api-key='<EXAMPLE_PLEASE_REPLACE>'
 ```
+
 You can then create the helm values file, for example
 `external-dns-hetzner-values.yaml`:
 
@@ -81,8 +93,60 @@ And then:
 
 ```shell
 # install external-dns with helm
-helm install external-dns-hetzner bitnami/external-dns -f external-dns-hetzner-values.yaml
+helm install external-dns-hetzner bitnami/external-dns -f external-dns-hetzner-values.yaml -n external-dns
 ```
+
+### Using the ExternalDNS chart
+
+Skip this if you already have the ExternalDNS repository added:
+
+```shell
+helm repo add external-dns https://kubernetes-sigs.github.io/external-dns/
+```
+
+You can then create the helm values file, for example
+`external-dns-hetzner-values.yaml`:
+
+```yaml
+namespace: external-dns
+policy: sync
+provider:
+  name: webhook
+  webhook:
+    image:
+      repository: ghcr.io/mconfalonieri/external-dns-hetzner-webhook
+      tag: v0.6.0
+    env:
+      - name: HETZNER_API_KEY
+        valueFrom:
+          secretKeyRef:
+            name: hetzner-credentials
+            key: api-key
+    livenessProbe:
+      httpGet:
+        path: /health
+        port: http-wh-metrics
+      initialDelaySeconds: 10
+      timeoutSeconds: 5
+    readinessProbe:
+      httpGet:
+        path: /ready
+        port: http-wh-metrics
+      initialDelaySeconds: 10
+      timeoutSeconds: 5
+
+extraArgs:
+  - --txt-prefix=reg-
+```
+
+And then:
+
+```shell
+# install external-dns with helm
+helm install external-dns-hetzner external-dns/external-dns -f external-dns-hetzner-values.yaml --version 1.14.3 -n external-dns
+```
+
+## Environment variables
 
 The following environment variables are available:
 
