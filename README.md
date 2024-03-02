@@ -143,7 +143,7 @@ And then:
 
 ```shell
 # install external-dns with helm
-helm install external-dns-hetzner external/external-dns -f external-dns-hetzner-values.yaml --version 1.14.3 -n external-dns
+helm install external-dns-hetzner external-dns/external-dns -f external-dns-hetzner-values.yaml --version 1.14.3 -n external-dns
 ```
 
 ## Environment variables
