@@ -35,7 +35,7 @@ The webhook can be installed using either the Bitnami chart or the ExternalDNS o
 First, create the Hetzner secret:
 
 ```yaml
-kubectl create secret generic hetzner-credentials --from-literal=api-key='<EXAMPLE_PLEASE_REPLACE>'
+kubectl create secret generic hetzner-credentials --from-literal=api-key='<EXAMPLE_PLEASE_REPLACE>' -n external-dns
 ```
 
 ### Using the Bitnami chart
@@ -93,7 +93,7 @@ And then:
 
 ```shell
 # install external-dns with helm
-helm install external-dns-hetzner bitnami/external-dns -f external-dns-hetzner-values.yaml
+helm install external-dns-hetzner bitnami/external-dns -f external-dns-hetzner-values.yaml -n external-dns
 ```
 
 ### Using the ExternalDNS chart
@@ -108,9 +108,7 @@ You can then create the helm values file, for example
 `external-dns-hetzner-values.yaml`:
 
 ```yaml
-namespace: kube-system
-domainFilters:
-  - tanadeiramarri.cloud
+namespace: external-dns
 policy: sync
 provider:
   name: webhook
@@ -145,7 +143,7 @@ And then:
 
 ```shell
 # install external-dns with helm
-helm install external-dns-hetzner external/external-dns -f external-dns-hetzner-values.yaml --version 1.14.3
+helm install external-dns-hetzner external/external-dns -f external-dns-hetzner-values.yaml --version 1.14.3 -n external-dns
 ```
 
 ## Environment variables
