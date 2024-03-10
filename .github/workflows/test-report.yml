@@ -38,7 +38,7 @@ jobs:
       with:
         name: unit-test-reports
         path: ./build/reports/**
-    - name: Code Coverage Summary Report
-      uses: irongut/CodeCoverageSummary@v1.3.0
+    - name: Go Coverage Badge  # Pass the `coverage.out` output to this action
+      uses: tj-actions/coverage-badge-go@v2
       with:
-        filename: ./build/reports/**-test.xml
+        filename: ./build/reports/**-coverage.out
