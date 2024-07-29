@@ -28,6 +28,7 @@ import (
 	"sigs.k8s.io/external-dns/plan"
 	"sigs.k8s.io/external-dns/provider"
 
+	"github.com/bsm/openmetrics"
 	hdns "github.com/jobstoit/hetzner-dns-go/dns"
 	log "github.com/sirupsen/logrus"
 )
@@ -56,10 +57,11 @@ type HetznerProvider struct {
 	defaultTTL       int
 	zoneIDNameMapper provider.ZoneIDName
 	domainFilter     endpoint.DomainFilter
+	reg              *openmetrics.Registry
 }
 
 // NewHetznerProvider creates a new HetznerProvider instance.
-func NewHetznerProvider(config *Configuration) (*HetznerProvider, error) {
+func NewHetznerProvider(config *Configuration, reg *openmetrics.Registry) (*HetznerProvider, error) {
 	var logLevel log.Level
 	if config.Debug {
 		logLevel = log.DebugLevel
@@ -75,6 +77,7 @@ func NewHetznerProvider(config *Configuration) (*HetznerProvider, error) {
 		dryRun:       config.DryRun,
 		defaultTTL:   config.DefaultTTL,
 		domainFilter: GetDomainFilter(*config),
+		reg:          reg,
 	}, nil
 }
 

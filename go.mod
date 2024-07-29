@@ -5,6 +5,7 @@ go 1.21
 toolchain go1.21.3
 
 require (
+	github.com/bsm/openmetrics v0.3.1
 	github.com/codingconcepts/env v0.0.0-20200821220118-a8fbf8d84482
 	github.com/golang/mock v1.6.0
 	github.com/golangci/golangci-lint v1.53.3

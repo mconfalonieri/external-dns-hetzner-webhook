@@ -19,10 +19,12 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"external-dns-hetzner-webhook/internal/hetzner"
 	"external-dns-hetzner-webhook/internal/server"
 
+	"github.com/bsm/openmetrics"
 	log "github.com/sirupsen/logrus"
 	"sigs.k8s.io/external-dns/provider/webhook"
 
@@ -48,11 +50,14 @@ func main() {
 		log.Fatal(err)
 	}
 
+	// Create metrics register
+	reg := openmetrics.NewConsistentRegistry(time.Now)
+
 	// Start health server
 	log.Infof("Starting liveness and readiness server on %s", serverOptions.GetHealthAddress())
 	healthStatus := server.HealthStatus{}
-	healthServer := server.HealthServer{}
-	go healthServer.Start(&healthStatus, nil, *serverOptions)
+	publicServer := server.NewPublicServer(&healthStatus, reg)
+	go publicServer.Start(nil, *serverOptions)
 
 	// Read provider configuration
 	providerConfig := &hetzner.Configuration{}
@@ -61,7 +66,7 @@ func main() {
 	}
 
 	// instantiate the Hetzner provider
-	provider, err := hetzner.NewHetznerProvider(providerConfig)
+	provider, err := hetzner.NewHetznerProvider(providerConfig, reg)
 	if err != nil {
 		panic(err)
 	}
