@@ -330,13 +330,18 @@ func makeEndpointName(domain, entryName, epType string) string {
 //   - A-Records should respect ignored networks and should only contain IPv4
 //     entries.
 func (p HetznerProvider) makeEndpointTarget(domain, entryTarget, recordType string) (string, bool) {
-	if domain == "" {
+	if recordType != "CNAME" {
 		return entryTarget, true
 	}
 
-	// Trim the trailing dot
-	adjustedTarget := strings.TrimSuffix(entryTarget, ".")
-	adjustedTarget = strings.TrimSuffix(adjustedTarget, "."+domain)
+	adjustedTarget := entryTarget
+	if !strings.HasSuffix(entryTarget, ".") {
+		adjustedTarget = entryTarget + "."
+	}
+
+	if strings.HasSuffix(adjustedTarget, "."+domain+".") {
+		adjustedTarget = strings.TrimSuffix(adjustedTarget, "."+domain+".")
+	}
 
 	return adjustedTarget, true
 }
@@ -495,9 +500,6 @@ func processCreateActions(
 			}
 
 			for _, target := range ep.Targets {
-				if ep.RecordType == "CNAME" && !strings.HasSuffix(target, ".") {
-					target += "."
-				}
 				log.WithFields(log.Fields{
 					"zoneName":   zoneName,
 					"dnsName":    ep.DNSName,
@@ -583,9 +585,6 @@ func processUpdateActions(
 
 			// Generate create and delete actions based on existence of a record for each target.
 			for _, target := range ep.Targets {
-				if ep.RecordType == "CNAME" && !strings.HasSuffix(target, ".") {
-					target += "."
-				}
 				if record, ok := matchingRecordsByTarget[target]; ok {
 					log.WithFields(log.Fields{
 						"zoneName":   zoneName,
