@@ -20,7 +20,7 @@ import (
 	"time"
 
 	"github.com/codingconcepts/env"
-	"gotest.tools/assert"
+	"github.com/stretchr/testify/assert"
 )
 
 func Test_ServerOptions_defaults(t *testing.T) {
@@ -28,12 +28,12 @@ func Test_ServerOptions_defaults(t *testing.T) {
 	if err := env.Set(&s); err != nil {
 		t.Fail()
 	}
-	assert.DeepEqual(t, s.WebhookHost, "localhost")
-	assert.DeepEqual(t, s.WebhookPort, uint16(8888))
-	assert.DeepEqual(t, s.HealthHost, "0.0.0.0")
-	assert.DeepEqual(t, s.HealthPort, uint16(8080))
-	assert.DeepEqual(t, s.ReadTimeout, 60000)
-	assert.DeepEqual(t, s.WriteTimeout, 60000)
+	assert.Equal(t, s.WebhookHost, "localhost")
+	assert.Equal(t, s.WebhookPort, uint16(8888))
+	assert.Equal(t, s.HealthHost, "0.0.0.0")
+	assert.Equal(t, s.HealthPort, uint16(8080))
+	assert.Equal(t, s.ReadTimeout, 60000)
+	assert.Equal(t, s.WriteTimeout, 60000)
 }
 
 func Test_ServerOptions_addresses(t *testing.T) {
@@ -49,8 +49,8 @@ func Test_ServerOptions_addresses(t *testing.T) {
 	wa := s.GetWebhookAddress()
 	ha := s.GetHealthAddress()
 
-	assert.DeepEqual(t, wa, testWebhookAddress)
-	assert.DeepEqual(t, ha, testHealthAddress)
+	assert.Equal(t, wa, testWebhookAddress)
+	assert.Equal(t, ha, testHealthAddress)
 }
 
 func Test_ServerOptions_timeouts(t *testing.T) {
@@ -64,6 +64,6 @@ func Test_ServerOptions_timeouts(t *testing.T) {
 	r := s.GetReadTimeout()
 	w := s.GetWriteTimeout()
 
-	assert.DeepEqual(t, r, testReadTimeout)
-	assert.DeepEqual(t, w, testWriteTimeout)
+	assert.Equal(t, r, testReadTimeout)
+	assert.Equal(t, w, testWriteTimeout)
 }
