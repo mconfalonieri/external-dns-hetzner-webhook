@@ -215,11 +215,8 @@ github.com/benbjohnson/clock v1.1.0/go.mod h1:J11/hYXuz8f4ySSvYwY0FKfm+ezbsZBKZx
 github.com/benbjohnson/clock v1.3.0/go.mod h1:J11/hYXuz8f4ySSvYwY0FKfm+ezbsZBKZxNJlLklBHA=
 github.com/bgentry/speakeasy v0.1.0/go.mod h1:+zsyZBPWlz7T6j88CTgSN5bM796AkVf0kBD4zp0CCIs=
 github.com/bodgit/tsig v1.2.2/go.mod h1:rIGNOLZOV/UA03fmCUtEFbpWOrIoaOuETkpaeTvnLF4=
-<<<<<<< HEAD
 github.com/bsm/openmetrics v0.3.1 h1:nhR6QgaKaDmnbnvVP9R0JyPExt8Qa+n1cJk/ouGC4FY=
 github.com/bsm/openmetrics v0.3.1/go.mod h1:tabLMhjVjhdhFuwm9YenEVx0s54uvu56faEwYgD6L2g=
-=======
->>>>>>> 675abfa (Updated dependencies (#21))
 github.com/cenkalti/backoff/v4 v4.3.0 h1:MyRJ/UdXutAwSAT+s3wNd7MfTIcy71VQueUuFK343L8=
 github.com/cenkalti/backoff/v4 v4.3.0/go.mod h1:Y3VNntkOUPxTVeUxJ/G5vcM//AlwfmyYozVcomhLiZE=
 github.com/census-instrumentation/opencensus-proto v0.4.1/go.mod h1:4T9NM4+4Vw91VeyqjLS6ao50K5bOcLKN6Q42XnYaRYw=
