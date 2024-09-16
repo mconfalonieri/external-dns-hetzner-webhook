@@ -8,7 +8,7 @@ require (
 	github.com/codingconcepts/env v0.0.0-20240618133406-5b0845441187
 	github.com/golang/mock v1.6.0
 	github.com/golangci/golangci-lint v1.61.0
-	github.com/google/go-licenses v1.6.0
+	github.com/google/go-licenses v1.5.0
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.9.0
 	gotest.tools/gotestsum v1.10.0
