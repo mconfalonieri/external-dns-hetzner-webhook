@@ -26,7 +26,7 @@ import (
 
 	"github.com/bsm/openmetrics"
 	log "github.com/sirupsen/logrus"
-	"sigs.k8s.io/external-dns/provider/webhook"
+	"sigs.k8s.io/external-dns/provider/webhook/api"
 
 	"github.com/codingconcepts/env"
 )
@@ -74,7 +74,7 @@ func main() {
 	// Start the webhook
 	log.Infof("Starting webhook server on %s", serverOptions.GetWebhookAddress())
 	startedChan := make(chan struct{})
-	go webhook.StartHTTPApi(
+	go api.StartHTTPApi(
 		provider, startedChan,
 		serverOptions.GetReadTimeout(),
 		serverOptions.GetWriteTimeout(),

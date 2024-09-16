@@ -19,7 +19,7 @@ import (
 	"regexp"
 	"testing"
 
-	"gotest.tools/assert"
+	"github.com/stretchr/testify/assert"
 	"sigs.k8s.io/external-dns/endpoint"
 )
 
@@ -37,7 +37,7 @@ func Test_GetDomainFilter(t *testing.T) {
 		actual := GetDomainFilter(tc.config)
 		actualJSON, _ := actual.MarshalJSON()
 		expectedJSON, _ := tc.expected.MarshalJSON()
-		assert.DeepEqual(t, actualJSON, expectedJSON)
+		assert.Equal(t, actualJSON, expectedJSON)
 	}
 
 	testCases := []testCase{
