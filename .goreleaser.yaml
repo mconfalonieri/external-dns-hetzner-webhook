@@ -1,5 +1,5 @@
 project_name: external-dns-hetzner-webhook
-
+version: 2
 before:
   hooks:
     - scripts/release_precheck.sh
@@ -84,7 +84,7 @@ checksum:
   name_template: "{{ .ProjectName }}_{{ .Version }}_checksums.txt"
 
 snapshot:
-  name_template: "{{ incpatch .Version }}-next"
+  version_template: "{{ incpatch .Version }}-next"
 
 changelog:
   use: github

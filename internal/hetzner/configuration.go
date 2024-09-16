@@ -52,10 +52,10 @@ func GetDomainFilter(config Configuration) endpoint.DomainFilter {
 			regexp.MustCompile(config.RegexDomainExclusion),
 		)
 	} else {
-		if config.DomainFilter != nil && len(config.DomainFilter) > 0 {
+		if len(config.DomainFilter) > 0 {
 			createMsg += fmt.Sprintf("zoneNode filter: '%s', ", strings.Join(config.DomainFilter, ","))
 		}
-		if config.ExcludeDomains != nil && len(config.ExcludeDomains) > 0 {
+		if len(config.ExcludeDomains) > 0 {
 			createMsg += fmt.Sprintf("Exclude domain filter: '%s', ", strings.Join(config.ExcludeDomains, ","))
 		}
 		domainFilter = endpoint.NewDomainFilterWithExclusions(config.DomainFilter, config.ExcludeDomains)
