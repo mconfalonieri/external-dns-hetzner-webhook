@@ -1039,6 +1039,50 @@ func Test_makeEndpointTarget(t *testing.T) {
 
 	testCases := []testCase{
 		{
+			name: "IP without domain provided",
+			provider: HetznerProvider{
+				client:       &mockClient{},
+				batchSize:    100,
+				debug:        true,
+				dryRun:       false,
+				defaultTTL:   7200,
+				domainFilter: endpoint.DomainFilter{},
+				zoneIDNameMapper: provider.ZoneIDName{
+					"1": "a.com",
+				},
+			},
+			input: [3]string{"", "0.0.0.0", "A"},
+			expected: struct {
+				target string
+				valid  bool
+			}{
+				target: "0.0.0.0",
+				valid:  true,
+			},
+		},
+		{
+			name: "IP with domain provided",
+			provider: HetznerProvider{
+				client:       &mockClient{},
+				batchSize:    100,
+				debug:        true,
+				dryRun:       false,
+				defaultTTL:   7200,
+				domainFilter: endpoint.DomainFilter{},
+				zoneIDNameMapper: provider.ZoneIDName{
+					"1": "a.com",
+				},
+			},
+			input: [3]string{"a.com", "0.0.0.0", "A"},
+			expected: struct {
+				target string
+				valid  bool
+			}{
+				target: "0.0.0.0",
+				valid:  true,
+			},
+		},
+		{
 			name: "No domain provided",
 			provider: HetznerProvider{
 				client:       &mockClient{},
@@ -1051,12 +1095,12 @@ func Test_makeEndpointTarget(t *testing.T) {
 					"1": "a.com",
 				},
 			},
-			input: [3]string{"", "www.a.com", "A"},
+			input: [3]string{"", "www.a.com", "CNAME"},
 			expected: struct {
 				target string
 				valid  bool
 			}{
-				target: "www.a.com",
+				target: "www.a.com.",
 				valid:  true,
 			},
 		},
@@ -1073,7 +1117,7 @@ func Test_makeEndpointTarget(t *testing.T) {
 					"1": "a.com",
 				},
 			},
-			input: [3]string{"a.com", "www.a.com", "A"},
+			input: [3]string{"a.com", "www.a.com", "CNAME"},
 			expected: struct {
 				target string
 				valid  bool
@@ -1083,7 +1127,7 @@ func Test_makeEndpointTarget(t *testing.T) {
 			},
 		},
 		{
-			name: "Trailing dot removed",
+			name: "Other domain without trailing dot provided",
 			provider: HetznerProvider{
 				client:       &mockClient{},
 				batchSize:    100,
@@ -1095,12 +1139,34 @@ func Test_makeEndpointTarget(t *testing.T) {
 					"1": "a.com",
 				},
 			},
-			input: [3]string{"a.com", "www.", "A"},
+			input: [3]string{"a.com", "www.b.com", "CNAME"},
 			expected: struct {
 				target string
 				valid  bool
 			}{
-				target: "www",
+				target: "www.b.com.",
+				valid:  true,
+			},
+		},
+		{
+			name: "Other domain with trailing dot provided",
+			provider: HetznerProvider{
+				client:       &mockClient{},
+				batchSize:    100,
+				debug:        true,
+				dryRun:       false,
+				defaultTTL:   7200,
+				domainFilter: endpoint.DomainFilter{},
+				zoneIDNameMapper: provider.ZoneIDName{
+					"1": "a.com",
+				},
+			},
+			input: [3]string{"a.com", "www.b.com.", "CNAME"},
+			expected: struct {
+				target string
+				valid  bool
+			}{
+				target: "www.b.com.",
 				valid:  true,
 			},
 		},
