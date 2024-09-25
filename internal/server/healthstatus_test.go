@@ -16,22 +16,12 @@
 package server
 
 import (
-	"bytes"
-	"fmt"
-	"net/http"
-	"net/http/httptest"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
-// testPort is the test port for server on localhost.
-const (
-	testPort = 32128
-	testHost = "localhost"
-)
-
-func Test_SetHealth(t *testing.T) {
+func Test_HealthStatus_SetHealth(t *testing.T) {
 	type testCase struct {
 		name     string
 		status   *HealthStatus
@@ -64,7 +54,7 @@ func Test_SetHealth(t *testing.T) {
 	}
 }
 
-func Test_SetReady(t *testing.T) {
+func Test_HealthStatus_SetReady(t *testing.T) {
 	type testCase struct {
 		name     string
 		status   *HealthStatus
@@ -97,7 +87,7 @@ func Test_SetReady(t *testing.T) {
 	}
 }
 
-func Test_IsHealthy(t *testing.T) {
+func Test_HealthStatus_IsHealthy(t *testing.T) {
 	type testCase struct {
 		name     string
 		status   *HealthStatus
@@ -127,7 +117,7 @@ func Test_IsHealthy(t *testing.T) {
 	}
 }
 
-func Test_IsReady(t *testing.T) {
+func Test_HealthStatus_IsReady(t *testing.T) {
 	type testCase struct {
 		name     string
 		status   *HealthStatus
@@ -158,124 +148,4 @@ func Test_IsReady(t *testing.T) {
 			run(t, tc)
 		})
 	}
-}
-
-func Test_livenessHandler(t *testing.T) {
-	type testCase struct {
-		name           string
-		server         HealthServer
-		expectedStatus int
-		expectedText   string
-	}
-	testCases := []testCase{
-		{
-			name: "Server is alive",
-			server: HealthServer{
-				status: &HealthStatus{
-					healthy: true,
-				},
-			},
-			expectedStatus: http.StatusOK,
-			expectedText:   http.StatusText(http.StatusOK),
-		},
-		{
-			name: "Server is unhealthy",
-			server: HealthServer{
-				status: &HealthStatus{
-					healthy: false,
-				},
-			},
-			expectedStatus: http.StatusServiceUnavailable,
-			expectedText:   http.StatusText(http.StatusServiceUnavailable),
-		},
-	}
-
-	run := func(t *testing.T, tc testCase) {
-		text := bytes.NewBuffer(make([]byte, 0))
-		w := &httptest.ResponseRecorder{
-			Body: text,
-		}
-		r := &http.Request{}
-		tc.server.livenessHandler(w, r)
-		assert.Equal(t, tc.expectedStatus, w.Code)
-		assert.Equal(t, tc.expectedText, text.String())
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			run(t, tc)
-		})
-	}
-}
-
-func Test_readinessHandler(t *testing.T) {
-	type testCase struct {
-		name           string
-		server         HealthServer
-		expectedStatus int
-		expectedText   string
-	}
-	testCases := []testCase{
-		{
-			name: "Server is ready",
-			server: HealthServer{
-				status: &HealthStatus{
-					ready: true,
-				},
-			},
-			expectedStatus: http.StatusOK,
-			expectedText:   http.StatusText(http.StatusOK),
-		},
-		{
-			name: "Server is not ready",
-			server: HealthServer{
-				status: &HealthStatus{
-					ready: false,
-				},
-			},
-			expectedStatus: http.StatusServiceUnavailable,
-			expectedText:   http.StatusText(http.StatusServiceUnavailable),
-		},
-	}
-
-	run := func(t *testing.T, tc testCase) {
-		text := bytes.NewBuffer(make([]byte, 0))
-		w := &httptest.ResponseRecorder{
-			Body: text,
-		}
-		r := &http.Request{}
-		tc.server.readinessHandler(w, r)
-		assert.Equal(t, tc.expectedStatus, w.Code)
-		assert.Equal(t, tc.expectedText, text.String())
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			run(t, tc)
-		})
-	}
-}
-
-func Test_Start(t *testing.T) {
-	status := &HealthStatus{
-		healthy: true,
-		ready:   true,
-	}
-	options := ServerOptions{
-		HealthHost: testHost,
-		HealthPort: testPort,
-	}
-	startedChan := make(chan struct{})
-
-	healthServer := HealthServer{}
-
-	go healthServer.Start(status, startedChan, options)
-	<-startedChan
-
-	url := fmt.Sprintf("http://%s:%d/ready", testHost, testPort)
-
-	res, err := http.Get(url)
-
-	assert.Nil(t, err)
-	assert.Equal(t, res.StatusCode, http.StatusOK)
 }
