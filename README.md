@@ -59,7 +59,7 @@ provider: webhook
 
 extraArgs:
   webhook-provider-url: http://localhost:8888
-  txt-prefix: reg-
+  txt-prefix: "reg-%{record_type}-"
 
 sidecars:
   - name: hetzner-webhook
@@ -136,7 +136,7 @@ provider:
       timeoutSeconds: 5
 
 extraArgs:
-  - --txt-prefix=reg-
+  - "--txt-prefix=reg-%{record_type}-"
 ```
 
 And then:
