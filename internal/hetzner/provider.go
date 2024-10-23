@@ -458,6 +458,18 @@ func getTTLFromEndpoint(ep *endpoint.Endpoint) (int, bool) {
 	return -1, false
 }
 
+func adjustCNAMETarget(domain string, target string) string {
+	adjustedTarget := target
+	if strings.HasSuffix(target, domain) {
+		adjustedTarget = strings.TrimSuffix(target, domain)
+	} else if strings.HasSuffix(target, domain+".") {
+		adjustedTarget = strings.TrimSuffix(target, domain+".")
+	} else if !strings.HasSuffix(target, ".") {
+		adjustedTarget += "."
+	}
+	return adjustedTarget
+}
+
 // processCreateActions processes the create requests.
 func processCreateActions(
 	zoneIDNameMapper provider.ZoneIDName,
@@ -475,7 +487,7 @@ func processCreateActions(
 			continue
 		}
 
-		records := recordsByZoneID[zoneName]
+		records := recordsByZoneID[zoneID]
 
 		for _, ep := range endpoints {
 			// Warn if there are existing records since we expect to create only new records.
@@ -495,8 +507,8 @@ func processCreateActions(
 			}
 
 			for _, target := range ep.Targets {
-				if ep.RecordType == "CNAME" && !strings.HasSuffix(target, ".") {
-					target += "."
+				if ep.RecordType == "CNAME" {
+					target = adjustCNAMETarget(zoneName, target)
 				}
 				log.WithFields(log.Fields{
 					"zoneName":   zoneName,
@@ -583,8 +595,8 @@ func processUpdateActions(
 
 			// Generate create and delete actions based on existence of a record for each target.
 			for _, target := range ep.Targets {
-				if ep.RecordType == "CNAME" && !strings.HasSuffix(target, ".") {
-					target += "."
+				if ep.RecordType == "CNAME" {
+					target = adjustCNAMETarget(zoneName, target)
 				}
 				if record, ok := matchingRecordsByTarget[target]; ok {
 					log.WithFields(log.Fields{
