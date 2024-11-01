@@ -29,9 +29,7 @@ type changeType interface {
 	GetLogFields() log.Fields
 }
 
-var (
-	defaultTTL = -1
-)
+var defaultTTL = -1
 
 func Test_GetLogFields(t *testing.T) {
 	type testCase struct {

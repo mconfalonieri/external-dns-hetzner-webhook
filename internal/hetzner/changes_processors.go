@@ -163,7 +163,6 @@ func processUpdateActionsByZone(zoneID, zoneName string, records []hdns.Record, 
 		// Any remaining records have been removed, delete them
 		cleanupRemainingTargets(zoneID, matchingRecordsByTarget, changes)
 	}
-
 }
 
 // processUpdateActions processes the update requests.
@@ -225,7 +224,6 @@ func processDeleteActionsByZone(zoneID, zoneName string, records []hdns.Record, 
 		}
 		processDeleteActionsByEndpoint(zoneID, matchingRecords, ep, changes)
 	}
-
 }
 
 // processDeleteActions processes the delete requests.
