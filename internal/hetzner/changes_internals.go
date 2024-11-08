@@ -55,9 +55,9 @@ func (cu hetznerChangeUpdate) GetLogFields() log.Fields {
 		"zoneID":      cu.ZoneID,
 		"recordID":    cu.Record.ID,
 		"*dnsName":    cu.Options.Name,
-		"*recordType": cu.Options.Type,
+		"*recordType": string(cu.Options.Type),
 		"*value":      cu.Options.Value,
-		"*ttl":        cu.Options.Ttl,
+		"*ttl":        *cu.Options.Ttl,
 	}
 }
 
@@ -73,7 +73,7 @@ func (cd hetznerChangeDelete) GetLogFields() log.Fields {
 		"domain":     cd.Record.Zone.Name,
 		"zoneID":     cd.ZoneID,
 		"dnsName":    cd.Record.Name,
-		"recordType": cd.Record.Type,
+		"recordType": string(cd.Record.Type),
 		"value":      cd.Record.Value,
 	}
 }

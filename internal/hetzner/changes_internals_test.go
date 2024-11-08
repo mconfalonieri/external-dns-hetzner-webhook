@@ -1,5 +1,5 @@
 /*
- * Changes Internals - Internal structures for processing changes.
+ * Changes Internals - unit tests
  *
  * Copyright 2024 Marco Confalonieri.
  *
@@ -66,6 +66,63 @@ func Test_GetLogFields(t *testing.T) {
 				"recordType": "CNAME",
 				"value":      "testValue",
 				"ttl":        defaultTTL,
+			},
+		},
+		{
+			name: "hetznerChangeUpdate",
+			object: &hetznerChangeUpdate{
+				ZoneID: "testZoneID",
+				Record: hdns.Record{
+					ID: "recordID",
+					Zone: &hdns.Zone{
+						ID:   "testZoneID",
+						Name: "testZoneName",
+					},
+					Name:  "recordOldName",
+					Value: "recordOldValue",
+				},
+				Options: &hdns.RecordUpdateOpts{
+					Name:  "testNewName",
+					Ttl:   &defaultTTL,
+					Value: "testNewValue",
+					Type:  "CNAME",
+					Zone: &hdns.Zone{
+						ID:   "testZoneID",
+						Name: "testZoneName",
+					},
+				},
+			},
+			expected: log.Fields{
+				"domain":      "testZoneName",
+				"zoneID":      "testZoneID",
+				"recordID":    "recordID",
+				"*dnsName":    "testNewName",
+				"*recordType": "CNAME",
+				"*value":      "testNewValue",
+				"*ttl":        defaultTTL,
+			},
+		},
+		{
+			name: "hetznerChangeDelete",
+			object: &hetznerChangeDelete{
+				ZoneID: "testZoneID",
+				Record: hdns.Record{
+					ID: "recordID",
+					Zone: &hdns.Zone{
+						ID:   "testZoneID",
+						Name: "testZoneName",
+					},
+					Type:  "CNAME",
+					Name:  "recordName",
+					Value: "recordValue",
+				},
+			},
+			expected: log.Fields{
+				"domain":     "testZoneName",
+				"zoneID":     "testZoneID",
+				"dnsName":    "recordName",
+				"recordType": "CNAME",
+				"value":      "recordValue",
 			},
 		},
 	}

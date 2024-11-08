@@ -93,7 +93,7 @@ func (p HetznerProvider) AdjustEndpoints(endpoints []*endpoint.Endpoint) ([]*end
 		_, zoneName := p.zoneIDNameMapper.FindZone(ep.DNSName)
 		adjustedTargets := endpoint.Targets{}
 		for _, t := range ep.Targets {
-			adjustedTarget, producedValidTarget := makeEndpointTarget(zoneName, t)
+			adjustedTarget, producedValidTarget := makeEndpointTarget(zoneName, t, ep.RecordType)
 			if producedValidTarget {
 				adjustedTargets = append(adjustedTargets, adjustedTarget)
 			}
@@ -189,7 +189,9 @@ func (p *HetznerProvider) ApplyChanges(ctx context.Context, planChanges *plan.Ch
 	updatesByZoneID := endpointsByZoneID(p.zoneIDNameMapper, planChanges.UpdateNew)
 	deletesByZoneID := endpointsByZoneID(p.zoneIDNameMapper, planChanges.Delete)
 
-	var changes hetznerChanges
+	changes := hetznerChanges{
+		dryRun: p.dryRun,
+	}
 
 	processCreateActions(p.zoneIDNameMapper, recordsByZoneID, createsByZoneID, &changes)
 	processUpdateActions(p.zoneIDNameMapper, recordsByZoneID, updatesByZoneID, &changes)

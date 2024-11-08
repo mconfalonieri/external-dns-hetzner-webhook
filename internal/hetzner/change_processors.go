@@ -1,6 +1,6 @@
 /*
- * Changes - Processors - this file contains the code for processing the
- * changes.
+ * Change processors - this file contains the code for processing changes and
+ * queue them.
  *
  * Copyright 2023 Marco Confalonieri.
  * Copyright 2017 The Kubernetes Authors.
@@ -29,13 +29,15 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// adjustCNAMETarget fixes local CNAMEs.
+// adjustCNAMETarget fixes local CNAME targets. It ensures that targets
+// matching the domain are stripped of the domain parts and that "external"
+// targets end with a dot.
 func adjustCNAMETarget(domain string, target string) string {
 	adjustedTarget := target
-	if strings.HasSuffix(target, domain) {
-		adjustedTarget = strings.TrimSuffix(target, domain)
-	} else if strings.HasSuffix(target, domain+".") {
-		adjustedTarget = strings.TrimSuffix(target, domain+".")
+	if strings.HasSuffix(target, "."+domain) {
+		adjustedTarget = strings.TrimSuffix(target, "."+domain)
+	} else if strings.HasSuffix(target, "."+domain+".") {
+		adjustedTarget = strings.TrimSuffix(target, "."+domain+".")
 	} else if !strings.HasSuffix(target, ".") {
 		adjustedTarget += "."
 	}
@@ -69,7 +71,7 @@ func processCreateActionsByZone(zoneID, zoneName string, records []hdns.Record, 
 					Name: zoneName,
 				},
 			}
-			changes.AddChangeCreate(zoneName, opts)
+			changes.AddChangeCreate(zoneID, opts)
 		}
 	}
 }
@@ -112,7 +114,7 @@ func processUpdateEndpoint(zoneID, zoneName string, matchingRecordsByTarget map[
 					Name: zoneName,
 				},
 			}
-			changes.AddChangeUpdate(zoneName, record, opts)
+			changes.AddChangeUpdate(zoneID, record, opts)
 
 			// Updates are removed from this map.
 			delete(matchingRecordsByTarget, target)
@@ -128,7 +130,7 @@ func processUpdateEndpoint(zoneID, zoneName string, matchingRecordsByTarget map[
 					Name: zoneName,
 				},
 			}
-			changes.AddChangeCreate(zoneName, opts)
+			changes.AddChangeCreate(zoneID, opts)
 		}
 	}
 }
@@ -138,6 +140,16 @@ func cleanupRemainingTargets(zoneID string, matchingRecordsByTarget map[string]h
 	for _, record := range matchingRecordsByTarget {
 		changes.AddChangeDelete(zoneID, record)
 	}
+}
+
+// getMatchingRecordsByTarget organizes a slice of targets in a map with the
+// target as key.
+func getMatchingRecordsByTarget(records []hdns.Record) map[string]hdns.Record {
+	recordsMap := make(map[string]hdns.Record, 0)
+	for _, r := range records {
+		recordsMap[r.Value] = r
+	}
+	return recordsMap
 }
 
 // processUpdateActionsByZone processes update actions for a single zone.
@@ -153,10 +165,7 @@ func processUpdateActionsByZone(zoneID, zoneName string, records []hdns.Record, 
 			}).Warn("Planning an update but no existing records found.")
 		}
 
-		matchingRecordsByTarget := map[string]hdns.Record{}
-		for _, r := range matchingRecords {
-			matchingRecordsByTarget[r.Value] = r
-		}
+		matchingRecordsByTarget := getMatchingRecordsByTarget(matchingRecords)
 
 		processUpdateEndpoint(zoneID, zoneName, matchingRecordsByTarget, ep, changes)
 
@@ -188,23 +197,26 @@ func processUpdateActions(
 	}
 }
 
+// targetsMatch determines if a record matches one of the endpoint's targets.
+func targetsMatch(record hdns.Record, ep *endpoint.Endpoint) bool {
+	for _, t := range ep.Targets {
+		v1 := t
+		v2 := record.Value
+		if ep.RecordType == endpoint.RecordTypeCNAME {
+			v1 = strings.TrimSuffix(v1, ".")
+			v2 = strings.TrimSuffix(v2, ".")
+		}
+		if v1 == v2 {
+			return true
+		}
+	}
+	return false
+}
+
 // processDeleteActionsByEndpoint processes delete actions for an endpoint.
 func processDeleteActionsByEndpoint(zoneID string, matchingRecords []hdns.Record, ep *endpoint.Endpoint, changes *hetznerChanges) {
 	for _, record := range matchingRecords {
-		doDelete := false
-		for _, t := range ep.Targets {
-			v1 := t
-			v2 := record.Value
-			if ep.RecordType == endpoint.RecordTypeCNAME {
-				v1 = strings.TrimSuffix(t, ".")
-				v2 = strings.TrimSuffix(t, ".")
-			}
-			if v1 == v2 {
-				doDelete = true
-			}
-		}
-
-		if doDelete {
+		if targetsMatch(record, ep) {
 			changes.AddChangeDelete(zoneID, record)
 		}
 	}

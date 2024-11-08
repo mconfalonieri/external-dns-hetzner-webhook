@@ -1,5 +1,5 @@
 /*
- * Changes - Code for processing changes and sending them to the DNS API.
+ * Changes - Code for storing changes and sending them to the DNS API.
  *
  * Copyright 2024 Marco Confalonieri.
  *
@@ -46,7 +46,7 @@ func (c *hetznerChanges) AddChangeCreate(zoneID string, options *hdns.RecordCrea
 	c.creates = append(c.creates, changeCreate)
 }
 
-// addChangeUpdate adds a new update entry to the current object.
+// AddChangeUpdate adds a new update entry to the current object.
 func (c *hetznerChanges) AddChangeUpdate(zoneID string, record hdns.Record, options *hdns.RecordUpdateOpts) {
 	changeUpdate := &hetznerChangeUpdate{
 		ZoneID:  zoneID,
@@ -56,7 +56,7 @@ func (c *hetznerChanges) AddChangeUpdate(zoneID string, record hdns.Record, opti
 	c.updates = append(c.updates, changeUpdate)
 }
 
-// addChangeDelete adds a new delete entry to the current object.
+// AddChangeDelete adds a new delete entry to the current object.
 func (c *hetznerChanges) AddChangeDelete(zoneID string, record hdns.Record) {
 	changeDelete := &hetznerChangeDelete{
 		ZoneID: zoneID,

@@ -48,14 +48,18 @@ func makeEndpointName(domain, entryName string) string {
 //   - Records at root of the zone have `@` as the name
 //   - A-Records should respect ignored networks and should only contain IPv4
 //     entries.
-func makeEndpointTarget(domain, entryTarget string) (string, bool) {
+func makeEndpointTarget(domain, entryTarget string, epType string) (string, bool) {
 	if domain == "" {
 		return entryTarget, true
 	}
 
 	// Trim the trailing dot
 	adjustedTarget := strings.TrimSuffix(entryTarget, ".")
-	adjustedTarget = strings.TrimSuffix(adjustedTarget, "."+domain)
+
+	// For local CNAMEs, remove domain.
+	if epType == "CNAME" {
+		adjustedTarget = strings.TrimSuffix(adjustedTarget, "."+domain)
+	}
 
 	return adjustedTarget, true
 }
