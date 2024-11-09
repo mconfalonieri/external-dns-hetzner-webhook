@@ -45,12 +45,11 @@ func makeEndpointName(domain, entryName string) string {
 
 // makeEndpointTarget makes a endpoint target that conforms to Hetzner DNS
 // requirements:
-//   - Records at root of the zone have `@` as the name
 //   - A-Records should respect ignored networks and should only contain IPv4
 //     entries.
-func makeEndpointTarget(domain, entryTarget string, epType string) (string, bool) {
+func makeEndpointTarget(domain, entryTarget string, epType string) string {
 	if domain == "" {
-		return entryTarget, true
+		return entryTarget
 	}
 
 	// Trim the trailing dot
@@ -61,7 +60,7 @@ func makeEndpointTarget(domain, entryTarget string, epType string) (string, bool
 		adjustedTarget = strings.TrimSuffix(adjustedTarget, "."+domain)
 	}
 
-	return adjustedTarget, true
+	return adjustedTarget
 }
 
 // mergeEndpointsByNameType merges Endpoints with the same Name and Type into a

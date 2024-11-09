@@ -39,15 +39,15 @@ type apiClient interface {
 
 // fetchRecords fetches all records for a given zoneID.
 func fetchRecords(ctx context.Context, zoneID string, dnsClient apiClient, batchSize int) ([]hdns.Record, error) {
-	allRecords := []hdns.Record{}
+	records := []hdns.Record{}
 	listOptions := &hdns.RecordListOpts{ListOpts: hdns.ListOpts{PerPage: batchSize}, ZoneID: zoneID}
 	for {
-		records, resp, err := dnsClient.GetRecords(ctx, *listOptions)
+		pagedRecords, resp, err := dnsClient.GetRecords(ctx, *listOptions)
 		if err != nil {
 			return nil, err
 		}
-		for _, r := range records {
-			allRecords = append(allRecords, *r)
+		for _, r := range pagedRecords {
+			records = append(records, *r)
 		}
 
 		if resp == nil || resp.Meta.Pagination == nil || resp.Meta.Pagination.LastPage <= resp.Meta.Pagination.Page {
@@ -57,21 +57,21 @@ func fetchRecords(ctx context.Context, zoneID string, dnsClient apiClient, batch
 		listOptions.Page = resp.Meta.Pagination.Page + 1
 	}
 
-	return allRecords, nil
+	return records, nil
 }
 
 // fetchZones fetches all the zones from the DNS client.
 func fetchZones(ctx context.Context, dnsClient apiClient, batchSize int) ([]hdns.Zone, error) {
-	allZones := []hdns.Zone{}
+	zones := []hdns.Zone{}
 	listOptions := &hdns.ZoneListOpts{ListOpts: hdns.ListOpts{PerPage: batchSize}}
 	for {
-		zones, resp, err := dnsClient.GetZones(ctx, *listOptions)
+		pagedZones, resp, err := dnsClient.GetZones(ctx, *listOptions)
 		if err != nil {
 			return nil, err
 		}
 
-		for _, z := range zones {
-			allZones = append(allZones, *z)
+		for _, z := range pagedZones {
+			zones = append(zones, *z)
 		}
 
 		if resp == nil || resp.Meta.Pagination == nil || resp.Meta.Pagination.LastPage <= resp.Meta.Pagination.Page {
@@ -81,5 +81,5 @@ func fetchZones(ctx context.Context, dnsClient apiClient, batchSize int) ([]hdns
 		listOptions.Page = resp.Meta.Pagination.Page + 1
 	}
 
-	return allZones, nil
+	return zones, nil
 }

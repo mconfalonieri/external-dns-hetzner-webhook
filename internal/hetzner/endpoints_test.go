@@ -102,18 +102,14 @@ func Test_makeEndpointTarget(t *testing.T) {
 			entryTarget string
 			epType      string
 		}
-		expected struct {
-			target string
-			valid  bool
-		}
+		expected string
 	}
 
 	run := func(t *testing.T, tc testCase) {
 		inp := tc.input
 		exp := tc.expected
-		actualTarget, actualValid := makeEndpointTarget(inp.domain, inp.entryTarget, inp.epType)
-		assert.Equal(t, exp.target, actualTarget)
-		assert.Equal(t, exp.valid, actualValid)
+		actual := makeEndpointTarget(inp.domain, inp.entryTarget, inp.epType)
+		assert.Equal(t, exp, actual)
 	}
 
 	testCases := []testCase{
@@ -128,13 +124,7 @@ func Test_makeEndpointTarget(t *testing.T) {
 				entryTarget: "0.0.0.0",
 				epType:      "A",
 			},
-			expected: struct {
-				target string
-				valid  bool
-			}{
-				target: "0.0.0.0",
-				valid:  true,
-			},
+			expected: "0.0.0.0",
 		},
 		{
 			name: "IP with domain provided",
@@ -147,13 +137,7 @@ func Test_makeEndpointTarget(t *testing.T) {
 				entryTarget: "0.0.0.0",
 				epType:      "A",
 			},
-			expected: struct {
-				target string
-				valid  bool
-			}{
-				target: "0.0.0.0",
-				valid:  true,
-			},
+			expected: "0.0.0.0",
 		},
 		{
 			name: "No domain provided",
@@ -166,13 +150,7 @@ func Test_makeEndpointTarget(t *testing.T) {
 				entryTarget: "www.alpha.com",
 				epType:      "CNAME",
 			},
-			expected: struct {
-				target string
-				valid  bool
-			}{
-				target: "www.alpha.com",
-				valid:  true,
-			},
+			expected: "www.alpha.com",
 		},
 		{
 			name: "Domain provided",
@@ -185,13 +163,7 @@ func Test_makeEndpointTarget(t *testing.T) {
 				entryTarget: "www.alpha.com",
 				epType:      "CNAME",
 			},
-			expected: struct {
-				target string
-				valid  bool
-			}{
-				target: "www",
-				valid:  true,
-			},
+			expected: "www",
 		},
 		{
 			name: "Other domain without trailing dot provided",
@@ -204,13 +176,7 @@ func Test_makeEndpointTarget(t *testing.T) {
 				entryTarget: "www.beta.com",
 				epType:      "CNAME",
 			},
-			expected: struct {
-				target string
-				valid  bool
-			}{
-				target: "www.beta.com",
-				valid:  true,
-			},
+			expected: "www.beta.com",
 		},
 		{
 			name: "Other domain with trailing dot provided",
@@ -223,13 +189,7 @@ func Test_makeEndpointTarget(t *testing.T) {
 				entryTarget: "www.beta.com.",
 				epType:      "CNAME",
 			},
-			expected: struct {
-				target string
-				valid  bool
-			}{
-				target: "www.beta.com",
-				valid:  true,
-			},
+			expected: "www.beta.com",
 		},
 	}
 

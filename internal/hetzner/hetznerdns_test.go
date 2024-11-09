@@ -23,8 +23,7 @@ import (
 	"time"
 
 	hdns "github.com/jobstoit/hetzner-dns-go/dns"
-	hschema "github.com/jobstoit/hetzner-dns-go/dns/schema"
-	"sigs.k8s.io/external-dns/endpoint"
+	"github.com/stretchr/testify/assert"
 )
 
 // testTime is a time used in records.
@@ -71,13 +70,13 @@ type mockClientState struct {
 
 // mockClient represents the mock client used to simulate calls to the DNS API.
 type mockClient struct {
-	getZones     zonesResponse
-	getRecords   recordsResponse
-	createRecord recordResponse
-	updateRecord recordResponse
-	deleteRecord deleteResponse
-	adjustZone   bool
-	state        mockClientState
+	getZones            zonesResponse
+	getRecords          recordsResponse
+	createRecord        recordResponse
+	updateRecord        recordResponse
+	deleteRecord        deleteResponse
+	filterRecordsByZone bool
+	state               mockClientState
 }
 
 // GetState returns the internal state
@@ -92,24 +91,29 @@ func (m *mockClient) GetZones(ctx context.Context, opts hdns.ZoneListOpts) ([]*h
 	return r.zones, r.resp, r.err
 }
 
-// adjustZone adjusts the records for the selected zone.
-func adjustZone(r *recordsResponse, opts hdns.RecordListOpts) {
-	for idx, rec := range r.records {
-		if rec != nil {
-			rec.Zone.ID = opts.ZoneID
+// filterRecordsByZone filters the records, returning only those for the selected zone.
+func filterRecordsByZone(r recordsResponse, opts hdns.RecordListOpts) []*hdns.Record {
+	records := make([]*hdns.Record, 0)
+	for _, rec := range r.records {
+		if rec != nil && rec.Zone.ID == opts.ZoneID {
+			records = append(records, rec)
 		}
-		r.records[idx] = rec
 	}
+	return records
 }
 
 // GetRecords simulates a request to get a list of records for a given zone.
 func (m *mockClient) GetRecords(ctx context.Context, opts hdns.RecordListOpts) ([]*hdns.Record, *hdns.Response, error) {
 	r := m.getRecords
 	m.state.GetRecordsCalled = true
-	if m.adjustZone {
-		adjustZone(&r, opts)
+	var records []*hdns.Record
+	if m.filterRecordsByZone {
+		records = filterRecordsByZone(r, opts)
+		r.resp.Meta.Pagination.TotalEntries = len(records) // "smart" handling
+	} else {
+		records = r.records
 	}
-	return r.records, r.resp, r.err
+	return records, r.resp, r.err
 }
 
 // CreateRecord simulates a request to create a DNS record.
@@ -133,105 +137,15 @@ func (m *mockClient) DeleteRecord(ctx context.Context, record *hdns.Record) (*hd
 	return r.resp, r.err
 }
 
-// unpointedZones transforms a slice of zone pointers into a slice of zones.
-func unpointedZones(zones []*hdns.Zone) []hdns.Zone {
-	ret := make([]hdns.Zone, len(zones))
-	for i, z := range zones {
-		if z == nil {
-			continue
-		}
-		ret[i] = *z
+// assertError checks if an error is thrown when expected.
+func assertError(t *testing.T, expected, actual error) bool {
+	var expError bool
+	if expected == nil {
+		assert.Nil(t, actual)
+		expError = false
+	} else {
+		assert.EqualError(t, actual, expected.Error())
+		expError = true
 	}
-	return ret
-}
-
-// unpointedRecords transforms a slice of record pointers into a slice of
-// records.
-func unpointedRecords(records []*hdns.Record) []hdns.Record {
-	ret := make([]hdns.Record, len(records))
-	for i, r := range records {
-		if r == nil {
-			continue
-		}
-		ret[i] = *r
-	}
-	return ret
-}
-
-// checkError checks if an error is thrown when expected.
-func checkError(t *testing.T, err error, errExp bool) {
-	isErr := (err != nil)
-	if (isErr && !errExp) || (!isErr && errExp) {
-		t.Fail()
-	}
-}
-
-// toEndpoints transforms a slice of records in a slice of endpoint pointers.
-func toEndpoints(records []hdns.Record) []*endpoint.Endpoint {
-	endpoints := make([]*endpoint.Endpoint, 0, len(records))
-	for _, r := range records {
-		e := endpoint.Endpoint{
-			DNSName:       r.Name,
-			SetIdentifier: r.ID,
-			Targets:       []string{r.Value},
-			RecordTTL:     endpoint.TTL(r.Ttl),
-			RecordType:    string(r.Type),
-		}
-		endpoints = append(endpoints, &e)
-	}
-	return endpoints
-}
-
-// buildTestRecord builds a record according to parameters. The indexes of
-// the params argument must contain:
-// - 0: the record type
-// - 1: the record name
-// - 2: the record value
-func buildTestRecord(params [3]string, zoneId string) *hdns.Record {
-	return &hdns.Record{
-		Type:     hdns.RecordType(params[0]),
-		ID:       "id_" + params[1],
-		Name:     params[1],
-		Value:    params[2],
-		Zone:     &hdns.Zone{ID: zoneId},
-		Created:  hschema.HdnsTime(testTime),
-		Modified: hschema.HdnsTime(testTime),
-		Ttl:      7200,
-	}
-}
-
-// buildTestRecords builds some test records for the given zoneId.
-func buildTestRecords(zoneId string) []*hdns.Record {
-	fixture := [][3]string{
-		{"A", "www", "127.0.0.1"},
-		{"MX", "mail", "127.0.0.1"},
-		{"CNAME", "ftp", "www.alpha.com"},
-	}
-	records := make([]*hdns.Record, len(fixture))
-	for i, f := range fixture {
-		rec := buildTestRecord(f, zoneId)
-		records[i] = rec
-	}
-	return records
-}
-
-// buildTestZones bulids some test zones.
-func buildTestZones() []*hdns.Zone {
-	zones := []*hdns.Zone{
-		{
-			ID:       "zoneIDAlpha",
-			Created:  hschema.HdnsTime(testTime),
-			Modified: hschema.HdnsTime(testTime),
-			Name:     "alpha.com",
-			Ttl:      7200,
-		},
-		{
-			ID:       "zoneIDBeta",
-			Created:  hschema.HdnsTime(testTime),
-			Modified: hschema.HdnsTime(testTime),
-			Name:     "beta.com",
-			Ttl:      7200,
-		},
-	}
-	return zones
+	return expError
 }

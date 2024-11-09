@@ -37,71 +37,134 @@ func Test_fetchRecords(t *testing.T) {
 			batchSize int
 		}
 		expected struct {
-			endpoints int
-			err       bool
+			records []hdns.Record
+			err     error
 		}
 	}
-
-	testRecords := buildTestRecords("zoneID")
 
 	run := func(t *testing.T, tc testCase) {
 		inp := tc.input
 		exp := tc.expected
 		actual, err := fetchRecords(context.Background(), inp.zoneID, inp.dnsClient, inp.batchSize)
-		checkError(t, err, exp.err)
-		if err != nil {
-			assert.Equal(t, len(actual), exp.endpoints)
+		if !assertError(t, exp.err, err) {
+			assert.ElementsMatch(t, exp.records, actual)
 		}
 	}
 
 	testCases := []testCase{
 		{
-			name: "All records",
+			name: "records fetched",
 			input: struct {
 				zoneID    string
 				dnsClient apiClient
 				batchSize int
 			}{
-				zoneID: "zoneID",
+				zoneID: "zoneIDAlpha",
 				dnsClient: &mockClient{
 					getRecords: recordsResponse{
-						records: testRecords,
+						records: []*hdns.Record{
+							{
+								ID:   "id_1",
+								Name: "www",
+								Type: hdns.RecordTypeA,
+								Zone: &hdns.Zone{
+									ID:   "zoneIDAlpha",
+									Name: "alpha.com",
+								},
+								Value: "1.1.1.1",
+								Ttl:   -1,
+							},
+							{
+								ID:   "id_2",
+								Name: "ftp",
+								Type: hdns.RecordTypeA,
+								Zone: &hdns.Zone{
+									ID:   "zoneIDAlpha",
+									Name: "alpha.com",
+								},
+								Value: "2.2.2.2",
+								Ttl:   -1,
+							},
+							{
+								ID:   "id_3",
+								Name: "mail",
+								Type: hdns.RecordTypeMX,
+								Zone: &hdns.Zone{
+									ID:   "zoneIDAlpha",
+									Name: "alpha.com",
+								},
+								Value: "3.3.3.3",
+								Ttl:   -1,
+							},
+						},
 						resp: &hdns.Response{
 							Response: &http.Response{StatusCode: http.StatusOK},
 						},
 					},
-					adjustZone: true,
 				},
 				batchSize: 100,
 			},
 			expected: struct {
-				endpoints int
-				err       bool
+				records []hdns.Record
+				err     error
 			}{
-				endpoints: 4, // MX test records will not show up
+				records: []hdns.Record{
+					{
+						ID:   "id_1",
+						Name: "www",
+						Type: hdns.RecordTypeA,
+						Zone: &hdns.Zone{
+							ID:   "zoneIDAlpha",
+							Name: "alpha.com",
+						},
+						Value: "1.1.1.1",
+						Ttl:   -1,
+					},
+					{
+						ID:   "id_2",
+						Name: "ftp",
+						Type: hdns.RecordTypeA,
+						Zone: &hdns.Zone{
+							ID:   "zoneIDAlpha",
+							Name: "alpha.com",
+						},
+						Value: "2.2.2.2",
+						Ttl:   -1,
+					},
+					{
+						ID:   "id_3",
+						Name: "mail",
+						Type: hdns.RecordTypeMX,
+						Zone: &hdns.Zone{
+							ID:   "zoneIDAlpha",
+							Name: "alpha.com",
+						},
+						Value: "3.3.3.3",
+						Ttl:   -1,
+					},
+				},
 			},
 		},
 		{
-			name: "Error",
+			name: "error fetching records",
 			input: struct {
 				zoneID    string
 				dnsClient apiClient
 				batchSize int
 			}{
-				zoneID: "zoneID",
+				zoneID: "zoneIDAlpha",
 				dnsClient: &mockClient{
 					getRecords: recordsResponse{
 						err: errors.New("records test error"),
 					},
-					adjustZone: true,
 				},
 				batchSize: 100,
 			},
 			expected: struct {
-				endpoints int
-				err       bool
+				records []hdns.Record
+				err     error
 			}{
-				err: true,
+				err: errors.New("records test error"),
 			},
 		},
 	}
@@ -123,32 +186,38 @@ func Test_fetchZones(t *testing.T) {
 		}
 		expected struct {
 			zones []hdns.Zone
-			err   bool
+			err   error
 		}
 	}
-
-	testZones := buildTestZones()
 
 	run := func(t *testing.T, tc testCase) {
 		inp := tc.input
 		exp := tc.expected
 		actual, err := fetchZones(context.Background(), inp.dnsClient, inp.batchSize)
-		checkError(t, err, exp.err)
-		if err == nil {
+		if !assertError(t, exp.err, err) {
 			assert.ElementsMatch(t, actual, exp.zones)
 		}
 	}
 
 	testCases := []testCase{
 		{
-			name: "Zones returned",
+			name: "zones fetched",
 			input: struct {
 				dnsClient apiClient
 				batchSize int
 			}{
 				dnsClient: &mockClient{
 					getZones: zonesResponse{
-						zones: testZones,
+						zones: []*hdns.Zone{
+							{
+								ID:   "zoneIDAlpha",
+								Name: "alpha.com",
+							},
+							{
+								ID:   "zoneIDBeta",
+								Name: "beta.com",
+							},
+						},
 						resp: &hdns.Response{
 							Response: &http.Response{StatusCode: http.StatusOK},
 							Meta: hdns.Meta{
@@ -156,24 +225,32 @@ func Test_fetchZones(t *testing.T) {
 									Page:         1,
 									PerPage:      100,
 									LastPage:     1,
-									TotalEntries: len(testZones),
+									TotalEntries: 2,
 								},
 							},
 						},
 					},
-					adjustZone: true,
 				},
 				batchSize: 100,
 			},
 			expected: struct {
 				zones []hdns.Zone
-				err   bool
+				err   error
 			}{
-				zones: unpointedZones(testZones), // 2 zones returned
+				zones: []hdns.Zone{
+					{
+						ID:   "zoneIDAlpha",
+						Name: "alpha.com",
+					},
+					{
+						ID:   "zoneIDBeta",
+						Name: "beta.com",
+					},
+				},
 			},
 		},
 		{
-			name: "Error returned",
+			name: "error fetching zones",
 			input: struct {
 				dnsClient apiClient
 				batchSize int
@@ -182,15 +259,14 @@ func Test_fetchZones(t *testing.T) {
 					getZones: zonesResponse{
 						err: errors.New("zones test error"),
 					},
-					adjustZone: true,
 				},
 				batchSize: 100,
 			},
 			expected: struct {
 				zones []hdns.Zone
-				err   bool
+				err   error
 			}{
-				err: true,
+				err: errors.New("zones test error"),
 			},
 		},
 	}

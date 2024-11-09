@@ -93,10 +93,8 @@ func (p HetznerProvider) AdjustEndpoints(endpoints []*endpoint.Endpoint) ([]*end
 		_, zoneName := p.zoneIDNameMapper.FindZone(ep.DNSName)
 		adjustedTargets := endpoint.Targets{}
 		for _, t := range ep.Targets {
-			adjustedTarget, producedValidTarget := makeEndpointTarget(zoneName, t, ep.RecordType)
-			if producedValidTarget {
-				adjustedTargets = append(adjustedTargets, adjustedTarget)
-			}
+			adjustedTarget := makeEndpointTarget(zoneName, t, ep.RecordType)
+			adjustedTargets = append(adjustedTargets, adjustedTarget)
 		}
 
 		ep.Targets = adjustedTargets
@@ -106,8 +104,7 @@ func (p HetznerProvider) AdjustEndpoints(endpoints []*endpoint.Endpoint) ([]*end
 	return adjustedEndpoints, nil
 }
 
-// Records returns the list of records in a given zone as a slice of
-// endpoints.
+// Records returns the list of records in all zones as a slice of endpoints.
 func (p *HetznerProvider) Records(ctx context.Context) ([]*endpoint.Endpoint, error) {
 	zones, err := p.Zones(ctx)
 	if err != nil {
@@ -121,6 +118,7 @@ func (p *HetznerProvider) Records(ctx context.Context) ([]*endpoint.Endpoint, er
 			return nil, err
 		}
 
+		// Add only endpoints from supported types.
 		for _, r := range records {
 			if provider.SupportedRecordType(string(r.Type)) {
 				ep := createEndpointFromRecord(r)
