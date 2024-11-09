@@ -20,14 +20,10 @@ package hetzner
 import (
 	"context"
 	"testing"
-	"time"
 
 	hdns "github.com/jobstoit/hetzner-dns-go/dns"
 	"github.com/stretchr/testify/assert"
 )
-
-// testTime is a time used in records.
-var testTime = time.Date(2021, 8, 15, 14, 30, 45, 100, time.Local)
 
 // testTTL is a test ttl.
 var testTTL = 7200
