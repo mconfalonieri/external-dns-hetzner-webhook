@@ -1219,7 +1219,6 @@ func Test_targetsMatch(t *testing.T) {
 				ep     *endpoint.Endpoint
 			}{
 				record: hdns.Record{
-
 					ID:   "id_2",
 					Name: "ftp",
 					Type: hdns.RecordTypeCNAME,
