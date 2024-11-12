@@ -10,9 +10,9 @@ endif
 ARTIFACT_NAME = external-dns-hetzner-webhook
 
 
-REGISTRY ?= localhost:5001
+REGISTRY ?= docker.io/mconfalonieri
 IMAGE_NAME ?= external-dns-hetzner-webhook
-IMAGE_TAG ?= latest
+IMAGE_TAG ?= localbuild
 IMAGE = $(REGISTRY)/$(IMAGE_NAME):$(IMAGE_TAG)
 
 ##@ General
@@ -60,6 +60,14 @@ clean: ## Clean the build directory
 build: ## Build the binary
 	CGO_ENABLED=0 go build -o build/bin/$(ARTIFACT_NAME) ./cmd/webhook
 
+.PHONY: build-arm64
+build-arm64: ## Build the ARM64 binary
+	CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -o build/bin/$(ARTIFACT_NAME)-arm64 ./cmd/webhook
+
+.PHONY: build-amd64
+build-amd64: ## Build the AMD64 binary
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o build/bin/$(ARTIFACT_NAME)-amd64 ./cmd/webhook
+
 .PHONY: run
 run:build ## Run the binary on local machine
 	build/bin/external-dns-hetzner-webhook
@@ -68,11 +76,27 @@ run:build ## Run the binary on local machine
 
 .PHONY: docker-build
 docker-build: build ## Build the docker image
-	docker build ./ -f localbuild.Dockerfile -t $(IMAGE)
+	docker build ./ -f docker/localbuild.Dockerfile -t $(IMAGE)
+
+.PHONY: docker-build-arm64
+docker-build-arm64: build-arm64 ## Build the docker image for ARM64
+	docker build ./ -f docker/localbuild.arm64.Dockerfile -t $(IMAGE)-arm64
+
+.PHONY: docker-build-amd64
+docker-build-amd64: build-amd64 ## Build the docker image for AMD64
+	docker build ./ -f docker/localbuild.arm64.Dockerfile -t $(IMAGE)-amd64
 
 .PHONY: docker-push
 docker-push: ## Push the docker image
 	docker push $(IMAGE)
+
+.PHONY: docker-push-arm64
+docker-push-arm64: ## Push the docker image for ARM64
+	docker push $(IMAGE)-arm64
+
+.PHONY: docker-push-amd64
+docker-push-amd64: ## Push the docker image for AMD64
+	docker push $(IMAGE)-amd64
 
 ##@ Test
 
