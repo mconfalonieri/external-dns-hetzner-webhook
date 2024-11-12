@@ -19,15 +19,16 @@ IMAGE = $(REGISTRY)/$(IMAGE_NAME):$(IMAGE_TAG)
 
 .PHONY: help
 help: ## Display this help.
-	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
+	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  \033[36m%-22s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
 
 show: ## Show variables
-	@echo "GOPATH: $(GOPATH)"
-	@echo "ARTIFACT_NAME: $(ARTIFACT_NAME)"
-	@echo "REGISTRY: $(REGISTRY)"
-	@echo "IMAGE_NAME: $(IMAGE_NAME)"
-	@echo "IMAGE_TAG: $(IMAGE_TAG)"
-	@echo "IMAGE: $(IMAGE)"
+	@echo "\n\033[1mVariables\033[0m"
+	@echo "\033[36m  GOPATH\033[0m        $(GOPATH)"
+	@echo "\033[36m  ARTIFACT_NAME\033[0m $(ARTIFACT_NAME)"
+	@echo "\033[36m  REGISTRY\033[0m      $(REGISTRY)"
+	@echo "\033[36m  IMAGE_NAME\033[0m    $(IMAGE_NAME)"
+	@echo "\033[36m  IMAGE_TAG\033[0m     $(IMAGE_TAG)"
+	@echo "\033[36m  IMAGE\033[0m         $(IMAGE)"
 
 
 ##@ Code analysis
