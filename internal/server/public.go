@@ -69,13 +69,33 @@ func (s PublicServer) readinessHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// Start starts the liveness and readiness server.
+// healthzHandler checks if the server is live AND ready. It writes 200/OK if
+// both the healthy and the ready flags are set to "true" and 503/Service
+// Unavailable otherwise. It is provided to ensure compatibility with
+// ExternalDNS Webhook requirements:
+// https://github.com/kubernetes-sigs/external-dns/blob/master/docs/tutorials/webhook-provider.md
+func (s PublicServer) healthzHandler(w http.ResponseWriter, r *http.Request) {
+	healthz := s.status.IsHealthy() && s.status.IsReady()
+	var err error
+	if healthz {
+		_, err = w.Write([]byte(http.StatusText(http.StatusOK)))
+	} else {
+		w.WriteHeader(http.StatusServiceUnavailable)
+		_, err = w.Write([]byte(http.StatusText(http.StatusServiceUnavailable)))
+	}
+	if err != nil {
+		log.Warn("Could not answer to a healthz probe: ", err.Error())
+	}
+}
+
+// Start starts the exposed endpoints server.
 func (s *PublicServer) Start(startedChan chan struct{}, options ServerOptions) {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/", s.readinessHandler)
 	mux.HandleFunc("/ready", s.readinessHandler)
 	mux.HandleFunc("/health", s.livenessHandler)
+	mux.HandleFunc("/healthz", s.healthzHandler)
 	mux.Handle("/metrics", omhttp.NewHandler(s.reg))
 
 	address := options.GetHealthAddress()
