@@ -1,49 +1,107 @@
 # ExternalDNS - Hetzner Webhook
 
-⚠️  This software is experimental and **NOT FIT FOR PRODUCTION USE!**
+[ExternalDNS](https://github.com/kubernetes-sigs/external-dns) is a Kubernetes
+add-on for automatically managing Domain Name System (DNS) records for
+Kubernetes services using different DNS providers. By default, Kubernetes
+manages DNS records internally, but ExternalDNS takes this functionality a step
+further by delegating the management of DNS records to an external DNS provider
+such as this one. This webhook allows you to manage your Hetzner domains inside
+your kubernetes cluster.
 
-**🛈 NOTE**: This Webhook was forked and modified from the [IONOS Webhook](https://github.com/ionos-cloud/external-dns-ionos-webhook)
-to work with Hetzner. It also contains huge parts from [DrBu7cher's Hetzner provider](https://github.com/DrBu7cher/external-dns/tree/readding_hcloud_provider).
+## Requirements
 
-ExternalDNS is a Kubernetes add-on for automatically managing
-Domain Name System (DNS) records for Kubernetes services by using different DNS providers.
-By default, Kubernetes manages DNS records internally,
-but ExternalDNS takes this functionality a step further by delegating the management of DNS records to an external DNS
-provider such as this one.
-Therefore, the Hetzner webhook allows to manage your
-Hetzner domains inside your kubernetes cluster with [ExternalDNS](https://github.com/kubernetes-sigs/external-dns).
+An
+[API token](https://docs.hetzner.com/dns-console/dns/general/api-access-token/)
+for the account managing your domains is required for this webhook to work
+properly.
 
-To use ExternalDNS with Hetzner, you need your Hetzner API token of the account managing
-your domains.
-For detailed technical instructions on how the Hetzner webhook is deployed using the Bitnami Helm charts for ExternalDNS,
-see[deployment instructions](#kubernetes-deployment).
+⚠️ This webhook requires at least ExternalDNS v0.14.0.
 
 ## Kubernetes Deployment
 
-The Hetzner webhook is provided as a regular Open Container Initiative (OCI) image released in
-the [GitHub container registry](https://github.com/mconfalonieri/external-dns-hetzner-webhook/pkgs/container/external-dns-hetzner-webhook).
+The Hetzner webhook is provided as a regular Open Container Initiative (OCI)
+image released in the
+[GitHub container registry](https://github.com/mconfalonieri/external-dns-hetzner-webhook/pkgs/container/external-dns-hetzner-webhook).
 The deployment can be performed in every way Kubernetes supports.
-The following example shows the deployment as
-a [sidecar container](https://kubernetes.io/docs/concepts/workloads/pods/#workload-resources-for-managing-pods) in the
-ExternalDNS pod
-using the [Bitnami Helm charts for ExternalDNS](https://github.com/bitnami/charts/tree/main/bitnami/external-dns).
 
-⚠️  This webhook requires at least ExternalDNS v0.14.0.
+Here are provided examples using the
+[External DNS chart](#using-the-externaldns-chart) and the
+[Bitnami chart](#using-the-bitnami-chart).
 
-The webhook can be installed using either the Bitnami chart or the ExternalDNS one.
-
-First, create the Hetzner secret:
+In either case, a secret that stores the Hetzner API key is required:
 
 ```yaml
 kubectl create secret generic hetzner-credentials --from-literal=api-key='<EXAMPLE_PLEASE_REPLACE>' -n external-dns
 ```
 
+### Using the ExternalDNS chart
+
+Skip this step if you already have the ExternalDNS repository added:
+
+```shell
+helm repo add external-dns https://kubernetes-sigs.github.io/external-dns/
+```
+
+Update your helm chart repositories:
+
+```shell
+helm repo update
+```
+
+You can then create the helm values file, for example
+`external-dns-hetzner-values.yaml`:
+
+```yaml
+namespace: external-dns
+policy: sync
+provider:
+  name: webhook
+  webhook:
+    image:
+      repository: ghcr.io/mconfalonieri/external-dns-hetzner-webhook
+      tag: v0.6.0
+    env:
+      - name: HETZNER_API_KEY
+        valueFrom:
+          secretKeyRef:
+            name: hetzner-credentials
+            key: api-key
+    livenessProbe:
+      httpGet:
+        path: /health
+        port: http-wh-metrics
+      initialDelaySeconds: 10
+      timeoutSeconds: 5
+    readinessProbe:
+      httpGet:
+        path: /ready
+        port: http-wh-metrics
+      initialDelaySeconds: 10
+      timeoutSeconds: 5
+
+extraArgs:
+  - "--txt-prefix=reg-%{record_type}-"
+```
+
+And then:
+
+```shell
+# install external-dns with helm
+helm install external-dns-hetzner external-dns/external-dns -f external-dns-hetzner-values.yaml --version 1.14.3 -n external-dns
+```
+
 ### Using the Bitnami chart
 
-Skip this if you already have the Bitnami repository added:
+Skip this step if you already have the Bitnami repository added:
 
 ```shell
 helm repo add bitnami https://charts.bitnami.com/bitnami
+```
+
+Update your helm chart repositories:
+
+```shell
+helm repo update
 ```
 
 You can then create the helm values file, for example
@@ -96,56 +154,6 @@ And then:
 helm install external-dns-hetzner bitnami/external-dns -f external-dns-hetzner-values.yaml -n external-dns
 ```
 
-### Using the ExternalDNS chart
-
-Skip this if you already have the ExternalDNS repository added:
-
-```shell
-helm repo add external-dns https://kubernetes-sigs.github.io/external-dns/
-```
-
-You can then create the helm values file, for example
-`external-dns-hetzner-values.yaml`:
-
-```yaml
-namespace: external-dns
-policy: sync
-provider:
-  name: webhook
-  webhook:
-    image:
-      repository: ghcr.io/mconfalonieri/external-dns-hetzner-webhook
-      tag: v0.6.0
-    env:
-      - name: HETZNER_API_KEY
-        valueFrom:
-          secretKeyRef:
-            name: hetzner-credentials
-            key: api-key
-    livenessProbe:
-      httpGet:
-        path: /health
-        port: http-wh-metrics
-      initialDelaySeconds: 10
-      timeoutSeconds: 5
-    readinessProbe:
-      httpGet:
-        path: /ready
-        port: http-wh-metrics
-      initialDelaySeconds: 10
-      timeoutSeconds: 5
-
-extraArgs:
-  - "--txt-prefix=reg-%{record_type}-"
-```
-
-And then:
-
-```shell
-# install external-dns with helm
-helm install external-dns-hetzner external-dns/external-dns -f external-dns-hetzner-values.yaml --version 1.14.3 -n external-dns
-```
-
 ## Environment variables
 
 The following environment variables are available:
@@ -159,10 +167,10 @@ The following environment variables are available:
 | DEFAULT_TTL     | Default TTL if not specified     | Default: `7200`            |
 | WEBHOOK_HOST    | Webhook hostname or IP address   | Default: `localhost`       |
 | WEBHOOK_PORT    | Webhook port                     | Default: `8888`            |
-| HEALTH_HOST     | Liveness and readiness hostname  | Default: `0.0.0.0`         |
-| HEALTH_PORT     | Liveness and readiness port      | Default: `8080`            |
-| READ_TIMEOUT    | Servers' read timeout in ms      | Default: `60000`           |
-| WRITE_TIMEOUT   | Servers' write timeout in ms     | Default: `60000`           |
+| HEALTH_HOST     | Metrics hostname                 | Default: `0.0.0.0`         |
+| HEALTH_PORT     | Metrics port                     | Default: `8080`            |
+| READ_TIMEOUT    | Sockets' read timeout in ms      | Default: `60000`           |
+| WRITE_TIMEOUT   | Sockets' write timeout in ms     | Default: `60000`           |
 
 Additional environment variables for domain filtering:
 
@@ -184,24 +192,89 @@ build the filter:
  - DOMAIN_FILTER
  - EXCLUDE_DOMAIN_FILTER
 
+## Endpoints
+
+This process exposes several endpoints, that will be available through these
+sockets:
+
+| Socket name | Socket address                |
+| ----------- | ----------------------------- |
+| Webhook     | `WEBHOOK_HOST`:`WEBHOOK_PORT` |
+| Metrics     | `HEALTH_HOST`:`HEALTH_PORT`   |
+
+**Note**: the "Health" socket was renamed to "Metrics" to conform to
+ExternalDNS terminology, but the prefix is still `HEALTH` for compatibility
+with the previous versions of this webhook.
+
+The environment variables controlling the socket addresses are not meant to be
+changed, under normal circumstances, for the reasons explained in
+[Tweaking the configuration](tweaking-the-configuration).
+The endpoints [expected by ExternalDNS](https://github.com/kubernetes-sigs/external-dns/blob/master/docs/tutorials/webhook-provider.md)
+are marked with *.
+
+### Webhook socket
+
+All these endpoints are
+[required by ExternalDNS](https://github.com/kubernetes-sigs/external-dns/blob/master/docs/tutorials/webhook-provider.md).
+
+| Endpoint           | Purpose                                        |
+| ------------------ | ---------------------------------------------- |
+| `/`                | Initialization and `DomainFilter` negotiations |
+| `/record`          | Get and apply records                          |
+| `/adjustendpoints` | Adjust endpoints before submission             |
+
+### Metrics socket
+
+ExternalDNS doesn't have functional requirements for this endpoint, but some
+of them are
+[recommended](https://github.com/kubernetes-sigs/external-dns/blob/master/docs/tutorials/webhook-provider.md).
+In this table those endpoints are marked with  __*__.
+
+| Endpoint           | * | Purpose                                                               |
+| ------------------ | - | --------------------------------------------------------------------- |
+| `/health`          |   | Implements the liveness probe                                         |
+| `/ready`           |   | Implements the readiness probe                                        |
+| `/healthz`         | * | Implements the liveness and readiness probe                           |
+| `/metrics`         | * | Exposes the [Open Metrics](https://github.com/prometheus/OpenMetrics) |
+
 ## Tweaking the configuration
 
 While tweaking the configuration, there are some points to take into
 consideration:
 
 - if `WEBHOOK_HOST` and `HEALTH_HOST` are set to the same address/hostname or
-  one of them is set to `0.0.0.0` remember to use different ports.
+  one of them is set to `0.0.0.0` remember to use different ports. Please note
+  that it **highly recommendend** for `WEBHOOK_HOST` to be `localhost`, as
+  any address reachable from outside the pod might be a **security issue**;
+  besides this, changing these would likely need more tweaks than just setting
+  the environment variables. The default settings are compatible with the
+  [ExternalDNS assumptions](https://github.com/kubernetes-sigs/external-dns/blob/master/docs/tutorials/webhook-provider.md);
 - if your records don't get deleted when applications are uninstalled, you
   might want to verify the policy in use for ExternalDNS: if it's `upsert-only`
   no deletion will occur. It must be set to `sync` for deletions to be
-  processed. Please add the following to `external-dns-hetzner-values.yaml` if
-  you want this strategy:
-  
+  processed. Please check that `external-dns-hetzner-values.yaml` include:
+
   ```yaml
   policy: sync
   ```
+- the `--txt-prefix` parameter should really include: `%{record_type}`, as any
+  other value will cause a weird duplication of database records. Change the
+  value provided in the sample configuration only if you really know what are
+  you doing.
 
 ## Development
 
 The basic development tasks are provided by make. Run `make help` to see the
 available targets.
+
+## Credits
+
+This Webhook was forked and modified from the [IONOS Webhook](https://github.com/ionos-cloud/external-dns-ionos-webhook)
+to work with Hetzner. It also contains huge parts from [DrBu7cher's Hetzner provider](https://github.com/DrBu7cher/external-dns/tree/readding_hcloud_provider).
+
+### Contributors
+
+| Name                                         | Contribution                  |
+| -------------------------------------------- | ----------------------------- |
+| [DerQue](https://github.com/DerQue)          | local CNAME fix               |
+| [sschaeffner](https://github.com/sschaeffner)| build configuration for arm64 |
