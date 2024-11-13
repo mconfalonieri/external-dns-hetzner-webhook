@@ -38,8 +38,11 @@ jobs:
       with:
         name: unit-test-reports
         path: ./build/reports/**
+    - name: Run Coverage Test
+      run: |
+        go test -v ./... -covermode=count -coverprofile=coverage.out
+        go tool cover -func=coverage.out -o=coverage.out
     - name: Go Coverage Badge  # Pass the `coverage.out` output to this action
       uses: tj-actions/coverage-badge-go@v2
       with:
-        filename: ./build/reports/unit-test-coverage.out
-        link: ${{ github.server_url }}/${{ github.repository }}/actions/workflows/test-report.yml
+        filename: coverage.out
