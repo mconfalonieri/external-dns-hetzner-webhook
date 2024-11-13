@@ -1,5 +1,7 @@
 # ExternalDNS - Hetzner Webhook
 
+![Tests](https://camo.githubusercontent.com/1005474327f297a66493a98db94bf2b4a3fb9fce5a9f99a9c324cf13fa48d247/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f74657374732d3135362532307061737365642d73756363657373)
+
 [ExternalDNS](https://github.com/kubernetes-sigs/external-dns) is a Kubernetes
 add-on for automatically managing Domain Name System (DNS) records for
 Kubernetes services using different DNS providers. By default, Kubernetes

@@ -42,3 +42,4 @@ jobs:
       uses: tj-actions/coverage-badge-go@v2
       with:
         filename: ./build/reports/unit-test-coverage.out
+        link: ${{ github.server_url }}/${{ github.repository }}/actions/workflows/test-report.yml
