@@ -24,14 +24,16 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// PublicServer is the liveness and readiness server.
-type PublicServer struct {
+// MetricsSocket represents the socket that serves the Open Metrics, as well as
+// the liveness and readiness probes.
+type MetricsSocket struct {
 	status *HealthStatus
 	reg    *openmetrics.Registry
 }
 
-func NewPublicServer(status *HealthStatus, reg *openmetrics.Registry) *PublicServer {
-	return &PublicServer{
+// NewMetricsSocket initializes a new MetricsSocket intance.
+func NewMetricsSocket(status *HealthStatus, reg *openmetrics.Registry) *MetricsSocket {
+	return &MetricsSocket{
 		status: status,
 		reg:    reg,
 	}
@@ -39,7 +41,7 @@ func NewPublicServer(status *HealthStatus, reg *openmetrics.Registry) *PublicSer
 
 // livenessHandler checks if the server is healthy. It writes 200/OK if the
 // healthy flag is set to "true" and 503/Service Unavailable otherwise.
-func (s PublicServer) livenessHandler(w http.ResponseWriter, r *http.Request) {
+func (s MetricsSocket) livenessHandler(w http.ResponseWriter, r *http.Request) {
 	healthy := s.status.IsHealthy()
 	var err error
 	if healthy {
@@ -55,7 +57,7 @@ func (s PublicServer) livenessHandler(w http.ResponseWriter, r *http.Request) {
 
 // readinessHandler checks if the server is ready. It writes 200/OK if the
 // healthy flag is set to "true" and 503/Service Unavailable otherwise.
-func (s PublicServer) readinessHandler(w http.ResponseWriter, r *http.Request) {
+func (s MetricsSocket) readinessHandler(w http.ResponseWriter, r *http.Request) {
 	ready := s.status.IsReady()
 	var err error
 	if ready {
@@ -74,7 +76,7 @@ func (s PublicServer) readinessHandler(w http.ResponseWriter, r *http.Request) {
 // Unavailable otherwise. It is provided to ensure compatibility with
 // ExternalDNS Webhook requirements:
 // https://github.com/kubernetes-sigs/external-dns/blob/master/docs/tutorials/webhook-provider.md
-func (s PublicServer) healthzHandler(w http.ResponseWriter, r *http.Request) {
+func (s MetricsSocket) healthzHandler(w http.ResponseWriter, r *http.Request) {
 	healthz := s.status.IsHealthy() && s.status.IsReady()
 	var err error
 	if healthz {
@@ -89,7 +91,7 @@ func (s PublicServer) healthzHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // Start starts the exposed endpoints server.
-func (s *PublicServer) Start(startedChan chan struct{}, options ServerOptions) {
+func (s *MetricsSocket) Start(startedChan chan struct{}, options SocketOptions) {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/", s.readinessHandler)
@@ -98,7 +100,7 @@ func (s *PublicServer) Start(startedChan chan struct{}, options ServerOptions) {
 	mux.HandleFunc("/healthz", s.healthzHandler)
 	mux.Handle("/metrics", omhttp.NewHandler(s.reg))
 
-	address := options.GetHealthAddress()
+	address := options.GetMetricsAddress()
 
 	srv := &http.Server{
 		Addr:         address,

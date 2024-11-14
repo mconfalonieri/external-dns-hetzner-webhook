@@ -164,14 +164,14 @@ func Test_IsReady(t *testing.T) {
 func Test_livenessHandler(t *testing.T) {
 	type testCase struct {
 		name           string
-		server         PublicServer
+		server         MetricsSocket
 		expectedStatus int
 		expectedText   string
 	}
 	testCases := []testCase{
 		{
 			name: "Server is alive",
-			server: PublicServer{
+			server: MetricsSocket{
 				status: &HealthStatus{
 					healthy: true,
 				},
@@ -181,7 +181,7 @@ func Test_livenessHandler(t *testing.T) {
 		},
 		{
 			name: "Server is unhealthy",
-			server: PublicServer{
+			server: MetricsSocket{
 				status: &HealthStatus{
 					healthy: false,
 				},
@@ -212,14 +212,14 @@ func Test_livenessHandler(t *testing.T) {
 func Test_readinessHandler(t *testing.T) {
 	type testCase struct {
 		name           string
-		server         PublicServer
+		server         MetricsSocket
 		expectedStatus int
 		expectedText   string
 	}
 	testCases := []testCase{
 		{
 			name: "Server is ready",
-			server: PublicServer{
+			server: MetricsSocket{
 				status: &HealthStatus{
 					ready: true,
 				},
@@ -229,7 +229,7 @@ func Test_readinessHandler(t *testing.T) {
 		},
 		{
 			name: "Server is not ready",
-			server: PublicServer{
+			server: MetricsSocket{
 				status: &HealthStatus{
 					ready: false,
 				},
@@ -262,15 +262,15 @@ func Test_Start(t *testing.T) {
 		healthy: true,
 		ready:   true,
 	}
-	options := ServerOptions{
-		HealthHost: testHost,
-		HealthPort: testPort,
+	options := SocketOptions{
+		MetricsHost: testHost,
+		MetricsPort: testPort,
 	}
 	reg := &openmetrics.Registry{}
 
 	startedChan := make(chan struct{})
 
-	healthServer := PublicServer{
+	healthServer := MetricsSocket{
 		status: status,
 		reg:    reg,
 	}

@@ -44,8 +44,8 @@ type healthStatus interface {
 	SetReady(bool)
 }
 
-// loop waits for a SIGTERM or a SIGINT and then shuts down the server.
-func loop(status healthStatus) {
+// waitForSignal waits for a SIGTERM or a SIGINT and then shuts down the server.
+func waitForSignal(status healthStatus) {
 	exitSignal := make(chan os.Signal, 1)
 	notify(exitSignal)
 	signal := <-exitSignal
@@ -58,8 +58,8 @@ func loop(status healthStatus) {
 // main function
 func main() {
 	// Read server options
-	serverOptions := &server.ServerOptions{}
-	if err := env.Set(serverOptions); err != nil {
+	socketOptions := &server.SocketOptions{}
+	if err := env.Set(socketOptions); err != nil {
 		log.Fatal(err)
 	}
 
@@ -67,10 +67,10 @@ func main() {
 	reg := openmetrics.NewConsistentRegistry(time.Now)
 
 	// Start health server
-	log.Infof("Starting liveness and readiness server on %s", serverOptions.GetHealthAddress())
+	log.Infof("Starting metrics server with socket address %s", socketOptions.GetMetricsAddress())
 	healthStatus := server.HealthStatus{}
-	publicServer := server.NewPublicServer(&healthStatus, reg)
-	go publicServer.Start(nil, *serverOptions)
+	publicServer := server.NewMetricsSocket(&healthStatus, reg)
+	go publicServer.Start(nil, *socketOptions)
 
 	// Read provider configuration
 	providerConfig := &hetzner.Configuration{}
@@ -85,13 +85,13 @@ func main() {
 	}
 
 	// Start the webhook
-	log.Infof("Starting webhook server on %s", serverOptions.GetWebhookAddress())
+	log.Infof("Starting webhook server with socket address %s", socketOptions.GetWebhookAddress())
 	startedChan := make(chan struct{})
 	go api.StartHTTPApi(
 		provider, startedChan,
-		serverOptions.GetReadTimeout(),
-		serverOptions.GetWriteTimeout(),
-		serverOptions.GetWebhookAddress(),
+		socketOptions.GetReadTimeout(),
+		socketOptions.GetWriteTimeout(),
+		socketOptions.GetWebhookAddress(),
 	)
 
 	// Wait for the HTTP server to start and then set the healthy and ready flags
@@ -100,5 +100,5 @@ func main() {
 	healthStatus.SetReady(true)
 
 	// Loops until a signal tells us to exit
-	loop(&healthStatus)
+	waitForSignal(&healthStatus)
 }

@@ -22,8 +22,8 @@ func (s *mockStatus) SetReady(ready bool) {
 	s.ready = ready
 }
 
-func Test_loop(t *testing.T) {
-	name := "loop test"
+func Test_waitForSignal(t *testing.T) {
+	name := "wait for signal test"
 	actual := mockStatus{
 		ready:  true,
 		health: true,
@@ -38,7 +38,7 @@ func Test_loop(t *testing.T) {
 	}
 
 	t.Run(name, func(t *testing.T) {
-		loop(&actual)
+		waitForSignal(&actual)
 		assert.Equal(t, expected, actual)
 	})
 

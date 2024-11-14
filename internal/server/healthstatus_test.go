@@ -28,6 +28,12 @@ func Test_HealthStatus_SetHealth(t *testing.T) {
 		input    bool
 		expected bool
 	}
+
+	run := func(t *testing.T, tc testCase) {
+		tc.status.SetHealth(tc.input)
+		assert.Equal(t, tc.expected, tc.status.healthy)
+	}
+
 	testCases := []testCase{
 		{
 			name:     "Set to true",
@@ -41,10 +47,6 @@ func Test_HealthStatus_SetHealth(t *testing.T) {
 			input:    false,
 			expected: false,
 		},
-	}
-	run := func(t *testing.T, tc testCase) {
-		tc.status.SetHealth(tc.input)
-		assert.Equal(t, tc.expected, tc.status.healthy)
 	}
 
 	for _, tc := range testCases {
@@ -61,6 +63,12 @@ func Test_HealthStatus_SetReady(t *testing.T) {
 		input    bool
 		expected bool
 	}
+
+	run := func(t *testing.T, tc testCase) {
+		tc.status.SetReady(tc.input)
+		assert.Equal(t, tc.expected, tc.status.ready)
+	}
+
 	testCases := []testCase{
 		{
 			name:     "Set to true",
@@ -74,10 +82,6 @@ func Test_HealthStatus_SetReady(t *testing.T) {
 			input:    false,
 			expected: false,
 		},
-	}
-	run := func(t *testing.T, tc testCase) {
-		tc.status.SetReady(tc.input)
-		assert.Equal(t, tc.expected, tc.status.ready)
 	}
 
 	for _, tc := range testCases {
@@ -93,6 +97,12 @@ func Test_HealthStatus_IsHealthy(t *testing.T) {
 		status   *HealthStatus
 		expected bool
 	}
+
+	run := func(t *testing.T, tc testCase) {
+		actual := tc.status.IsHealthy()
+		assert.Equal(t, tc.expected, actual)
+	}
+
 	testCases := []testCase{
 		{
 			name:     "Status is not healthy",
@@ -104,10 +114,6 @@ func Test_HealthStatus_IsHealthy(t *testing.T) {
 			status:   &HealthStatus{healthy: true},
 			expected: true,
 		},
-	}
-	run := func(t *testing.T, tc testCase) {
-		actual := tc.status.IsHealthy()
-		assert.Equal(t, tc.expected, actual)
 	}
 
 	for _, tc := range testCases {
@@ -124,6 +130,12 @@ func Test_HealthStatus_IsReady(t *testing.T) {
 		input    bool
 		expected bool
 	}
+
+	run := func(t *testing.T, tc testCase) {
+		tc.status.SetReady(tc.input)
+		assert.Equal(t, tc.expected, tc.status.ready)
+	}
+
 	testCases := []testCase{
 		{
 			name:     "Set to true",
@@ -137,10 +149,6 @@ func Test_HealthStatus_IsReady(t *testing.T) {
 			input:    false,
 			expected: false,
 		},
-	}
-	run := func(t *testing.T, tc testCase) {
-		tc.status.SetReady(tc.input)
-		assert.Equal(t, tc.expected, tc.status.ready)
 	}
 
 	for _, tc := range testCases {
