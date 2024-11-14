@@ -13,32 +13,18 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
     - name: Checkout Code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       with:
         fetch-depth: 0
     - name: Git Fetch
       run: git fetch --force --tags
     - name: Setup go
-      uses: actions/setup-go@v4
+      uses: actions/setup-go@v5
       with:
         go-version: stable
     - name: Run Unit Tests
       run: make unit-test
-    - name: Test Report
-      uses: dorny/test-reporter@v1
-      if: success() || failure()
-      with:
-        name: Unit Test Results
-        path: ./build/reports/**-test.xml
-        reporter: java-junit
-        fail-on-error: 'true'
-    - name: Upload Reports
-      if: always()
-      uses: actions/upload-artifact@v3
-      with:
-        name: unit-test-reports
-        path: ./build/reports/**
     - name: Go Coverage Badge  # Pass the `coverage.out` output to this action
       uses: tj-actions/coverage-badge-go@v2
       with:
-        filename: ./build/reports/unit-test-coverage.out
+        filename: coverage.out

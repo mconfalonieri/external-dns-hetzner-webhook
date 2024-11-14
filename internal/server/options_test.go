@@ -23,40 +23,107 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func Test_ServerOptions_defaults(t *testing.T) {
-	s := ServerOptions{}
-	if err := env.Set(&s); err != nil {
+func Test_SocketOptions_defaults(t *testing.T) {
+	actual := SocketOptions{}
+	expected := SocketOptions{
+		WebhookHost:  "localhost",
+		WebhookPort:  uint16(8888),
+		MetricsHost:  "0.0.0.0",
+		MetricsPort:  uint16(8080),
+		ReadTimeout:  60000,
+		WriteTimeout: 60000,
+	}
+
+	// Assign the default values.
+	if err := env.Set(&actual); err != nil {
 		t.Fail()
 	}
-	assert.Equal(t, s.WebhookHost, "localhost")
-	assert.Equal(t, s.WebhookPort, uint16(8888))
-	assert.Equal(t, s.HealthHost, "0.0.0.0")
-	assert.Equal(t, s.HealthPort, uint16(8080))
-	assert.Equal(t, s.ReadTimeout, 60000)
-	assert.Equal(t, s.WriteTimeout, 60000)
+
+	assert.Equal(t, expected, actual)
 }
 
-func Test_ServerOptions_addresses(t *testing.T) {
-	const testWebhookAddress = "10.0.0.1:1000"
-	const testHealthAddress = "10.0.0.2:2000"
-	s := ServerOptions{
-		WebhookHost: "10.0.0.1",
-		WebhookPort: 1000,
-		HealthHost:  "10.0.0.2",
-		HealthPort:  2000,
+func Test_SocketOptions_GetWebhookAddress(t *testing.T) {
+	type testCase struct {
+		name     string
+		options  SocketOptions
+		expected string
 	}
 
-	wa := s.GetWebhookAddress()
-	ha := s.GetHealthAddress()
+	run := func(t *testing.T, tc testCase) {
+		obj := tc.options
+		actual := obj.GetWebhookAddress()
+		assert.Equal(t, tc.expected, actual)
+	}
 
-	assert.Equal(t, wa, testWebhookAddress)
-	assert.Equal(t, ha, testHealthAddress)
+	testCases := []testCase{
+		{
+			name: "webhook address with ip",
+			options: SocketOptions{
+				WebhookHost: "10.0.0.1",
+				WebhookPort: 1000,
+			},
+			expected: "10.0.0.1:1000",
+		},
+		{
+			name: "webhook address with hostname",
+			options: SocketOptions{
+				WebhookHost: "localhost",
+				WebhookPort: 8888,
+			},
+			expected: "localhost:8888",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			run(t, tc)
+		})
+	}
 }
 
-func Test_ServerOptions_timeouts(t *testing.T) {
+func Test_SocketOptions_GetMetricsAddress(t *testing.T) {
+	type testCase struct {
+		name     string
+		options  SocketOptions
+		expected string
+	}
+
+	run := func(t *testing.T, tc testCase) {
+		obj := tc.options
+		actual := obj.GetMetricsAddress()
+		assert.Equal(t, tc.expected, actual)
+	}
+
+	testCases := []testCase{
+		{
+			name: "metrics address with ip",
+			options: SocketOptions{
+				MetricsHost: "10.0.0.2",
+				MetricsPort: 2000,
+			},
+			expected: "10.0.0.2:2000",
+		},
+		{
+			name: "metrics address with hostname",
+			options: SocketOptions{
+				MetricsHost: "broadcast",
+				MetricsPort: 8080,
+			},
+			expected: "broadcast:8080",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			run(t, tc)
+		})
+	}
+}
+
+func Test_SocketOptions_timeouts(t *testing.T) {
 	const testReadTimeout = time.Duration(5000) * time.Millisecond
 	const testWriteTimeout = time.Duration(15000) * time.Millisecond
-	s := ServerOptions{
+	s := SocketOptions{
 		ReadTimeout:  5000,
 		WriteTimeout: 15000,
 	}

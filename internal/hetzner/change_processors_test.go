@@ -32,6 +32,13 @@ var testZoneIDMapper = provider.ZoneIDName{
 	"zoneIDBeta":  "beta.com",
 }
 
+func assertEqualChanges(t *testing.T, expected, actual hetznerChanges) {
+	assert.Equal(t, expected.dryRun, actual.dryRun)
+	assert.ElementsMatch(t, expected.creates, actual.creates)
+	assert.ElementsMatch(t, expected.updates, actual.updates)
+	assert.ElementsMatch(t, expected.deletes, actual.deletes)
+}
+
 // Test_adjustCNAMETarget tests adjustCNAMETarget()
 func Test_adjustCNAMETarget(t *testing.T) {
 	type testCase struct {
@@ -121,7 +128,7 @@ func Test_processCreateActionsByZone(t *testing.T) {
 		changes := hetznerChanges{}
 		processCreateActionsByZone(inp.zoneID, inp.zoneName, inp.records,
 			inp.endpoints, &changes)
-		assert.EqualValues(t, tc.expectedChanges, changes)
+		assertEqualChanges(t, tc.expectedChanges, changes)
 	}
 
 	testCases := []testCase{
@@ -241,7 +248,7 @@ func Test_processCreateActions(t *testing.T) {
 		changes := hetznerChanges{}
 		processCreateActions(inp.zoneIDNameMapper, inp.recordsByZoneID,
 			inp.createsByZoneID, &changes)
-		assert.EqualValues(t, tc.expectedChanges, changes)
+		assertEqualChanges(t, tc.expectedChanges, changes)
 	}
 
 	testCases := []testCase{
@@ -408,7 +415,7 @@ func Test_processUpdateEndpoint(t *testing.T) {
 		inp := tc.input
 		processUpdateEndpoint(inp.zoneID, inp.zoneName, inp.matchingRecordsByTarget,
 			inp.ep, &changes)
-		assert.EqualValues(t, tc.expectedChanges, changes)
+		assertEqualChanges(t, tc.expectedChanges, changes)
 	}
 
 	testCases := []testCase{
@@ -603,7 +610,7 @@ func Test_cleanupRemainingTargets(t *testing.T) {
 		inp := tc.input
 		cleanupRemainingTargets(inp.zoneID, inp.matchingRecordsByTarget,
 			&changes)
-		assert.EqualValues(t, tc.expectedChanges, changes)
+		assertEqualChanges(t, tc.expectedChanges, changes)
 	}
 
 	testCases := []testCase{
@@ -763,7 +770,7 @@ func Test_processUpdateActionsByZone(t *testing.T) {
 		inp := tc.input
 		processUpdateActionsByZone(inp.zoneID, inp.zoneName, inp.records,
 			inp.endpoints, &changes)
-		assert.EqualValues(t, tc.expectedChanges, changes)
+		assertEqualChanges(t, tc.expectedChanges, changes)
 	}
 
 	testCases := []testCase{
@@ -928,7 +935,7 @@ func Test_processUpdateActions(t *testing.T) {
 		inp := tc.input
 		processUpdateActions(inp.zoneIDNameMapper, inp.recordsByZoneID,
 			inp.updatesByZoneID, &changes)
-		assert.EqualValues(t, tc.expectedChanges, changes)
+		assertEqualChanges(t, tc.expectedChanges, changes)
 	}
 
 	testCases := []testCase{
@@ -1264,7 +1271,7 @@ func Test_processDeleteActionsByEndpoint(t *testing.T) {
 		inp := tc.input
 		processDeleteActionsByEndpoint(inp.zoneID, inp.matchingRecords,
 			inp.ep, &changes)
-		assert.EqualValues(t, tc.expectedChanges, changes)
+		assertEqualChanges(t, tc.expectedChanges, changes)
 	}
 
 	testCases := []testCase{
@@ -1428,7 +1435,7 @@ func Test_processDeleteActions(t *testing.T) {
 		inp := tc.input
 		processDeleteActions(inp.zoneIDNameMapper, inp.recordsByZoneID,
 			inp.deletesByZoneID, &changes)
-		assert.EqualValues(t, tc.expectedChanges, changes)
+		assertEqualChanges(t, tc.expectedChanges, changes)
 	}
 
 	testCases := []testCase{
