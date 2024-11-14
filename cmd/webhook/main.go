@@ -31,10 +31,23 @@ import (
 	"github.com/codingconcepts/env"
 )
 
+var (
+	// notify requires the SIGINT and SIGTERM signals to be sent to the caller.
+	notify = func(sig chan os.Signal) {
+		signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
+	}
+)
+
+// healthStatus is the interface used by loop.
+type healthStatus interface {
+	SetHealth(bool)
+	SetReady(bool)
+}
+
 // loop waits for a SIGTERM or a SIGINT and then shuts down the server.
-func loop(status *server.HealthStatus) {
+func loop(status healthStatus) {
 	exitSignal := make(chan os.Signal, 1)
-	signal.Notify(exitSignal, syscall.SIGINT, syscall.SIGTERM)
+	notify(exitSignal)
 	signal := <-exitSignal
 
 	log.Infof("Signal %s received. Shutting down the webhook.", signal.String())
