@@ -31,12 +31,10 @@ import (
 	"github.com/codingconcepts/env"
 )
 
-var (
-	// notify requires the SIGINT and SIGTERM signals to be sent to the caller.
-	notify = func(sig chan os.Signal) {
-		signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
-	}
-)
+// notify requires the SIGINT and SIGTERM signals to be sent to the caller.
+var notify = func(sig chan os.Signal) {
+	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
+}
 
 // healthStatus is the interface used by loop.
 type healthStatus interface {
