@@ -53,7 +53,8 @@ func waitForSignal(status healthStatus) {
 	status.SetReady(false)
 }
 
-// main function
+// main reads the server configuration and starts both the webhook and the
+// metrics socket.
 func main() {
 	// Read server options
 	socketOptions := &server.SocketOptions{}
@@ -67,18 +68,23 @@ func main() {
 	// Start health server
 	log.Infof("Starting metrics server with socket address %s", socketOptions.GetMetricsAddress())
 	healthStatus := server.HealthStatus{}
+	healthStatus.SetHealth(true)
 	publicServer := server.NewMetricsSocket(&healthStatus, reg)
 	go publicServer.Start(nil, *socketOptions)
 
 	// Read provider configuration
 	providerConfig := &hetzner.Configuration{}
 	if err := env.Set(providerConfig); err != nil {
-		log.Fatal(err)
+		healthStatus.SetHealth(false)
+		log.Fatal("Provider configuration unreadable - shutting down:", err)
+		panic(err)
 	}
 
 	// instantiate the Hetzner provider
 	provider, err := hetzner.NewHetznerProvider(providerConfig, reg)
 	if err != nil {
+		healthStatus.SetHealth(false)
+		log.Fatal("Provider cannot be instantiated - shutting down:", err)
 		panic(err)
 	}
 
@@ -94,9 +100,8 @@ func main() {
 
 	// Wait for the HTTP server to start and then set the healthy and ready flags
 	<-startedChan
-	healthStatus.SetHealth(true)
 	healthStatus.SetReady(true)
 
-	// Loops until a signal tells us to exit
+	// Wait until a signal tells us to exit
 	waitForSignal(&healthStatus)
 }
