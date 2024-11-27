@@ -107,6 +107,13 @@ func (p HetznerProvider) AdjustEndpoints(endpoints []*endpoint.Endpoint) ([]*end
 	return adjustedEndpoints, nil
 }
 
+// logDebugEndpoints logs every endpoint as a a line.
+func logDebugEndpoints(endpoints []*endpoint.Endpoint) {
+	for idx, ep := range endpoints {
+		log.WithFields(getEndpointLogFields(ep)).Debugf("Endpoint %d", idx)
+	}
+}
+
 // Records returns the list of records in all zones as a slice of endpoints.
 func (p *HetznerProvider) Records(ctx context.Context) ([]*endpoint.Endpoint, error) {
 	zones, err := p.Zones(ctx)
@@ -135,9 +142,10 @@ func (p *HetznerProvider) Records(ctx context.Context) ([]*endpoint.Endpoint, er
 	endpoints = mergeEndpointsByNameType(endpoints)
 
 	// Log the endpoints that were found.
-	log.WithFields(log.Fields{
-		"endpoints": endpoints,
-	}).Debug("Endpoints generated from Hetzner DNS")
+	if p.debug {
+		log.Debugf("Returning %d endpoints.", len(endpoints))
+		logDebugEndpoints(endpoints)
+	}
 
 	return endpoints, nil
 }

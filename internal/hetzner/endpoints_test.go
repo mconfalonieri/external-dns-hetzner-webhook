@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	hdns "github.com/jobstoit/hetzner-dns-go/dns"
+	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"sigs.k8s.io/external-dns/endpoint"
 	"sigs.k8s.io/external-dns/provider"
@@ -520,6 +521,58 @@ func Test_getEndpointTTL(t *testing.T) {
 				RecordTTL: -1,
 			},
 			expected: nil,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			run(t, tc)
+		})
+	}
+}
+
+func Test_getEndpointLogFields(t *testing.T) {
+	type testCase struct {
+		name     string
+		input    *endpoint.Endpoint
+		expected log.Fields
+	}
+
+	run := func(t *testing.T, tc testCase) {
+		actual := getEndpointLogFields(tc.input)
+		assert.Equal(t, tc.expected, actual)
+	}
+
+	testCases := []testCase{
+		{
+			name: "single target endpoint",
+			input: &endpoint.Endpoint{
+				DNSName:    "www.alpha.com",
+				RecordType: "A",
+				Targets:    endpoint.Targets{"1.1.1.1"},
+				RecordTTL:  7200,
+			},
+			expected: log.Fields{
+				"DNSName":    "www.alpha.com",
+				"RecordType": "A",
+				"Targets":    "1.1.1.1",
+				"TTL":        7200,
+			},
+		},
+		{
+			name: "multple target endpoint",
+			input: &endpoint.Endpoint{
+				DNSName:    "www.alpha.com",
+				RecordType: "A",
+				Targets:    endpoint.Targets{"1.1.1.1", "2.2.2.2"},
+				RecordTTL:  7200,
+			},
+			expected: log.Fields{
+				"DNSName":    "www.alpha.com",
+				"RecordType": "A",
+				"Targets":    "1.1.1.1;2.2.2.2",
+				"TTL":        7200,
+			},
 		},
 	}
 

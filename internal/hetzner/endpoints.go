@@ -146,10 +146,22 @@ func getMatchingDomainRecords(records []hdns.Record, zoneName string, ep *endpoi
 	return result
 }
 
+// getEndpointTTL returns a pointer to a value representing the endpoint TTL or
+// nil if it is not configured.
 func getEndpointTTL(ep *endpoint.Endpoint) *int {
 	if !ep.RecordTTL.IsConfigured() {
 		return nil
 	}
 	ttl := int(ep.RecordTTL)
 	return &ttl
+}
+
+// getEndpointLogFields returns a loggable field map.
+func getEndpointLogFields(ep *endpoint.Endpoint) log.Fields {
+	return log.Fields{
+		"DNSName":    ep.DNSName,
+		"RecordType": ep.RecordType,
+		"Targets":    ep.Targets.String(),
+		"TTL":        int(ep.RecordTTL),
+	}
 }
