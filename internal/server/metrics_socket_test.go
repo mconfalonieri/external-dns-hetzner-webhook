@@ -32,174 +32,63 @@ const (
 	testHost = "localhost"
 )
 
-func Test_SetHealth(t *testing.T) {
-	type testCase struct {
-		name     string
-		status   *HealthStatus
-		input    bool
-		expected bool
-	}
-	testCases := []testCase{
-		{
-			name:     "Set to true",
-			status:   &HealthStatus{healthy: false},
-			input:    true,
-			expected: true,
-		},
-		{
-			name:     "Set to false",
-			status:   &HealthStatus{healthy: true},
-			input:    false,
-			expected: false,
-		},
-	}
-	run := func(t *testing.T, tc testCase) {
-		tc.status.SetHealth(tc.input)
-		assert.Equal(t, tc.expected, tc.status.healthy)
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			run(t, tc)
-		})
-	}
+func testHandlerArgs() (*httptest.ResponseRecorder, *http.Request) {
+	text := bytes.NewBuffer(make([]byte, 0))
+	w := &httptest.ResponseRecorder{Body: text}
+	r := &http.Request{}
+	return w, r
 }
 
-func Test_SetReady(t *testing.T) {
+func Test_MetricsSocket_livenessHandler(t *testing.T) {
 	type testCase struct {
 		name     string
-		status   *HealthStatus
-		input    bool
-		expected bool
-	}
-	testCases := []testCase{
-		{
-			name:     "Set to true",
-			status:   &HealthStatus{ready: false},
-			input:    true,
-			expected: true,
-		},
-		{
-			name:     "Set to false",
-			status:   &HealthStatus{ready: true},
-			input:    false,
-			expected: false,
-		},
-	}
-	run := func(t *testing.T, tc testCase) {
-		tc.status.SetReady(tc.input)
-		assert.Equal(t, tc.expected, tc.status.ready)
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			run(t, tc)
-		})
-	}
-}
-
-func Test_IsHealthy(t *testing.T) {
-	type testCase struct {
-		name     string
-		status   *HealthStatus
-		expected bool
-	}
-	testCases := []testCase{
-		{
-			name:     "Status is not healthy",
-			status:   &HealthStatus{healthy: false},
-			expected: false,
-		},
-		{
-			name:     "Status is healthy",
-			status:   &HealthStatus{healthy: true},
-			expected: true,
-		},
-	}
-	run := func(t *testing.T, tc testCase) {
-		actual := tc.status.IsHealthy()
-		assert.Equal(t, tc.expected, actual)
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			run(t, tc)
-		})
-	}
-}
-
-func Test_IsReady(t *testing.T) {
-	type testCase struct {
-		name     string
-		status   *HealthStatus
-		input    bool
-		expected bool
-	}
-	testCases := []testCase{
-		{
-			name:     "Set to true",
-			status:   &HealthStatus{ready: false},
-			input:    true,
-			expected: true,
-		},
-		{
-			name:     "Set to false",
-			status:   &HealthStatus{ready: true},
-			input:    false,
-			expected: false,
-		},
-	}
-	run := func(t *testing.T, tc testCase) {
-		tc.status.SetReady(tc.input)
-		assert.Equal(t, tc.expected, tc.status.ready)
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			run(t, tc)
-		})
-	}
-}
-
-func Test_livenessHandler(t *testing.T) {
-	type testCase struct {
-		name           string
-		server         MetricsSocket
-		expectedStatus int
-		expectedText   string
-	}
-	testCases := []testCase{
-		{
-			name: "Server is alive",
-			server: MetricsSocket{
-				status: &HealthStatus{
-					healthy: true,
-				},
-			},
-			expectedStatus: http.StatusOK,
-			expectedText:   http.StatusText(http.StatusOK),
-		},
-		{
-			name: "Server is unhealthy",
-			server: MetricsSocket{
-				status: &HealthStatus{
-					healthy: false,
-				},
-			},
-			expectedStatus: http.StatusServiceUnavailable,
-			expectedText:   http.StatusText(http.StatusServiceUnavailable),
-		},
-	}
-
-	run := func(t *testing.T, tc testCase) {
-		text := bytes.NewBuffer(make([]byte, 0))
-		w := &httptest.ResponseRecorder{
-			Body: text,
+		instance *MetricsSocket
+		expected struct {
+			status int
+			text   string
 		}
-		r := &http.Request{}
-		tc.server.livenessHandler(w, r)
-		assert.Equal(t, tc.expectedStatus, w.Code)
-		assert.Equal(t, tc.expectedText, text.String())
+	}
+
+	run := func(t *testing.T, tc testCase) {
+		obj := tc.instance
+		exp := tc.expected
+		w, r := testHandlerArgs()
+		obj.livenessHandler(w, r)
+		assert.Equal(t, exp.status, w.Code)
+		assert.Equal(t, exp.text, w.Body.String())
+	}
+
+	testCases := []testCase{
+		{
+			name: "server is healthy",
+			instance: &MetricsSocket{
+				status: &Status{
+					healthy: mutexedBool{v: true},
+				},
+			},
+			expected: struct {
+				status int
+				text   string
+			}{
+				status: http.StatusOK,
+				text:   http.StatusText(http.StatusOK),
+			},
+		},
+		{
+			name: "server is not healthy",
+			instance: &MetricsSocket{
+				status: &Status{
+					healthy: mutexedBool{v: false},
+				},
+			},
+			expected: struct {
+				status int
+				text   string
+			}{
+				status: http.StatusServiceUnavailable,
+				text:   http.StatusText(http.StatusServiceUnavailable),
+			},
+		},
 	}
 
 	for _, tc := range testCases {
@@ -209,45 +98,56 @@ func Test_livenessHandler(t *testing.T) {
 	}
 }
 
-func Test_readinessHandler(t *testing.T) {
+func Test_MetricsSocket_readinessHandler(t *testing.T) {
 	type testCase struct {
-		name           string
-		server         MetricsSocket
-		expectedStatus int
-		expectedText   string
-	}
-	testCases := []testCase{
-		{
-			name: "Server is ready",
-			server: MetricsSocket{
-				status: &HealthStatus{
-					ready: true,
-				},
-			},
-			expectedStatus: http.StatusOK,
-			expectedText:   http.StatusText(http.StatusOK),
-		},
-		{
-			name: "Server is not ready",
-			server: MetricsSocket{
-				status: &HealthStatus{
-					ready: false,
-				},
-			},
-			expectedStatus: http.StatusServiceUnavailable,
-			expectedText:   http.StatusText(http.StatusServiceUnavailable),
-		},
+		name     string
+		instance *MetricsSocket
+		expected struct {
+			status int
+			text   string
+		}
 	}
 
 	run := func(t *testing.T, tc testCase) {
-		text := bytes.NewBuffer(make([]byte, 0))
-		w := &httptest.ResponseRecorder{
-			Body: text,
-		}
-		r := &http.Request{}
-		tc.server.readinessHandler(w, r)
-		assert.Equal(t, tc.expectedStatus, w.Code)
-		assert.Equal(t, tc.expectedText, text.String())
+		obj := tc.instance
+		exp := tc.expected
+		w, r := testHandlerArgs()
+		obj.readinessHandler(w, r)
+		assert.Equal(t, exp.status, w.Code)
+		assert.Equal(t, exp.text, w.Body.String())
+	}
+
+	testCases := []testCase{
+		{
+			name: "server is ready",
+			instance: &MetricsSocket{
+				status: &Status{
+					ready: mutexedBool{v: true},
+				},
+			},
+			expected: struct {
+				status int
+				text   string
+			}{
+				status: http.StatusOK,
+				text:   http.StatusText(http.StatusOK),
+			},
+		},
+		{
+			name: "server is not ready",
+			instance: &MetricsSocket{
+				status: &Status{
+					ready: mutexedBool{v: false},
+				},
+			},
+			expected: struct {
+				status int
+				text   string
+			}{
+				status: http.StatusServiceUnavailable,
+				text:   http.StatusText(http.StatusServiceUnavailable),
+			},
+		},
 	}
 
 	for _, tc := range testCases {
@@ -258,9 +158,9 @@ func Test_readinessHandler(t *testing.T) {
 }
 
 func Test_Start(t *testing.T) {
-	status := &HealthStatus{
-		healthy: true,
-		ready:   true,
+	status := &Status{
+		healthy: mutexedBool{v: true},
+		ready:   mutexedBool{v: true},
 	}
 	options := SocketOptions{
 		MetricsHost: testHost,
@@ -270,12 +170,12 @@ func Test_Start(t *testing.T) {
 
 	startedChan := make(chan struct{})
 
-	healthServer := MetricsSocket{
+	metricsSocket := MetricsSocket{
 		status: status,
 		reg:    reg,
 	}
 
-	go healthServer.Start(startedChan, options)
+	go metricsSocket.Start(startedChan, options)
 	<-startedChan
 
 	url := fmt.Sprintf("http://%s:%d/ready", testHost, testPort)

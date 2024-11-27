@@ -40,7 +40,7 @@ var notify = func(sig chan os.Signal) {
 
 // healthStatus is the interface used by loop.
 type healthStatus interface {
-	SetHealth(bool)
+	SetHealthy(bool)
 	SetReady(bool)
 }
 
@@ -51,7 +51,7 @@ func waitForSignal(status healthStatus) {
 	signal := <-exitSignal
 
 	log.Infof("Signal %s received. Shutting down the webhook.", signal.String())
-	status.SetHealth(false)
+	status.SetHealthy(false)
 	status.SetReady(false)
 }
 
@@ -59,9 +59,10 @@ func waitForSignal(status healthStatus) {
 // metrics socket.
 func main() {
 	// Read server options
-	socketOptions := &server.SocketOptions{}
-	if err := env.Set(socketOptions); err != nil {
-		log.Fatal(err)
+	socketOptions, err := server.NewSocketOptions()
+	if err != nil {
+		log.Fatal("Cannot read configuration from environment:", err.Error())
+		log.Exit(1)
 	}
 
 	// Create metrics register
@@ -69,23 +70,23 @@ func main() {
 
 	// Start health server
 	log.Infof("Starting metrics server with socket address %s", socketOptions.GetMetricsAddress())
-	healthStatus := server.HealthStatus{}
-	healthStatus.SetHealth(true)
-	publicServer := server.NewMetricsSocket(&healthStatus, reg)
-	go publicServer.Start(nil, *socketOptions)
+	serverStatus := server.Status{}
+	serverStatus.SetHealthy(true)
+	metricsSocket := server.NewMetricsSocket(&serverStatus, reg)
+	go metricsSocket.Start(nil, *socketOptions)
 
 	// Read provider configuration
 	providerConfig := &hetzner.Configuration{}
 	if err := env.Set(providerConfig); err != nil {
-		healthStatus.SetHealth(false)
+		serverStatus.SetHealthy(false)
 		log.Fatal("Provider configuration unreadable - shutting down:", err)
-		panic(err)
+		log.Exit(1)
 	}
 
 	// instantiate the Hetzner provider
 	provider, err := hetzner.NewHetznerProvider(providerConfig, reg)
 	if err != nil {
-		healthStatus.SetHealth(false)
+		serverStatus.SetHealthy(false)
 		log.Fatal("Provider cannot be instantiated - shutting down:", err)
 		panic(err)
 	}
@@ -102,8 +103,8 @@ func main() {
 
 	// Wait for the HTTP server to start and then set the healthy and ready flags
 	<-startedChan
-	healthStatus.SetReady(true)
+	serverStatus.SetReady(true)
 
 	// Wait until a signal tells us to exit
-	waitForSignal(&healthStatus)
+	waitForSignal(&serverStatus)
 }

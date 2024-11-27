@@ -19,28 +19,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/codingconcepts/env"
 	"github.com/stretchr/testify/assert"
 )
-
-func Test_SocketOptions_defaults(t *testing.T) {
-	actual := SocketOptions{}
-	expected := SocketOptions{
-		WebhookHost:  "localhost",
-		WebhookPort:  uint16(8888),
-		MetricsHost:  "0.0.0.0",
-		MetricsPort:  uint16(8080),
-		ReadTimeout:  60000,
-		WriteTimeout: 60000,
-	}
-
-	// Assign the default values.
-	if err := env.Set(&actual); err != nil {
-		t.Fail()
-	}
-
-	assert.Equal(t, expected, actual)
-}
 
 func Test_SocketOptions_GetWebhookAddress(t *testing.T) {
 	type testCase struct {

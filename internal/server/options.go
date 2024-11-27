@@ -1,4 +1,6 @@
 /*
+ * Options - socket configurable options.
+ *
  * Copyright 2023 Marco Confalonieri.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +19,18 @@ package server
 
 import (
 	"fmt"
+	"os"
 	"time"
+
+	"github.com/codingconcepts/env"
+	log "github.com/sirupsen/logrus"
+)
+
+const (
+	// Deprecated socket environment variable for metrics host
+	envDeprecatedMetricsHost = "HEALTH_HOST"
+	// Deprecated socket environment variable for metrics port
+	envDeprecatedMetricsPort = "HEALTH_PORT"
 )
 
 // SocketOptions contains the argument passed as environment variables that
@@ -28,13 +41,41 @@ type SocketOptions struct {
 	// Webhook port
 	WebhookPort uint16 `env:"WEBHOOK_PORT" default:"8888"`
 	// Readiness and liveness probe host
-	MetricsHost string `env:"HEALTH_HOST" default:"0.0.0.0"`
+	MetricsHost string `env:"METRICS_HOST" default:"0.0.0.0"`
 	// Readiness and liveness probe port
-	MetricsPort uint16 `env:"HEALTH_PORT" default:"8080"`
+	MetricsPort uint16 `env:"METRICS_PORT" default:"8080"`
 	// Read timeout in milliseconds
 	ReadTimeout int `env:"READ_TIMEOUT" default:"60000"`
 	// Write timeout in milliseconds
 	WriteTimeout int `env:"WRITE_TIMEOUT" default:"60000"`
+}
+
+// NewSocketOptions returns a pointer to a new SocketOptions instance. This
+// instance will be populated with values taken from the relevant environment
+// variables and a warning will be issued if a deprecated environment variable
+// is used. If there is an issue while reading the environment variables
+// an error is raised.
+func NewSocketOptions() (*SocketOptions, error) {
+	opt := &SocketOptions{}
+
+	// Populate with values from environment.
+	if err := env.Set(opt); err != nil {
+		return nil, err
+	}
+
+	// Check if HEALTH_HOST is used
+	if metricsHost := os.Getenv(envDeprecatedMetricsHost); metricsHost != "" {
+		log.Warnf("Setting metrics hostname using the deprecated name %s", envDeprecatedMetricsHost)
+		opt.MetricsHost = metricsHost
+	}
+
+	// Check if HEALTH_PORT is used
+	if metricsPort := os.Getenv(envDeprecatedMetricsPort); metricsPort != "" {
+		log.Warnf("Setting metrics port using the deprecated name %s", envDeprecatedMetricsPort)
+		opt.MetricsHost = metricsPort
+	}
+
+	return opt, nil
 }
 
 // GetWebhookAddress returns the webhook socket address.

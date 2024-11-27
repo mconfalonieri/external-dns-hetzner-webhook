@@ -20,6 +20,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/codingconcepts/env"
 	log "github.com/sirupsen/logrus"
 	"sigs.k8s.io/external-dns/endpoint"
 )
@@ -35,6 +36,17 @@ type Configuration struct {
 	ExcludeDomains       []string `env:"EXCLUDE_DOMAIN_FILTER" default:""`
 	RegexDomainFilter    string   `env:"REGEXP_DOMAIN_FILTER" default:""`
 	RegexDomainExclusion string   `env:"REGEXP_DOMAIN_FILTER_EXCLUSION" default:""`
+}
+
+func NewConfiguration() (*Configuration, error) {
+	cfg := &Configuration{}
+
+	// Populate with values from environment.
+	if err := env.Set(cfg); err != nil {
+		return nil, err
+	}
+
+	return cfg, nil
 }
 
 // GetDomainFilter returns the domain filter from the configuration.

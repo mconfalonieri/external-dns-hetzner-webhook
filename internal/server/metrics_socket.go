@@ -27,12 +27,12 @@ import (
 // MetricsSocket represents the socket that serves the Open Metrics, as well as
 // the liveness and readiness probes.
 type MetricsSocket struct {
-	status *HealthStatus
+	status *Status
 	reg    *openmetrics.Registry
 }
 
 // NewMetricsSocket initializes a new MetricsSocket intance.
-func NewMetricsSocket(status *HealthStatus, reg *openmetrics.Registry) *MetricsSocket {
+func NewMetricsSocket(status *Status, reg *openmetrics.Registry) *MetricsSocket {
 	return &MetricsSocket{
 		status: status,
 		reg:    reg,

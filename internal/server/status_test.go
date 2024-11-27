@@ -21,29 +21,34 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func Test_HealthStatus_SetHealth(t *testing.T) {
+func Test_Status_SetHealth(t *testing.T) {
 	type testCase struct {
 		name     string
-		status   *HealthStatus
+		instance *Status
 		input    bool
 		expected bool
 	}
 
 	run := func(t *testing.T, tc testCase) {
-		tc.status.SetHealth(tc.input)
-		assert.Equal(t, tc.expected, tc.status.healthy)
+		obj := tc.instance
+		obj.SetHealthy(tc.input)
+		assert.Equal(t, tc.expected, obj.healthy.v)
 	}
 
 	testCases := []testCase{
 		{
-			name:     "Set to true",
-			status:   &HealthStatus{healthy: false},
+			name: "set to true",
+			instance: &Status{
+				healthy: mutexedBool{v: false},
+			},
 			input:    true,
 			expected: true,
 		},
 		{
-			name:     "Set to false",
-			status:   &HealthStatus{healthy: true},
+			name: "set to false",
+			instance: &Status{
+				healthy: mutexedBool{v: true},
+			},
 			input:    false,
 			expected: false,
 		},
@@ -56,29 +61,34 @@ func Test_HealthStatus_SetHealth(t *testing.T) {
 	}
 }
 
-func Test_HealthStatus_SetReady(t *testing.T) {
+func Test_Status_SetReady(t *testing.T) {
 	type testCase struct {
 		name     string
-		status   *HealthStatus
+		instance *Status
 		input    bool
 		expected bool
 	}
 
 	run := func(t *testing.T, tc testCase) {
-		tc.status.SetReady(tc.input)
-		assert.Equal(t, tc.expected, tc.status.ready)
+		obj := tc.instance
+		obj.SetReady(tc.input)
+		assert.Equal(t, tc.expected, obj.ready.v)
 	}
 
 	testCases := []testCase{
 		{
-			name:     "Set to true",
-			status:   &HealthStatus{ready: false},
+			name: "set to true",
+			instance: &Status{
+				ready: mutexedBool{v: false},
+			},
 			input:    true,
 			expected: true,
 		},
 		{
-			name:     "Set to false",
-			status:   &HealthStatus{ready: true},
+			name: "set to false",
+			instance: &Status{
+				ready: mutexedBool{v: true},
+			},
 			input:    false,
 			expected: false,
 		},
@@ -91,27 +101,32 @@ func Test_HealthStatus_SetReady(t *testing.T) {
 	}
 }
 
-func Test_HealthStatus_IsHealthy(t *testing.T) {
+func Test_Status_IsHealthy(t *testing.T) {
 	type testCase struct {
 		name     string
-		status   *HealthStatus
+		instance *Status
 		expected bool
 	}
 
 	run := func(t *testing.T, tc testCase) {
-		actual := tc.status.IsHealthy()
+		obj := tc.instance
+		actual := obj.IsHealthy()
 		assert.Equal(t, tc.expected, actual)
 	}
 
 	testCases := []testCase{
 		{
-			name:     "Status is not healthy",
-			status:   &HealthStatus{healthy: false},
+			name: "not healthy",
+			instance: &Status{
+				healthy: mutexedBool{v: false},
+			},
 			expected: false,
 		},
 		{
-			name:     "Status is healthy",
-			status:   &HealthStatus{healthy: true},
+			name: "healthy",
+			instance: &Status{
+				healthy: mutexedBool{v: true},
+			},
 			expected: true,
 		},
 	}
@@ -123,31 +138,33 @@ func Test_HealthStatus_IsHealthy(t *testing.T) {
 	}
 }
 
-func Test_HealthStatus_IsReady(t *testing.T) {
+func Test_Status_IsReady(t *testing.T) {
 	type testCase struct {
 		name     string
-		status   *HealthStatus
-		input    bool
+		instance *Status
 		expected bool
 	}
 
 	run := func(t *testing.T, tc testCase) {
-		tc.status.SetReady(tc.input)
-		assert.Equal(t, tc.expected, tc.status.ready)
+		obj := tc.instance
+		actual := obj.IsReady()
+		assert.Equal(t, tc.expected, actual)
 	}
 
 	testCases := []testCase{
 		{
-			name:     "Set to true",
-			status:   &HealthStatus{ready: false},
-			input:    true,
-			expected: true,
+			name: "not ready",
+			instance: &Status{
+				ready: mutexedBool{v: false},
+			},
+			expected: false,
 		},
 		{
-			name:     "Set to false",
-			status:   &HealthStatus{ready: true},
-			input:    false,
-			expected: false,
+			name: "ready",
+			instance: &Status{
+				ready: mutexedBool{v: true},
+			},
+			expected: true,
 		},
 	}
 
