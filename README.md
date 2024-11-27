@@ -1,14 +1,14 @@
 # ExternalDNS - Hetzner Webhook
 
-![Tests](https://camo.githubusercontent.com/1005474327f297a66493a98db94bf2b4a3fb9fce5a9f99a9c324cf13fa48d247/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f74657374732d3135362532307061737365642d73756363657373)
-
 [ExternalDNS](https://github.com/kubernetes-sigs/external-dns) is a Kubernetes
-add-on for automatically managing Domain Name System (DNS) records for
-Kubernetes services using different DNS providers. By default, Kubernetes
-manages DNS records internally, but ExternalDNS takes this functionality a step
-further by delegating the management of DNS records to an external DNS provider
-such as this one. This webhook allows you to manage your Hetzner domains inside
-your kubernetes cluster.
+add-on for automatically DNS records for Kubernetes services using different
+providers. By default, Kubernetes manages DNS records internally, but
+ExternalDNS takes this functionality a step further by delegating the management
+of DNS records to an external DNS provider such as this one. This webhook allows
+you to manage your Hetzner domains inside your kubernetes cluster.
+
+⚠️ If you are upgrading to 1.0.x from 0.6.x read the
+[Upgrading from previous versions](#upgrading-from-previous-versions) section.
 
 ## Requirements
 
@@ -17,7 +17,9 @@ An
 for the account managing your domains is required for this webhook to work
 properly.
 
-⚠️ This webhook requires at least ExternalDNS v0.14.0.
+This webhook can be used in conjunction with **ExternalDNS v0.14.0 or higher**,
+configured for using the webhook interface. Some examples for a working
+configuration are shown in the next section.
 
 ## Kubernetes Deployment
 
@@ -156,25 +158,74 @@ And then:
 helm install external-dns-hetzner bitnami/external-dns -f external-dns-hetzner-values.yaml -n external-dns
 ```
 
+## Upgrading from previous versions
+
+### 0.x.x to 1.0.x
+
+The configuration for previous versions are still compatible, but consider that
+some warnings will be emitted if `HEALTH_HOST` and `HEALTH_PORT` are set. The
+changes to be aware of are:
+
+- `HEALTH_HOST` is deprecated in favor of `METRICS_HOST`;
+- `HEALTH_PORT` is deprecated in favor of `METRICS_PORT`;
+- the previous health/public socket is now called "metrics socket" in conformity
+  to ExternalDNS terminology, and now supports some additional endpoints:
+  - `/metrics` and
+  - `/healthz`;
+  their description can be found in the [Metrics socket](#metrics-socket)
+  section.
+  
+
+
 ## Environment variables
 
-The following environment variables are available:
+The following environment variables can be used for configuring the application.
 
-| Variable        | Description                      | Notes                      |
-| --------------- | -------------------------------- | -------------------------- |
-| HETZNER_API_KEY | Hetzner API token                | Mandatory                  |
-| DRY_RUN         | If set, changes won't be applied | Default: `false`           |
-| HETZNER_DEBUG   | Enables debugging messages       | Default: `false`           |
-| BATCH_SIZE      | Number of zones per call         | Default: `100`, max: `100` |
-| DEFAULT_TTL     | Default TTL if not specified     | Default: `7200`            |
-| WEBHOOK_HOST    | Webhook hostname or IP address   | Default: `localhost`       |
-| WEBHOOK_PORT    | Webhook port                     | Default: `8888`            |
-| HEALTH_HOST     | Metrics hostname                 | Default: `0.0.0.0`         |
-| HEALTH_PORT     | Metrics port                     | Default: `8080`            |
-| READ_TIMEOUT    | Sockets' read timeout in ms      | Default: `60000`           |
-| WRITE_TIMEOUT   | Sockets' write timeout in ms     | Default: `60000`           |
+### Hetzner DNS API calls configuration
 
-Additional environment variables for domain filtering:
+These variables control the behavior of the webhook when interacting with
+Hetzner DNS API.
+
+| Variable        | Description              | Notes                      |
+| --------------- | -------------------------| -------------------------- |
+| HETZNER_API_KEY | Hetzner API token        | Mandatory                  |
+| BATCH_SIZE      | Number of zones per call | Default: `100`, max: `100` |
+| DEFAULT_TTL     | Default record TTL       | Default: `7200`            |
+
+### Test and debug
+
+These environment variables are useful for testing and debugging purposes.
+
+| Variable        | Description                      | Notes            |
+| --------------- | -------------------------------- | ---------------- |
+| DRY_RUN         | If set, changes won't be applied | Default: `false` |
+| HETZNER_DEBUG   | Enables debugging messages       | Default: `false` |
+
+### Socket configuration
+
+These variables control the sockets that this application listens to.
+
+| Variable        | Description                      | Notes                |
+| --------------- | -------------------------------- | -------------------- |
+| WEBHOOK_HOST    | Webhook hostname or IP address   | Default: `localhost` |
+| WEBHOOK_PORT    | Webhook port                     | Default: `8888`      |
+| METRICS_HOST    | Metrics hostname                 | Default: `0.0.0.0`   |
+| METRICS_PORT    | Metrics port                     | Default: `8080`      |
+| READ_TIMEOUT    | Sockets' read timeout in ms      | Default: `60000`     |
+| WRITE_TIMEOUT   | Sockets' write timeout in ms     | Default: `60000`     |
+
+Please notice that the following variables were **deprecated**:
+
+| Variable    | Description                      |
+| ----------- | -------------------------------- |
+| HEALTH_HOST | Metrics hostname (deprecated)    |
+| HEALTH_PORT | Metrics port (deprecated)        |
+
+
+### Domain filtering
+
+Additional environment variables for domain filtering. When used, this webhook
+will be able to work only on domains matching the filter.
 
 | Environment variable           | Description                        |
 | ------------------------------ | ---------------------------------- |
@@ -202,11 +253,7 @@ sockets:
 | Socket name | Socket address                |
 | ----------- | ----------------------------- |
 | Webhook     | `WEBHOOK_HOST`:`WEBHOOK_PORT` |
-| Metrics     | `HEALTH_HOST`:`HEALTH_PORT`   |
-
-**Note**: the "Health" socket was renamed to "Metrics" to conform to
-ExternalDNS terminology, but the prefix is still `HEALTH` for compatibility
-with the previous versions of this webhook.
+| Metrics     | `METRICS_HOST`:`METRICS_PORT` |
 
 The environment variables controlling the socket addresses are not meant to be
 changed, under normal circumstances, for the reasons explained in
@@ -236,7 +283,7 @@ In this table those endpoints are marked with  __*__.
 | ------------------ | - | --------------------------------------------------------------------- |
 | `/health`          |   | Implements the liveness probe                                         |
 | `/ready`           |   | Implements the readiness probe                                        |
-| `/healthz`         | * | Implements the liveness and readiness probe                           |
+| `/healthz`         | * | Implements the liveness and readiness probe combined                  |
 | `/metrics`         | * | Exposes the [Open Metrics](https://github.com/prometheus/OpenMetrics) |
 
 ## Tweaking the configuration
