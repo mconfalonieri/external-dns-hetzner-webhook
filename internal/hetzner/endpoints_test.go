@@ -560,7 +560,7 @@ func Test_getEndpointLogFields(t *testing.T) {
 			},
 		},
 		{
-			name: "multple target endpoint",
+			name: "multiple target endpoint",
 			input: &endpoint.Endpoint{
 				DNSName:    "www.alpha.com",
 				RecordType: "A",
