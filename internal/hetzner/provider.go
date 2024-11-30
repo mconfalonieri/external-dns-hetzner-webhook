@@ -1,4 +1,6 @@
 /*
+ * Provider - class and functions that handle the connection to Hetzner DNS.
+ *
  * This file was MODIFIED from the original provider to be used as a standalone
  * webhook server.
  *
@@ -21,6 +23,7 @@ package hetzner
 
 import (
 	"context"
+
 	"external-dns-hetzner-webhook/internal/metrics"
 
 	"sigs.k8s.io/external-dns/endpoint"

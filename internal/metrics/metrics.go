@@ -1,14 +1,32 @@
+/*
+ * Metrics - OpenMetrics implementation.
+ *
+ * Copyright 2023 Marco Confalonieri.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package metrics
 
 import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-var (
-	metrics *OpenMetrics
-)
+// metrics instance
+var metrics *OpenMetrics
 
 type OpenMetrics struct {
+	registry *prometheus.Registry
+
 	successfulApiCallsTotal *prometheus.CounterVec
 	failedApiCallsTotal     *prometheus.CounterVec
 
@@ -20,7 +38,9 @@ type OpenMetrics struct {
 // new one if required.
 func GetOpenMetricsInstance() *OpenMetrics {
 	if metrics == nil {
+		reg := prometheus.NewRegistry()
 		metrics = &OpenMetrics{
+			registry: reg,
 			successfulApiCallsTotal: prometheus.NewCounterVec(
 				prometheus.CounterOpts{
 					Name: "successful_api_calls_total",
@@ -48,6 +68,10 @@ func GetOpenMetricsInstance() *OpenMetrics {
 				[]string{"action"},
 			),
 		}
+		reg.MustRegister(metrics.successfulApiCallsTotal)
+		reg.MustRegister(metrics.failedApiCallsTotal)
+		reg.MustRegister(metrics.filteredOutZones)
+		reg.MustRegister(metrics.apiDelayCount)
 	}
 	return metrics
 }
@@ -55,6 +79,10 @@ func GetOpenMetricsInstance() *OpenMetrics {
 // getLabels builds the label map.
 func getLabels(action string) prometheus.Labels {
 	return prometheus.Labels{"action": action}
+}
+
+func (m OpenMetrics) GetRegistry() *prometheus.Registry {
+	return m.registry
 }
 
 // IncSuccessfulApiCallsTotal increments the successful_api_calls_total counter.

@@ -1,5 +1,5 @@
 /*
- * Hetzner-ExternalDNS connector functions.
+ * Connector - functions for reading zones and records from Hetzner DNS
  *
  * Copyright 2024 Marco Confalonieri.
  *
@@ -19,8 +19,9 @@ package hetzner
 
 import (
 	"context"
-	"external-dns-hetzner-webhook/internal/metrics"
 	"time"
+
+	"external-dns-hetzner-webhook/internal/metrics"
 
 	hdns "github.com/jobstoit/hetzner-dns-go/dns"
 )

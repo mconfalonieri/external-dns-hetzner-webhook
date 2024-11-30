@@ -39,6 +39,12 @@ func Test_makeEndpointName(t *testing.T) {
 		expected string
 	}
 
+	run := func(t *testing.T, tc testCase) {
+		inp := tc.input
+		actual := makeEndpointName(inp.domain, inp.entryName)
+		assert.Equal(t, actual, tc.expected)
+	}
+
 	testCases := []testCase{
 		{
 			name: "no adjustment required",
@@ -79,12 +85,6 @@ func Test_makeEndpointName(t *testing.T) {
 			},
 			expected: "@",
 		},
-	}
-
-	run := func(t *testing.T, tc testCase) {
-		inp := tc.input
-		actual := makeEndpointName(inp.domain, inp.entryName)
-		assert.Equal(t, actual, tc.expected)
 	}
 
 	for _, tc := range testCases {

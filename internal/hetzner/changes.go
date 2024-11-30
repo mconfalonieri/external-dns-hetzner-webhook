@@ -19,8 +19,9 @@ package hetzner
 
 import (
 	"context"
-	"external-dns-hetzner-webhook/internal/metrics"
 	"time"
+
+	"external-dns-hetzner-webhook/internal/metrics"
 
 	hdns "github.com/jobstoit/hetzner-dns-go/dns"
 	log "github.com/sirupsen/logrus"

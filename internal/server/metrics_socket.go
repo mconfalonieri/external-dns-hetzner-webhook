@@ -16,6 +16,7 @@
 package server
 
 import (
+	"external-dns-hetzner-webhook/internal/metrics"
 	"net"
 	"net/http"
 
@@ -89,13 +90,19 @@ func (s MetricsSocket) healthzHandler(w http.ResponseWriter, r *http.Request) {
 
 // Start starts the exposed endpoints server.
 func (s *MetricsSocket) Start(startedChan chan struct{}, options SocketOptions) {
+	metrics := metrics.GetOpenMetricsInstance()
+	reg := metrics.GetRegistry()
+
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/", s.readinessHandler)
 	mux.HandleFunc("/ready", s.readinessHandler)
 	mux.HandleFunc("/health", s.livenessHandler)
 	mux.HandleFunc("/healthz", s.healthzHandler)
-	mux.Handle("/metrics", promhttp.Handler())
+	mux.Handle(
+		"/metrics",
+		promhttp.HandlerFor(reg, promhttp.HandlerOpts{Registry: reg}),
+	)
 
 	address := options.GetMetricsAddress()
 

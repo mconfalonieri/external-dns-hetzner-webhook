@@ -1,5 +1,5 @@
 /*
- * Endpoints - functions for handling endpoints.
+ * Endpoints - functions for handling and transforming endpoints.
  *
  * Copyright 2024 Marco Confalonieri.
  *

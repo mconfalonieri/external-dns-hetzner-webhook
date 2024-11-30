@@ -1,5 +1,5 @@
 /*
- * Common test routines for the hetzner package.
+ * HetznerDNS - Common test routines for the hetzner package.
  *
  * Copyright 2024 Marco Confalonieri.
  *
