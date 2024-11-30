@@ -33,7 +33,7 @@ func GetOpenMetricsInstance() *OpenMetrics {
 					Name: "failed_api_calls_total",
 					Help: "The number of Hetzner API calls that returned an error",
 				},
-				[]string{"zone"},
+				[]string{"action"},
 			),
 			filteredOutZones: prometheus.NewGauge(prometheus.GaugeOpts{
 				Name: "filtered_out_zones",

@@ -31,11 +31,15 @@ import (
 	"github.com/codingconcepts/env"
 )
 
-// notify requires the SIGINT and SIGTERM signals to be sent to the caller.
 var (
+	// Version compiled by goreleaser.
 	Version = "dev"
-	Gitsha  = "none"
+	// Gitsha (commit SHA1) compiled by goreleaser.
+	Gitsha = "none"
+)
 
+var (
+	// notify requires the SIGINT and SIGTERM signals to be sent to the caller.
 	notify = func(sig chan os.Signal) {
 		signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
 	}

@@ -258,7 +258,8 @@ sockets:
 The environment variables controlling the socket addresses are not meant to be
 changed, under normal circumstances, for the reasons explained in
 [Tweaking the configuration](tweaking-the-configuration).
-The endpoints [expected by ExternalDNS](https://github.com/kubernetes-sigs/external-dns/blob/master/docs/tutorials/webhook-provider.md)
+The endpoints
+[expected by ExternalDNS](https://github.com/kubernetes-sigs/external-dns/blob/master/docs/tutorials/webhook-provider.md)
 are marked with *.
 
 ### Webhook socket
@@ -279,12 +280,15 @@ of them are
 [recommended](https://github.com/kubernetes-sigs/external-dns/blob/master/docs/tutorials/webhook-provider.md).
 In this table those endpoints are marked with  __*__.
 
-| Endpoint           | * | Purpose                                                               |
-| ------------------ | - | --------------------------------------------------------------------- |
-| `/health`          |   | Implements the liveness probe                                         |
-| `/ready`           |   | Implements the readiness probe                                        |
-| `/healthz`         | * | Implements the liveness and readiness probe combined                  |
-| `/metrics`         | * | Exposes the [Open Metrics](https://github.com/prometheus/OpenMetrics) |
+| Endpoint           | * | Purpose                                            |
+| ------------------ | - | -------------------------------------------------- |
+| `/health`          |   | Implements the liveness probe                      |
+| `/ready`           |   | Implements the readiness probe                     |
+| `/healthz`         | * | Implements a combined liveness and readiness probe |
+| `/metrics`         | * | Exposes the available metrics                      |
+
+Please check the [Exposed metrics](#exposed-metrics) section for more
+information.
 
 ## Tweaking the configuration
 
@@ -310,6 +314,32 @@ consideration:
   other value will cause a weird duplication of database records. Change the
   value provided in the sample configuration only if you really know what are
   you doing.
+
+## Exposed metrics
+
+The following metrics related to the API calls towards Hetzner are available
+for scraping.
+
+| Name                         | Type      | Labels   | Description                                              |
+| ---------------------------- | --------- | -------- | -------------------------------------------------------- |
+| `successful_api_calls_total` | Counter   | `action` | The number of successful Hetzner API calls               |
+| `failed_api_calls_total`     | Counter   | `action` | The number of Hetzner API calls that returned an error   |
+| `filtered_out_zones`         | Gauge     | _none_   | The number of zones excluded by the domain filter        |
+| `api_delay_count`            | Histogram | `action` | Histogram of the delay (ms) when calling the Hetzner API |
+
+The label `action` can assume one of the following values, depending on the
+Hetzner API endpoint called:
+
+- `get_zones`
+- `get_records`
+- `create_record`
+- `delete_record`
+- `update_record`
+
+Please notice that in some cases an _update_ request from ExternalDNS will be
+transformed into a `delete_record` and subsequent `create_record` calls by this
+webhook.
+
 
 ## Development
 
