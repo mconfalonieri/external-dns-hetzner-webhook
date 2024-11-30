@@ -19,6 +19,8 @@ package hetzner
 
 import (
 	"context"
+	"external-dns-hetzner-webhook/internal/metrics"
+	"time"
 
 	hdns "github.com/jobstoit/hetzner-dns-go/dns"
 	log "github.com/sirupsen/logrus"
@@ -67,21 +69,28 @@ func (c *hetznerChanges) AddChangeDelete(zoneID string, record hdns.Record) {
 
 // applyDeletes processes the records to be deleted.
 func (c hetznerChanges) applyDeletes(ctx context.Context, dnsClient apiClient) error {
+	metrics := metrics.GetOpenMetricsInstance()
 	for _, e := range c.deletes {
 		log.WithFields(e.GetLogFields()).Debug("Deleting domain record")
 		log.Infof("Deleting record [%s] from zone [%s]", e.Record.Name, e.Record.Zone.Name)
 		if c.dryRun {
 			continue
 		}
+		start := time.Now()
 		if _, err := dnsClient.DeleteRecord(ctx, &e.Record); err != nil {
+			metrics.IncFailedApiCallsTotal(actDeleteRecord)
 			return err
 		}
+		delay := time.Since(start)
+		metrics.IncSuccessfulApiCallsTotal(actDeleteRecord)
+		metrics.AddApiDelayCount(actDeleteRecord, delay.Milliseconds())
 	}
 	return nil
 }
 
 // applyCreates processes the records to be created.
 func (c hetznerChanges) applyCreates(ctx context.Context, dnsClient apiClient) error {
+	metrics := metrics.GetOpenMetricsInstance()
 	for _, e := range c.creates {
 		opt := e.Options
 		if opt.Ttl == nil {
@@ -94,15 +103,21 @@ func (c hetznerChanges) applyCreates(ctx context.Context, dnsClient apiClient) e
 		if c.dryRun {
 			continue
 		}
+		start := time.Now()
 		if _, _, err := dnsClient.CreateRecord(ctx, *opt); err != nil {
+			metrics.IncFailedApiCallsTotal(actCreateRecord)
 			return err
 		}
+		delay := time.Since(start)
+		metrics.IncSuccessfulApiCallsTotal(actCreateRecord)
+		metrics.AddApiDelayCount(actCreateRecord, delay.Milliseconds())
 	}
 	return nil
 }
 
 // applyUpdates processes the records to be updated.
 func (c hetznerChanges) applyUpdates(ctx context.Context, dnsClient apiClient) error {
+	metrics := metrics.GetOpenMetricsInstance()
 	for _, e := range c.updates {
 		opt := e.Options
 		if opt.Ttl == nil {
@@ -115,9 +130,14 @@ func (c hetznerChanges) applyUpdates(ctx context.Context, dnsClient apiClient) e
 		if c.dryRun {
 			continue
 		}
+		start := time.Now()
 		if _, _, err := dnsClient.UpdateRecord(ctx, &e.Record, *opt); err != nil {
+			metrics.IncFailedApiCallsTotal(actUpdateRecord)
 			return err
 		}
+		delay := time.Since(start)
+		metrics.IncSuccessfulApiCallsTotal(actUpdateRecord)
+		metrics.AddApiDelayCount(actUpdateRecord, delay.Milliseconds())
 	}
 	return nil
 }

@@ -19,8 +19,7 @@ import (
 	"net"
 	"net/http"
 
-	"github.com/bsm/openmetrics"
-	"github.com/bsm/openmetrics/omhttp"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -28,14 +27,12 @@ import (
 // the liveness and readiness probes.
 type MetricsSocket struct {
 	status *Status
-	reg    *openmetrics.Registry
 }
 
 // NewMetricsSocket initializes a new MetricsSocket intance.
-func NewMetricsSocket(status *Status, reg *openmetrics.Registry) *MetricsSocket {
+func NewMetricsSocket(status *Status) *MetricsSocket {
 	return &MetricsSocket{
 		status: status,
-		reg:    reg,
 	}
 }
 
@@ -98,7 +95,7 @@ func (s *MetricsSocket) Start(startedChan chan struct{}, options SocketOptions) 
 	mux.HandleFunc("/ready", s.readinessHandler)
 	mux.HandleFunc("/health", s.livenessHandler)
 	mux.HandleFunc("/healthz", s.healthzHandler)
-	mux.Handle("/metrics", omhttp.NewHandler(s.reg))
+	mux.Handle("/metrics", promhttp.Handler())
 
 	address := options.GetMetricsAddress()
 

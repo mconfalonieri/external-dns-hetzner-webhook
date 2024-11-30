@@ -20,9 +20,7 @@ import (
 	"errors"
 	"net/http"
 	"testing"
-	"time"
 
-	"github.com/bsm/openmetrics"
 	hdns "github.com/jobstoit/hetzner-dns-go/dns"
 	"github.com/stretchr/testify/assert"
 
@@ -41,9 +39,7 @@ func Test_NewHetznerProvider(t *testing.T) {
 		DomainFilter: []string{"alpha.com, beta.com"},
 	}
 
-	reg := openmetrics.NewConsistentRegistry(time.Now)
-
-	p, _ := NewHetznerProvider(&cfg, reg)
+	p, _ := NewHetznerProvider(&cfg)
 
 	assert.Equal(t, cfg.DryRun, p.dryRun)
 	assert.Equal(t, cfg.Debug, p.debug)

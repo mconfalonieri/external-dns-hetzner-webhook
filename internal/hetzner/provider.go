@@ -21,12 +21,12 @@ package hetzner
 
 import (
 	"context"
+	"external-dns-hetzner-webhook/internal/metrics"
 
 	"sigs.k8s.io/external-dns/endpoint"
 	"sigs.k8s.io/external-dns/plan"
 	"sigs.k8s.io/external-dns/provider"
 
-	"github.com/bsm/openmetrics"
 	hdns "github.com/jobstoit/hetzner-dns-go/dns"
 	log "github.com/sirupsen/logrus"
 )
@@ -42,11 +42,10 @@ type HetznerProvider struct {
 	defaultTTL       int
 	zoneIDNameMapper provider.ZoneIDName
 	domainFilter     endpoint.DomainFilter
-	reg              *openmetrics.Registry
 }
 
 // NewHetznerProvider creates a new HetznerProvider instance.
-func NewHetznerProvider(config *Configuration, reg *openmetrics.Registry) (*HetznerProvider, error) {
+func NewHetznerProvider(config *Configuration) (*HetznerProvider, error) {
 	var logLevel log.Level
 	if config.Debug {
 		logLevel = log.DebugLevel
@@ -62,13 +61,13 @@ func NewHetznerProvider(config *Configuration, reg *openmetrics.Registry) (*Hetz
 		dryRun:       config.DryRun,
 		defaultTTL:   config.DefaultTTL,
 		domainFilter: GetDomainFilter(*config),
-		reg:          reg,
 	}, nil
 }
 
 // Zones returns the list of the hosted DNS zones.
 // If a domain filter is set, it only returns the zones that match it.
 func (p *HetznerProvider) Zones(ctx context.Context) ([]hdns.Zone, error) {
+	metrics := metrics.GetOpenMetricsInstance()
 	result := []hdns.Zone{}
 
 	zones, err := fetchZones(ctx, p.client, p.batchSize)
@@ -76,11 +75,15 @@ func (p *HetznerProvider) Zones(ctx context.Context) ([]hdns.Zone, error) {
 		return nil, err
 	}
 
+	filteredOutZones := 0
 	for _, zone := range zones {
 		if p.domainFilter.Match(zone.Name) {
 			result = append(result, zone)
+		} else {
+			filteredOutZones++
 		}
 	}
+	metrics.SetFilteredOutZones(filteredOutZones)
 
 	p.ensureZoneIDMappingPresent(zones)
 

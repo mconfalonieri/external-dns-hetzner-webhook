@@ -21,12 +21,10 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	"external-dns-hetzner-webhook/internal/hetzner"
 	"external-dns-hetzner-webhook/internal/server"
 
-	"github.com/bsm/openmetrics"
 	log "github.com/sirupsen/logrus"
 	"sigs.k8s.io/external-dns/provider/webhook/api"
 
@@ -34,9 +32,14 @@ import (
 )
 
 // notify requires the SIGINT and SIGTERM signals to be sent to the caller.
-var notify = func(sig chan os.Signal) {
-	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
-}
+var (
+	Version = "dev"
+	Gitsha  = "none"
+
+	notify = func(sig chan os.Signal) {
+		signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
+	}
+)
 
 // healthStatus is the interface used by loop.
 type healthStatus interface {
@@ -58,6 +61,7 @@ func waitForSignal(status healthStatus) {
 // main reads the server configuration and starts both the webhook and the
 // metrics socket.
 func main() {
+	log.Infof("Starting Hetzner webhook version %s (commit %s)", Version, Gitsha)
 	// Read server options
 	socketOptions, err := server.NewSocketOptions()
 	if err != nil {
@@ -65,14 +69,11 @@ func main() {
 		log.Exit(1)
 	}
 
-	// Create metrics register
-	reg := openmetrics.NewConsistentRegistry(time.Now)
-
 	// Start health server
 	log.Infof("Starting metrics server with socket address %s", socketOptions.GetMetricsAddress())
 	serverStatus := server.Status{}
 	serverStatus.SetHealthy(true)
-	metricsSocket := server.NewMetricsSocket(&serverStatus, reg)
+	metricsSocket := server.NewMetricsSocket(&serverStatus)
 	go metricsSocket.Start(nil, *socketOptions)
 
 	// Read provider configuration
@@ -84,7 +85,7 @@ func main() {
 	}
 
 	// instantiate the Hetzner provider
-	provider, err := hetzner.NewHetznerProvider(providerConfig, reg)
+	provider, err := hetzner.NewHetznerProvider(providerConfig)
 	if err != nil {
 		serverStatus.SetHealthy(false)
 		log.Fatal("Provider cannot be instantiated - shutting down:", err)

@@ -22,7 +22,6 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/bsm/openmetrics"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -166,13 +165,11 @@ func Test_Start(t *testing.T) {
 		MetricsHost: testHost,
 		MetricsPort: testPort,
 	}
-	reg := &openmetrics.Registry{}
 
 	startedChan := make(chan struct{})
 
 	metricsSocket := MetricsSocket{
 		status: status,
-		reg:    reg,
 	}
 
 	go metricsSocket.Start(startedChan, options)

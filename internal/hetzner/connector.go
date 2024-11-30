@@ -19,8 +19,18 @@ package hetzner
 
 import (
 	"context"
+	"external-dns-hetzner-webhook/internal/metrics"
+	"time"
 
 	hdns "github.com/jobstoit/hetzner-dns-go/dns"
+)
+
+const (
+	actGetZones     = "get_zones"
+	actGetRecords   = "get_records"
+	actCreateRecord = "create_record"
+	actUpdateRecord = "update_record"
+	actDeleteRecord = "delete_record"
 )
 
 // apiClient is an abstraction of the REST API client.
@@ -39,13 +49,19 @@ type apiClient interface {
 
 // fetchRecords fetches all records for a given zoneID.
 func fetchRecords(ctx context.Context, zoneID string, dnsClient apiClient, batchSize int) ([]hdns.Record, error) {
+	metrics := metrics.GetOpenMetricsInstance()
 	records := []hdns.Record{}
 	listOptions := &hdns.RecordListOpts{ListOpts: hdns.ListOpts{PerPage: batchSize}, ZoneID: zoneID}
 	for {
+		start := time.Now()
 		pagedRecords, resp, err := dnsClient.GetRecords(ctx, *listOptions)
 		if err != nil {
+			metrics.IncFailedApiCallsTotal(actGetRecords)
 			return nil, err
 		}
+		delay := time.Since(start)
+		metrics.IncSuccessfulApiCallsTotal(actGetRecords)
+		metrics.AddApiDelayCount(actGetRecords, delay.Milliseconds())
 		for _, r := range pagedRecords {
 			records = append(records, *r)
 		}
@@ -62,14 +78,19 @@ func fetchRecords(ctx context.Context, zoneID string, dnsClient apiClient, batch
 
 // fetchZones fetches all the zones from the DNS client.
 func fetchZones(ctx context.Context, dnsClient apiClient, batchSize int) ([]hdns.Zone, error) {
+	metrics := metrics.GetOpenMetricsInstance()
 	zones := []hdns.Zone{}
 	listOptions := &hdns.ZoneListOpts{ListOpts: hdns.ListOpts{PerPage: batchSize}}
 	for {
+		start := time.Now()
 		pagedZones, resp, err := dnsClient.GetZones(ctx, *listOptions)
 		if err != nil {
+			metrics.IncFailedApiCallsTotal(actGetZones)
 			return nil, err
 		}
-
+		delay := time.Since(start)
+		metrics.IncSuccessfulApiCallsTotal(actGetZones)
+		metrics.AddApiDelayCount(actGetZones, delay.Milliseconds())
 		for _, z := range pagedZones {
 			zones = append(zones, *z)
 		}
