@@ -170,8 +170,10 @@ changes to be aware of are:
 - `HEALTH_PORT` is deprecated in favor of `METRICS_PORT`;
 - the previous health/public socket is now called "metrics socket" in conformity
   to ExternalDNS terminology, and now supports some additional endpoints:
+  
   - `/metrics` and
   - `/healthz`;
+
   their description can be found in the [Metrics socket](#metrics-socket)
   section.
   
