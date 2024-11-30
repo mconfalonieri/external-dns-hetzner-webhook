@@ -16,9 +16,10 @@
 package server
 
 import (
-	"external-dns-hetzner-webhook/internal/metrics"
 	"net"
 	"net/http"
+
+	"external-dns-hetzner-webhook/internal/metrics"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	log "github.com/sirupsen/logrus"
