@@ -29,7 +29,9 @@ import (
 
 // hetznerChange contains all changes to apply to DNS.
 type hetznerChanges struct {
-	dryRun  bool
+	dryRun     bool
+	defaultTTL int
+
 	creates []*hetznerChangeCreate
 	updates []*hetznerChangeUpdate
 	deletes []*hetznerChangeDelete
@@ -95,7 +97,7 @@ func (c hetznerChanges) applyCreates(ctx context.Context, dnsClient apiClient) e
 	for _, e := range c.creates {
 		opt := e.Options
 		if opt.Ttl == nil {
-			ttl := -1
+			ttl := c.defaultTTL
 			opt.Ttl = &ttl
 		}
 		log.WithFields(e.GetLogFields()).Debug("Creating domain record")
@@ -122,7 +124,7 @@ func (c hetznerChanges) applyUpdates(ctx context.Context, dnsClient apiClient) e
 	for _, e := range c.updates {
 		opt := e.Options
 		if opt.Ttl == nil {
-			ttl := -1
+			ttl := c.defaultTTL
 			opt.Ttl = &ttl
 		}
 		log.WithFields(e.GetLogFields()).Debug("Updating domain record")

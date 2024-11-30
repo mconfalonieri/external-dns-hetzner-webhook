@@ -136,6 +136,8 @@ func (p *HetznerProvider) Records(ctx context.Context) ([]*endpoint.Endpoint, er
 
 		// Add only endpoints from supported types.
 		for _, r := range records {
+			// Ensure the record has all the required zone information
+			r.Zone = &zone
 			if provider.SupportedRecordType(string(r.Type)) {
 				ep := createEndpointFromRecord(r)
 				endpoints = append(endpoints, ep)
@@ -205,7 +207,8 @@ func (p *HetznerProvider) ApplyChanges(ctx context.Context, planChanges *plan.Ch
 	deletesByZoneID := endpointsByZoneID(p.zoneIDNameMapper, planChanges.Delete)
 
 	changes := hetznerChanges{
-		dryRun: p.dryRun,
+		dryRun:     p.dryRun,
+		defaultTTL: p.defaultTTL,
 	}
 
 	processCreateActions(p.zoneIDNameMapper, recordsByZoneID, createsByZoneID, &changes)
