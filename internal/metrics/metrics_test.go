@@ -20,13 +20,13 @@ package metrics
 import (
 	"testing"
 
-	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/stretchr/testify/assert"
 )
 
 const (
 	testAction = "test_action"
+	testZone   = "alpha.com"
 )
 
 func Test_GetOpenMetricsInstance(t *testing.T) {
@@ -62,12 +62,6 @@ func Test_GetOpenMetricsInstance(t *testing.T) {
 	}
 }
 
-func Test_getLabels(t *testing.T) {
-	expected := prometheus.Labels{"action": testAction}
-	actual := getLabels(testAction)
-	assert.Equal(t, expected, actual)
-}
-
 func Test_OpenMetrics_IncSuccessfulApiCallsTotal(t *testing.T) {
 	metrics = nil
 	expected := float64(1)
@@ -95,6 +89,17 @@ func Test_OpenMetrics_SetFilteredOutZones(t *testing.T) {
 
 	GetOpenMetricsInstance().SetFilteredOutZones(val)
 	actual := testutil.ToFloat64(metrics.filteredOutZones)
+
+	assert.Equal(t, expected, actual)
+}
+
+func Test_OpenMetrics_SetSkippedRecords(t *testing.T) {
+	metrics = nil
+	const val = 5
+	expected := float64(val)
+
+	GetOpenMetricsInstance().SetSkippedRecords(testZone, val)
+	actual := testutil.ToFloat64(metrics.skippedRecords)
 
 	assert.Equal(t, expected, actual)
 }

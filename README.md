@@ -63,7 +63,7 @@ provider:
   webhook:
     image:
       repository: ghcr.io/mconfalonieri/external-dns-hetzner-webhook
-      tag: v0.6.0
+      tag: v1.0.0
     env:
       - name: HETZNER_API_KEY
         valueFrom:
@@ -91,7 +91,7 @@ And then:
 
 ```shell
 # install external-dns with helm
-helm install external-dns-hetzner external-dns/external-dns -f external-dns-hetzner-values.yaml --version 1.14.3 -n external-dns
+helm install external-dns-hetzner external-dns/external-dns -f external-dns-hetzner-values.yaml --version 1.15.0 -n external-dns
 ```
 
 ### Using the Bitnami chart
@@ -115,7 +115,7 @@ You can then create the helm values file, for example
 image:
   registry: registry.k8s.io
   repository: external-dns/external-dns
-  tag: v0.14.0
+  tag: v0.15.0
 
 provider: webhook
 
@@ -125,7 +125,7 @@ extraArgs:
 
 sidecars:
   - name: hetzner-webhook
-    image: ghcr.io/mconfalonieri/external-dns-hetzner-webhook:v0.6.0
+    image: ghcr.io/mconfalonieri/external-dns-hetzner-webhook:v1.0.0
     ports:
       - containerPort: 8888
         name: webhook
@@ -327,7 +327,8 @@ for scraping.
 | `successful_api_calls_total` | Counter   | `action` | The number of successful Hetzner API calls               |
 | `failed_api_calls_total`     | Counter   | `action` | The number of Hetzner API calls that returned an error   |
 | `filtered_out_zones`         | Gauge     | _none_   | The number of zones excluded by the domain filter        |
-| `api_delay_count`            | Histogram | `action` | Histogram of the delay (ms) when calling the Hetzner API |
+| `skipped_records`            | Gauge     | `zone`   | The number of skipped records per domain                 |
+| `api_delay_hist`             | Histogram | `action` | Histogram of the delay (ms) when calling the Hetzner API |
 
 The label `action` can assume one of the following values, depending on the
 Hetzner API endpoint called:
@@ -337,6 +338,8 @@ Hetzner API endpoint called:
 - `create_record`
 - `delete_record`
 - `update_record`
+
+The label `zone` can assume one of the zone names as its value.
 
 Please notice that in some cases an _update_ request from ExternalDNS will be
 transformed into a `delete_record` and subsequent `create_record` calls by this

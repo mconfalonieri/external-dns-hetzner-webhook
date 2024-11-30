@@ -31,7 +31,8 @@ type OpenMetrics struct {
 	failedApiCallsTotal     *prometheus.CounterVec
 
 	filteredOutZones prometheus.Gauge
-	apiDelayCount    *prometheus.HistogramVec
+	skippedRecords   *prometheus.GaugeVec
+	apiDelayHist     *prometheus.HistogramVec
 }
 
 // GetOpenMetricsInstance returns the current OpenMetrics instance or creates a
@@ -59,9 +60,16 @@ func GetOpenMetricsInstance() *OpenMetrics {
 				Name: "filtered_out_zones",
 				Help: "The number of zones excluded by the domain filter",
 			}),
-			apiDelayCount: prometheus.NewHistogramVec(
+			skippedRecords: prometheus.NewGaugeVec(
+				prometheus.GaugeOpts{
+					Name: "skipped_records",
+					Help: "The number of skipped records per domain",
+				},
+				[]string{"zone"},
+			),
+			apiDelayHist: prometheus.NewHistogramVec(
 				prometheus.HistogramOpts{
-					Name:    "api_delay_count",
+					Name:    "api_delay_hist",
 					Help:    "Histogram of the delay in milliseconds when calling the Hetzner API",
 					Buckets: []float64{10, 100, 250, 500, 1000, 1500, 2000},
 				},
@@ -71,28 +79,26 @@ func GetOpenMetricsInstance() *OpenMetrics {
 		reg.MustRegister(metrics.successfulApiCallsTotal)
 		reg.MustRegister(metrics.failedApiCallsTotal)
 		reg.MustRegister(metrics.filteredOutZones)
-		reg.MustRegister(metrics.apiDelayCount)
+		reg.MustRegister(metrics.apiDelayHist)
 	}
 	return metrics
 }
 
-// getLabels builds the label map.
-func getLabels(action string) prometheus.Labels {
-	return prometheus.Labels{"action": action}
-}
-
+// GetRegistry returns the current prometheus registry.
 func (m OpenMetrics) GetRegistry() *prometheus.Registry {
 	return m.registry
 }
 
 // IncSuccessfulApiCallsTotal increments the successful_api_calls_total counter.
 func (m *OpenMetrics) IncSuccessfulApiCallsTotal(action string) {
-	m.successfulApiCallsTotal.With(getLabels(action)).Inc()
+	label := prometheus.Labels{"action": action}
+	m.successfulApiCallsTotal.With(label).Inc()
 }
 
 // IncFailedApiCallsTotal increments the failed_api_calls_total counter.
 func (m *OpenMetrics) IncFailedApiCallsTotal(action string) {
-	m.failedApiCallsTotal.With(getLabels(action)).Inc()
+	label := prometheus.Labels{"action": action}
+	m.failedApiCallsTotal.With(label).Inc()
 }
 
 // SetFilteredOutZones sets the value for the filtered_out_zones gauge.
@@ -100,6 +106,14 @@ func (m *OpenMetrics) SetFilteredOutZones(num int) {
 	m.filteredOutZones.Set(float64(num))
 }
 
-func (m *OpenMetrics) AddApiDelayCount(action string, delay int64) {
-	m.apiDelayCount.With(getLabels(action)).Observe(float64(delay))
+// SetSkippedRecords sets the value for the skipped_records gauge.
+func (m *OpenMetrics) SetSkippedRecords(zone string, num int) {
+	label := prometheus.Labels{"zone": zone}
+	m.skippedRecords.With(label).Set(float64(num))
+}
+
+// AddApiDelayHist adds a value to the api_delay_hist histogram.
+func (m *OpenMetrics) AddApiDelayHist(action string, delay int64) {
+	label := prometheus.Labels{"action": action}
+	m.apiDelayHist.With(label).Observe(float64(delay))
 }

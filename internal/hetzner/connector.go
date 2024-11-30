@@ -62,7 +62,7 @@ func fetchRecords(ctx context.Context, zoneID string, dnsClient apiClient, batch
 		}
 		delay := time.Since(start)
 		metrics.IncSuccessfulApiCallsTotal(actGetRecords)
-		metrics.AddApiDelayCount(actGetRecords, delay.Milliseconds())
+		metrics.AddApiDelayHist(actGetRecords, delay.Milliseconds())
 		for _, r := range pagedRecords {
 			records = append(records, *r)
 		}
@@ -91,7 +91,7 @@ func fetchZones(ctx context.Context, dnsClient apiClient, batchSize int) ([]hdns
 		}
 		delay := time.Since(start)
 		metrics.IncSuccessfulApiCallsTotal(actGetZones)
-		metrics.AddApiDelayCount(actGetZones, delay.Milliseconds())
+		metrics.AddApiDelayHist(actGetZones, delay.Milliseconds())
 		for _, z := range pagedZones {
 			zones = append(zones, *z)
 		}

@@ -86,7 +86,7 @@ func (c hetznerChanges) applyDeletes(ctx context.Context, dnsClient apiClient) e
 		}
 		delay := time.Since(start)
 		metrics.IncSuccessfulApiCallsTotal(actDeleteRecord)
-		metrics.AddApiDelayCount(actDeleteRecord, delay.Milliseconds())
+		metrics.AddApiDelayHist(actDeleteRecord, delay.Milliseconds())
 	}
 	return nil
 }
@@ -113,7 +113,7 @@ func (c hetznerChanges) applyCreates(ctx context.Context, dnsClient apiClient) e
 		}
 		delay := time.Since(start)
 		metrics.IncSuccessfulApiCallsTotal(actCreateRecord)
-		metrics.AddApiDelayCount(actCreateRecord, delay.Milliseconds())
+		metrics.AddApiDelayHist(actCreateRecord, delay.Milliseconds())
 	}
 	return nil
 }
@@ -140,7 +140,7 @@ func (c hetznerChanges) applyUpdates(ctx context.Context, dnsClient apiClient) e
 		}
 		delay := time.Since(start)
 		metrics.IncSuccessfulApiCallsTotal(actUpdateRecord)
-		metrics.AddApiDelayCount(actUpdateRecord, delay.Milliseconds())
+		metrics.AddApiDelayHist(actUpdateRecord, delay.Milliseconds())
 	}
 	return nil
 }
