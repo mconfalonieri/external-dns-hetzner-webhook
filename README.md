@@ -93,7 +93,7 @@ And then:
 
 ```shell
 # install external-dns with helm
-helm install external-dns-hetzner external-dns/external-dns -f external-dns-hetzner-values.yaml --version 1.15.0 -n external-dns
+helm install external-dns-hetzner external-dns/external-dns -f external-dns-hetzner-values.yaml --version 0.15.0 -n external-dns
 ```
 
 ### Using the Bitnami chart
