@@ -7,7 +7,7 @@ ExternalDNS takes this functionality a step further by delegating the management
 of DNS records to an external DNS provider such as this one. This webhook allows
 you to manage your Hetzner domains inside your kubernetes cluster.
 
-⚠️ If you are upgrading to 1.0.x from 0.6.x read the
+⚠️ If you are upgrading to 0.7.x from 0.6.x read the
 [Upgrading from previous versions](#upgrading-from-previous-versions) section.
 
 ## Requirements
@@ -63,7 +63,7 @@ provider:
   webhook:
     image:
       repository: ghcr.io/mconfalonieri/external-dns-hetzner-webhook
-      tag: v1.0.0
+      tag: v0.7.0
     env:
       - name: HETZNER_API_KEY
         valueFrom:
@@ -112,20 +112,15 @@ You can then create the helm values file, for example
 `external-dns-hetzner-values.yaml`:
 
 ```yaml
-image:
-  registry: registry.k8s.io
-  repository: external-dns/external-dns
-  tag: v0.15.0
-
 provider: webhook
-
+policy: sync
 extraArgs:
   webhook-provider-url: http://localhost:8888
   txt-prefix: "reg-%{record_type}-"
 
 sidecars:
   - name: hetzner-webhook
-    image: ghcr.io/mconfalonieri/external-dns-hetzner-webhook:v1.0.0
+    image: ghcr.io/mconfalonieri/external-dns-hetzner-webhook:v0.7.0
     ports:
       - containerPort: 8888
         name: webhook
@@ -160,7 +155,7 @@ helm install external-dns-hetzner bitnami/external-dns -f external-dns-hetzner-v
 
 ## Upgrading from previous versions
 
-### 0.x.x to 1.0.x
+### 0.6.x to 0.7.x
 
 The configuration for previous versions are still compatible, but consider that
 some warnings will be emitted if `HEALTH_HOST` and `HEALTH_PORT` are set. The
