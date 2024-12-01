@@ -79,6 +79,7 @@ func GetOpenMetricsInstance() *OpenMetrics {
 		reg.MustRegister(metrics.successfulApiCallsTotal)
 		reg.MustRegister(metrics.failedApiCallsTotal)
 		reg.MustRegister(metrics.filteredOutZones)
+		reg.MustRegister(metrics.skippedRecords)
 		reg.MustRegister(metrics.apiDelayHist)
 	}
 	return metrics

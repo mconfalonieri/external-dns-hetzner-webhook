@@ -47,18 +47,13 @@ func makeEndpointName(domain, entryName string) string {
 // requirements:
 //   - A-Records should respect ignored networks and should only contain IPv4
 //     entries.
-func makeEndpointTarget(domain, entryTarget string, epType string) string {
+func makeEndpointTarget(domain, entryTarget string, _ string) string {
 	if domain == "" {
 		return entryTarget
 	}
 
 	// Trim the trailing dot
 	adjustedTarget := strings.TrimSuffix(entryTarget, ".")
-
-	// For local CNAMEs, remove domain.
-	if epType == "CNAME" {
-		adjustedTarget = strings.TrimSuffix(adjustedTarget, "."+domain)
-	}
 
 	return adjustedTarget
 }
@@ -107,7 +102,12 @@ func createEndpointFromRecord(r hdns.Record) *endpoint.Endpoint {
 		name = r.Zone.Name
 	}
 
-	ep := endpoint.NewEndpoint(name, string(r.Type), r.Value)
+	// Handle local CNAMEs
+	target := r.Value
+	if r.Type == hdns.RecordTypeCNAME && !strings.HasSuffix(r.Value, ".") {
+		target = fmt.Sprintf("%s.%s.", r.Value, r.Zone.Name)
+	}
+	ep := endpoint.NewEndpoint(name, string(r.Type), target)
 	ep.RecordTTL = endpoint.TTL(r.Ttl)
 	return ep
 }
@@ -116,11 +116,13 @@ func createEndpointFromRecord(r hdns.Record) *endpoint.Endpoint {
 func endpointsByZoneID(zoneIDNameMapper provider.ZoneIDName, endpoints []*endpoint.Endpoint) map[string][]*endpoint.Endpoint {
 	endpointsByZoneID := make(map[string][]*endpoint.Endpoint)
 
-	for _, ep := range endpoints {
+	for idx, ep := range endpoints {
 		zoneID, _ := zoneIDNameMapper.FindZone(ep.DNSName)
 		if zoneID == "" {
-			log.Debugf("Skipping record %s because no hosted zone matching record DNS Name was detected", ep.DNSName)
+			log.Debugf("Skipping record %d (%s) because no hosted zone matching record DNS Name was detected", idx, ep.DNSName)
 			continue
+		} else {
+			log.WithFields(getEndpointLogFields(ep)).Debugf("Reading endpoint %d for dividing by zone", idx)
 		}
 		endpointsByZoneID[zoneID] = append(endpointsByZoneID[zoneID], ep)
 	}

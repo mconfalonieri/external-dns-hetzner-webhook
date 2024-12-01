@@ -154,19 +154,6 @@ func Test_makeEndpointTarget(t *testing.T) {
 			expected: "www.alpha.com",
 		},
 		{
-			name: "Domain provided",
-			input: struct {
-				domain      string
-				entryTarget string
-				epType      string
-			}{
-				domain:      "alpha.com",
-				entryTarget: "www.alpha.com",
-				epType:      "CNAME",
-			},
-			expected: "www",
-		},
-		{
 			name: "Other domain without trailing dot provided",
 			input: struct {
 				domain      string

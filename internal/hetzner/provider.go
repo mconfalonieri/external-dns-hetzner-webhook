@@ -134,6 +134,7 @@ func (p *HetznerProvider) Records(ctx context.Context) ([]*endpoint.Endpoint, er
 			return nil, err
 		}
 
+		skippedRecords := 0
 		// Add only endpoints from supported types.
 		for _, r := range records {
 			// Ensure the record has all the required zone information
@@ -141,8 +142,12 @@ func (p *HetznerProvider) Records(ctx context.Context) ([]*endpoint.Endpoint, er
 			if provider.SupportedRecordType(string(r.Type)) {
 				ep := createEndpointFromRecord(r)
 				endpoints = append(endpoints, ep)
+			} else {
+				skippedRecords++
 			}
 		}
+		m := metrics.GetOpenMetricsInstance()
+		m.SetSkippedRecords(zone.Name, skippedRecords)
 	}
 
 	// Merge endpoints with the same name and type (e.g., multiple A records for a single
@@ -184,8 +189,13 @@ func (p *HetznerProvider) getRecordsByZoneID(ctx context.Context) (map[string][]
 		if err != nil {
 			return nil, err
 		}
-
-		recordsByZoneID[zone.ID] = append(recordsByZoneID[zone.ID], records...)
+		// Add full zone information
+		zonedRecords := []hdns.Record{}
+		for _, r := range records {
+			r.Zone = &zone
+			zonedRecords = append(zonedRecords, r)
+		}
+		recordsByZoneID[zone.ID] = append(recordsByZoneID[zone.ID], zonedRecords...)
 	}
 
 	return recordsByZoneID, nil
@@ -202,8 +212,11 @@ func (p *HetznerProvider) ApplyChanges(ctx context.Context, planChanges *plan.Ch
 		return err
 	}
 
+	log.Debug("Preparing creates")
 	createsByZoneID := endpointsByZoneID(p.zoneIDNameMapper, planChanges.Create)
+	log.Debug("Preparing updates")
 	updatesByZoneID := endpointsByZoneID(p.zoneIDNameMapper, planChanges.UpdateNew)
+	log.Debug("Preparing deletes")
 	deletesByZoneID := endpointsByZoneID(p.zoneIDNameMapper, planChanges.Delete)
 
 	changes := hetznerChanges{
