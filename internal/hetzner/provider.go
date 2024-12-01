@@ -1,4 +1,6 @@
 /*
+ * Provider - class and functions that handle the connection to Hetzner DNS.
+ *
  * This file was MODIFIED from the original provider to be used as a standalone
  * webhook server.
  *
@@ -21,6 +23,8 @@ package hetzner
 
 import (
 	"context"
+
+	"external-dns-hetzner-webhook/internal/metrics"
 
 	"sigs.k8s.io/external-dns/endpoint"
 	"sigs.k8s.io/external-dns/plan"
@@ -66,6 +70,7 @@ func NewHetznerProvider(config *Configuration) (*HetznerProvider, error) {
 // Zones returns the list of the hosted DNS zones.
 // If a domain filter is set, it only returns the zones that match it.
 func (p *HetznerProvider) Zones(ctx context.Context) ([]hdns.Zone, error) {
+	metrics := metrics.GetOpenMetricsInstance()
 	result := []hdns.Zone{}
 
 	zones, err := fetchZones(ctx, p.client, p.batchSize)
@@ -73,11 +78,15 @@ func (p *HetznerProvider) Zones(ctx context.Context) ([]hdns.Zone, error) {
 		return nil, err
 	}
 
+	filteredOutZones := 0
 	for _, zone := range zones {
 		if p.domainFilter.Match(zone.Name) {
 			result = append(result, zone)
+		} else {
+			filteredOutZones++
 		}
 	}
+	metrics.SetFilteredOutZones(filteredOutZones)
 
 	p.ensureZoneIDMappingPresent(zones)
 
@@ -104,6 +113,13 @@ func (p HetznerProvider) AdjustEndpoints(endpoints []*endpoint.Endpoint) ([]*end
 	return adjustedEndpoints, nil
 }
 
+// logDebugEndpoints logs every endpoint as a a line.
+func logDebugEndpoints(endpoints []*endpoint.Endpoint) {
+	for idx, ep := range endpoints {
+		log.WithFields(getEndpointLogFields(ep)).Debugf("Endpoint %d", idx)
+	}
+}
+
 // Records returns the list of records in all zones as a slice of endpoints.
 func (p *HetznerProvider) Records(ctx context.Context) ([]*endpoint.Endpoint, error) {
 	zones, err := p.Zones(ctx)
@@ -118,13 +134,20 @@ func (p *HetznerProvider) Records(ctx context.Context) ([]*endpoint.Endpoint, er
 			return nil, err
 		}
 
+		skippedRecords := 0
 		// Add only endpoints from supported types.
 		for _, r := range records {
+			// Ensure the record has all the required zone information
+			r.Zone = &zone
 			if provider.SupportedRecordType(string(r.Type)) {
 				ep := createEndpointFromRecord(r)
 				endpoints = append(endpoints, ep)
+			} else {
+				skippedRecords++
 			}
 		}
+		m := metrics.GetOpenMetricsInstance()
+		m.SetSkippedRecords(zone.Name, skippedRecords)
 	}
 
 	// Merge endpoints with the same name and type (e.g., multiple A records for a single
@@ -132,9 +155,10 @@ func (p *HetznerProvider) Records(ctx context.Context) ([]*endpoint.Endpoint, er
 	endpoints = mergeEndpointsByNameType(endpoints)
 
 	// Log the endpoints that were found.
-	log.WithFields(log.Fields{
-		"endpoints": endpoints,
-	}).Debug("Endpoints generated from Hetzner DNS")
+	if p.debug {
+		log.Debugf("Returning %d endpoints.", len(endpoints))
+		logDebugEndpoints(endpoints)
+	}
 
 	return endpoints, nil
 }
@@ -165,8 +189,13 @@ func (p *HetznerProvider) getRecordsByZoneID(ctx context.Context) (map[string][]
 		if err != nil {
 			return nil, err
 		}
-
-		recordsByZoneID[zone.ID] = append(recordsByZoneID[zone.ID], records...)
+		// Add full zone information
+		zonedRecords := []hdns.Record{}
+		for _, r := range records {
+			r.Zone = &zone
+			zonedRecords = append(zonedRecords, r)
+		}
+		recordsByZoneID[zone.ID] = append(recordsByZoneID[zone.ID], zonedRecords...)
 	}
 
 	return recordsByZoneID, nil
@@ -183,12 +212,16 @@ func (p *HetznerProvider) ApplyChanges(ctx context.Context, planChanges *plan.Ch
 		return err
 	}
 
+	log.Debug("Preparing creates")
 	createsByZoneID := endpointsByZoneID(p.zoneIDNameMapper, planChanges.Create)
+	log.Debug("Preparing updates")
 	updatesByZoneID := endpointsByZoneID(p.zoneIDNameMapper, planChanges.UpdateNew)
+	log.Debug("Preparing deletes")
 	deletesByZoneID := endpointsByZoneID(p.zoneIDNameMapper, planChanges.Delete)
 
 	changes := hetznerChanges{
-		dryRun: p.dryRun,
+		dryRun:     p.dryRun,
+		defaultTTL: p.defaultTTL,
 	}
 
 	processCreateActions(p.zoneIDNameMapper, recordsByZoneID, createsByZoneID, &changes)

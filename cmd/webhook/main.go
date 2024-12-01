@@ -1,4 +1,6 @@
 /*
+ * Main - webhook program.
+ *
  * Copyright 2023 Marco Confalonieri.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -29,58 +31,83 @@ import (
 	"github.com/codingconcepts/env"
 )
 
-// loop waits for a SIGTERM or a SIGINT and then shuts down the server.
-func loop(status *server.HealthStatus) {
+var (
+	// Version compiled by goreleaser.
+	Version = "dev"
+	// Gitsha (commit SHA1) compiled by goreleaser.
+	Gitsha = "none"
+)
+
+// notify requires the SIGINT and SIGTERM signals to be sent to the caller.
+var notify = func(sig chan os.Signal) {
+	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
+}
+
+// healthStatus is the interface used by loop.
+type healthStatus interface {
+	SetHealthy(bool)
+	SetReady(bool)
+}
+
+// waitForSignal waits for a SIGTERM or a SIGINT and then shuts down the server.
+func waitForSignal(status healthStatus) {
 	exitSignal := make(chan os.Signal, 1)
-	signal.Notify(exitSignal, syscall.SIGINT, syscall.SIGTERM)
+	notify(exitSignal)
 	signal := <-exitSignal
 
 	log.Infof("Signal %s received. Shutting down the webhook.", signal.String())
-	status.SetHealth(false)
+	status.SetHealthy(false)
 	status.SetReady(false)
 }
 
-// main function
+// main reads the server configuration and starts both the webhook and the
+// metrics socket.
 func main() {
+	log.Infof("Starting Hetzner webhook version %s (commit %s)", Version, Gitsha)
 	// Read server options
-	serverOptions := &server.ServerOptions{}
-	if err := env.Set(serverOptions); err != nil {
-		log.Fatal(err)
+	socketOptions, err := server.NewSocketOptions()
+	if err != nil {
+		log.Fatal("Cannot read configuration from environment:", err.Error())
+		log.Exit(1)
 	}
 
 	// Start health server
-	log.Infof("Starting liveness and readiness server on %s", serverOptions.GetHealthAddress())
-	healthStatus := server.HealthStatus{}
-	healthServer := server.HealthServer{}
-	go healthServer.Start(&healthStatus, nil, *serverOptions)
+	log.Infof("Starting metrics server with socket address %s", socketOptions.GetMetricsAddress())
+	serverStatus := server.Status{}
+	serverStatus.SetHealthy(true)
+	metricsSocket := server.NewMetricsSocket(&serverStatus)
+	go metricsSocket.Start(nil, *socketOptions)
 
 	// Read provider configuration
 	providerConfig := &hetzner.Configuration{}
 	if err := env.Set(providerConfig); err != nil {
-		log.Fatal(err)
+		serverStatus.SetHealthy(false)
+		log.Fatal("Provider configuration unreadable - shutting down:", err)
+		log.Exit(1)
 	}
 
 	// instantiate the Hetzner provider
 	provider, err := hetzner.NewHetznerProvider(providerConfig)
 	if err != nil {
+		serverStatus.SetHealthy(false)
+		log.Fatal("Provider cannot be instantiated - shutting down:", err)
 		panic(err)
 	}
 
 	// Start the webhook
-	log.Infof("Starting webhook server on %s", serverOptions.GetWebhookAddress())
+	log.Infof("Starting webhook server with socket address %s", socketOptions.GetWebhookAddress())
 	startedChan := make(chan struct{})
 	go api.StartHTTPApi(
 		provider, startedChan,
-		serverOptions.GetReadTimeout(),
-		serverOptions.GetWriteTimeout(),
-		serverOptions.GetWebhookAddress(),
+		socketOptions.GetReadTimeout(),
+		socketOptions.GetWriteTimeout(),
+		socketOptions.GetWebhookAddress(),
 	)
 
 	// Wait for the HTTP server to start and then set the healthy and ready flags
 	<-startedChan
-	healthStatus.SetHealth(true)
-	healthStatus.SetReady(true)
+	serverStatus.SetReady(true)
 
-	// Loops until a signal tells us to exit
-	loop(&healthStatus)
+	// Wait until a signal tells us to exit
+	waitForSignal(&serverStatus)
 }

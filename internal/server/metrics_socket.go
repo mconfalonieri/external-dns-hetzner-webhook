@@ -18,58 +18,29 @@ package server
 import (
 	"net"
 	"net/http"
-	"sync"
 
+	"external-dns-hetzner-webhook/internal/metrics"
+
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	log "github.com/sirupsen/logrus"
 )
 
-// HealthStatus contains the health and ready statuses for the webhook.
-type HealthStatus struct {
-	m       sync.Mutex
-	healthy bool
-	ready   bool
+// MetricsSocket represents the socket that serves the Open Metrics, as well as
+// the liveness and readiness probes.
+type MetricsSocket struct {
+	status *Status
 }
 
-// SetHealth sets the health status.
-func (h *HealthStatus) SetHealth(v bool) {
-	h.m.Lock()
-	h.healthy = v
-	h.m.Unlock()
-}
-
-// SetReady sets the readiness status.
-func (h *HealthStatus) SetReady(v bool) {
-	h.m.Lock()
-	h.ready = v
-	h.m.Unlock()
-}
-
-// IsHealthy returns the healthy flag.
-func (h *HealthStatus) IsHealthy() bool {
-	var healthy bool
-	h.m.Lock()
-	healthy = h.healthy
-	h.m.Unlock()
-	return healthy
-}
-
-// IsReady returns the readiness status.
-func (h *HealthStatus) IsReady() bool {
-	var ready bool
-	h.m.Lock()
-	ready = h.ready
-	h.m.Unlock()
-	return ready
-}
-
-// HealthServer is the liveness and readiness server.
-type HealthServer struct {
-	status *HealthStatus
+// NewMetricsSocket initializes a new MetricsSocket intance.
+func NewMetricsSocket(status *Status) *MetricsSocket {
+	return &MetricsSocket{
+		status: status,
+	}
 }
 
 // livenessHandler checks if the server is healthy. It writes 200/OK if the
 // healthy flag is set to "true" and 503/Service Unavailable otherwise.
-func (s HealthServer) livenessHandler(w http.ResponseWriter, r *http.Request) {
+func (s MetricsSocket) livenessHandler(w http.ResponseWriter, r *http.Request) {
 	healthy := s.status.IsHealthy()
 	var err error
 	if healthy {
@@ -85,7 +56,7 @@ func (s HealthServer) livenessHandler(w http.ResponseWriter, r *http.Request) {
 
 // readinessHandler checks if the server is ready. It writes 200/OK if the
 // healthy flag is set to "true" and 503/Service Unavailable otherwise.
-func (s HealthServer) readinessHandler(w http.ResponseWriter, r *http.Request) {
+func (s MetricsSocket) readinessHandler(w http.ResponseWriter, r *http.Request) {
 	ready := s.status.IsReady()
 	var err error
 	if ready {
@@ -99,17 +70,42 @@ func (s HealthServer) readinessHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// Start starts the liveness and readiness server.
-func (s *HealthServer) Start(status *HealthStatus, startedChan chan struct{}, options ServerOptions) {
-	s.status = status
+// healthzHandler checks if the server is live AND ready. It writes 200/OK if
+// both the healthy and the ready flags are set to "true" and 503/Service
+// Unavailable otherwise. It is provided to ensure compatibility with
+// ExternalDNS Webhook requirements:
+// https://github.com/kubernetes-sigs/external-dns/blob/master/docs/tutorials/webhook-provider.md
+func (s MetricsSocket) healthzHandler(w http.ResponseWriter, r *http.Request) {
+	healthz := s.status.IsHealthy() && s.status.IsReady()
+	var err error
+	if healthz {
+		_, err = w.Write([]byte(http.StatusText(http.StatusOK)))
+	} else {
+		w.WriteHeader(http.StatusServiceUnavailable)
+		_, err = w.Write([]byte(http.StatusText(http.StatusServiceUnavailable)))
+	}
+	if err != nil {
+		log.Warn("Could not answer to a healthz probe: ", err.Error())
+	}
+}
+
+// Start starts the exposed endpoints server.
+func (s *MetricsSocket) Start(startedChan chan struct{}, options SocketOptions) {
+	metrics := metrics.GetOpenMetricsInstance()
+	reg := metrics.GetRegistry()
 
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/", s.readinessHandler)
 	mux.HandleFunc("/ready", s.readinessHandler)
 	mux.HandleFunc("/health", s.livenessHandler)
+	mux.HandleFunc("/healthz", s.healthzHandler)
+	mux.Handle(
+		"/metrics",
+		promhttp.HandlerFor(reg, promhttp.HandlerOpts{Registry: reg}),
+	)
 
-	address := options.GetHealthAddress()
+	address := options.GetMetricsAddress()
 
 	srv := &http.Server{
 		Addr:         address,

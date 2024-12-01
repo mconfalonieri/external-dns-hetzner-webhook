@@ -1,4 +1,6 @@
 /*
+ * Provider - unit tests.
+ *
  * Copyright 2023 Marco Confalonieri.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -272,7 +274,7 @@ func Test_AdjustEndpoints(t *testing.T) {
 				{
 					DNSName:    "alpha.com",
 					RecordType: "CNAME",
-					Targets:    endpoint.Targets{"www"},
+					Targets:    endpoint.Targets{"www.alpha.com"},
 				},
 				{
 					DNSName:    "www.beta.com",

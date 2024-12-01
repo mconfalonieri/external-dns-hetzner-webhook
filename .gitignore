@@ -3,7 +3,7 @@ build/
 token
 .idea/
 .vscode/
-cover.out
+coverage.out
 reports/
 cosign.key
 dist/
