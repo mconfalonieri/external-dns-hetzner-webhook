@@ -1,3 +1,5 @@
+GO_TEST = go run gotest.tools/gotestsum --format pkgname
+
 LICENCES_IGNORE_LIST = $(shell cat licences/licences-ignore-list.txt)
 
 ifndef $(GOPATH)
@@ -101,9 +103,8 @@ docker-push-amd64: ## Push the docker image for AMD64
 
 .PHONY: unit-test
 unit-test: ## Run unit tests
-	go test -v ./... -covermode=count -coverprofile=coverage.out
-	go tool cover -func=coverage.out -o=coverage.out
-
+	mkdir -p build/reports
+	$(GO_TEST) --junitfile build/reports/unit-test.xml -- -race ./... -count=1 -short -cover -coverprofile build/reports/unit-test-coverage.out
 
 ##@ Release
 
