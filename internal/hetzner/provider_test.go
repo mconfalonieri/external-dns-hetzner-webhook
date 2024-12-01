@@ -478,7 +478,7 @@ func Test_Records(t *testing.T) {
 					{
 						DNSName:    "ftp.alpha.com",
 						RecordType: "CNAME",
-						Targets:    endpoint.Targets{"www"},
+						Targets:    endpoint.Targets{"www.alpha.com"},
 						Labels:     endpoint.Labels{},
 						RecordTTL:  -1,
 					},

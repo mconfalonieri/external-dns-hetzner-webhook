@@ -263,7 +263,7 @@ func Test_createEndpointFromRecord(t *testing.T) {
 				ID:    "id_0",
 				Name:  "@",
 				Type:  hdns.RecordTypeCNAME,
-				Value: "www.alpha.com",
+				Value: "www.alpha.com.",
 				Zone: &hdns.Zone{
 					ID:   "zoneIDBeta",
 					Name: "beta.com",
@@ -284,7 +284,7 @@ func Test_createEndpointFromRecord(t *testing.T) {
 				ID:    "id_1",
 				Name:  "ftp",
 				Type:  hdns.RecordTypeCNAME,
-				Value: "www.alpha.com",
+				Value: "www.alpha.com.",
 				Zone: &hdns.Zone{
 					ID:   "zoneIDBeta",
 					Name: "beta.com",
