@@ -127,17 +127,17 @@ sidecars:
       - containerPort: 8888
         name: webhook
       - containerPort: 8080
-        name: http
+        name: http-wh-metrics
     livenessProbe:
       httpGet:
         path: /health
-        port: http
+        port: http-wh-metrics
       initialDelaySeconds: 10
       timeoutSeconds: 5
     readinessProbe:
       httpGet:
         path: /ready
-        port: http
+        port: http-wh-metrics
       initialDelaySeconds: 10
       timeoutSeconds: 5
     env:
@@ -294,7 +294,7 @@ information.
 While tweaking the configuration, there are some points to take into
 consideration:
 
-- if `WEBHOOK_HOST` and `HEALTH_HOST` are set to the same address/hostname or
+- if `WEBHOOK_HOST` and `METRICS_HOST` are set to the same address/hostname or
   one of them is set to `0.0.0.0` remember to use different ports. Please note
   that it **highly recommendend** for `WEBHOOK_HOST` to be `localhost`, as
   any address reachable from outside the pod might be a **security issue**;
