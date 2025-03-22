@@ -1,6 +1,7 @@
 GO_TEST = go run gotest.tools/gotestsum --format pkgname
+GO_LICENSE = go run github.com/google/go-licenses/v2@latest
 
-LICENCES_IGNORE_LIST = $(shell cat licences/licences-ignore-list.txt)
+LICENSES_IGNORE_LIST = $(shell cat licenses/ignore-list.txt)
 
 ifndef $(GOPATH)
     GOPATH=$(shell go env GOPATH)
@@ -137,14 +138,11 @@ release-check: ## Check if the release will work
 
 .PHONY: license-check
 license-check: ## Run go-licenses check against code.
-	go install github.com/google/go-licenses
 	mkdir -p build/reports
-	echo "$(LICENCES_IGNORE_LIST)"
-	$(GOPATH)/bin/go-licenses check --include_tests --ignore "$(LICENCES_IGNORE_LIST)" ./...
+	$(GO_LICENSE) check --include_tests --ignore "$(LICENSES_IGNORE_LIST)" ./...
 
 .PHONY: license-report
 license-report: ## Create licenses report against code.
-	go install github.com/google/go-licenses
 	mkdir -p build/reports/licenses
-	$(GOPATH)/bin/go-licenses report --include_tests --ignore "$(LICENCES_IGNORE_LIST)" ./... >build/reports/licenses/licenses-list.csv
-	cat licences/licenses-manual-list.csv >> build/reports/licenses/licenses-list.csv
+	$(GO_LICENSE) report --include_tests --ignore "$(LICENSES_IGNORE_LIST)" ./... > build/reports/licenses/licenses-list.csv
+	cat licences/manual-list.csv >> build/reports/licenses/licenses-list.csv
