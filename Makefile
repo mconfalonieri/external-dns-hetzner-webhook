@@ -1,6 +1,18 @@
-GO_TEST = go run gotest.tools/gotestsum --format pkgname
-GO_LICENSE = go run github.com/google/go-licenses/v2@latest
+# Makefile
 
+# Tools
+GO_FUMPT = mvdan.cc/gofumpt
+GO_LINT = github.com/golangci/golangci-lint/cmd/golangci-lint
+GO_TEST = gotest.tools/gotestsum
+GO_LICENSE = github.com/google/go-licenses/v2@latest
+
+# Tool targets
+T_FUMPT = tools/$(subst /,_,$(GO_FUMPT))
+T_LINT = tools/$(subst /,_,$(GO_LINT))
+T_TEST = tools/$(subst /,_,$(GO_TEST))
+T_LICENSE = tools/$(subst /,_,$(GO_LICENSE))
+
+# Ignored list
 LICENSES_IGNORE_LIST = $(shell cat licenses/ignore-list.txt)
 
 ifndef $(GOPATH)
@@ -35,17 +47,17 @@ show: ## Show variables
 ##@ Code analysis
 
 .PHONY: fmt
-fmt: ## Run gofumpt against code.
-	go run mvdan.cc/gofumpt -w .
+fmt: $(T_FUMPT) ## Run gofumpt against code.
+	go run $(GO_FUMPT) -w .
 
 .PHONY: vet
 vet: ## Run go vet against code.
 	go vet ./...
 
 .PHONY: lint
-lint: ## Run golangci-lint against code.
+lint: $(T_LINT) ## Run golangci-lint against code.
 	mkdir -p build/reports
-	go run github.com/golangci/golangci-lint/cmd/golangci-lint run --timeout 2m
+	go run $(GO_LINT) run --timeout 2m
 
 .PHONY: static-analysis
 static-analysis: lint vet ## Run static analysis against code.
@@ -129,25 +141,46 @@ docker-multiarch-all: docker-build-multiarch docker-push-multiarch ## Build and 
 ##@ Test
 
 .PHONY: unit-test
-unit-test: ## Run unit tests
+unit-test: $(T_TEST) ## Run unit tests
 	mkdir -p build/reports
-	$(GO_TEST) --junitfile build/reports/unit-test.xml -- -race ./... -count=1 -short -cover -coverprofile build/reports/unit-test-coverage.out
+	go run $(GO_TEST) --format pkgname \
+	  --junitfile build/reports/unit-test.xml -- \
+	  -race ./... -count=1 -short -cover -coverprofile \
+	  build/reports/unit-test-coverage.out
 
 ##@ Release
 
 .PHONY: release-check
 release-check: ## Check if the release will work
-	GITHUB_SERVER_URL=github.com GITHUB_REPOSITORY=mconfalonieri/external-dns-hetzner-webhook REGISTRY=$(REGISTRY) IMAGE_NAME=$(IMAGE_NAME) goreleaser release --snapshot --clean --skip=publish
+	GITHUB_SERVER_URL=github.com \
+	GITHUB_REPOSITORY=mconfalonieri/external-dns-hetzner-webhook \
+	REGISTRY=$(REGISTRY) \
+	IMAGE_NAME=$(IMAGE_NAME) \
+	  goreleaser release --snapshot --clean --skip=publish
 
 ##@ License
 
 .PHONY: license-check
-license-check: ## Run go-licenses check against code.
+license-check: $(T_LICENSE) ## Run go-licenses check against code.
 	mkdir -p build/reports
-	$(GO_LICENSE) check --include_tests --ignore "$(LICENSES_IGNORE_LIST)" ./...
+	go run $(GO_LICENSE) check --include_tests --ignore "$(LICENSES_IGNORE_LIST)" ./...
 
 .PHONY: license-report
-license-report: ## Create licenses report against code.
+license-report: $(T_LICENSE) ## Create licenses report against code.
 	mkdir -p build/reports/licenses
-	$(GO_LICENSE) report --include_tests --ignore "$(LICENSES_IGNORE_LIST)" ./... > build/reports/licenses/licenses-list.csv
+	go run $(GO_LICENSE) report --include_tests --ignore "$(LICENSES_IGNORE_LIST)" ./... > build/reports/licenses/licenses-list.csv
 	cat licences/manual-list.csv >> build/reports/licenses/licenses-list.csv
+
+
+$(T_FUMPT):
+	go install $(GO_FUMPT) && touch $(T_FUMPT)
+
+$(T_LINT):
+	go install $(GO_LINT) && touch $(T_LINT)
+
+$(T_TEST):
+	go install $(GO_TEST) && touch $(T_TEST)
+
+$(T_LICENSE):
+	go install $(GO_LICENSE) && touch $(T_LICENSE)
+
