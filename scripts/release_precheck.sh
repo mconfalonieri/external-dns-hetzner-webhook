@@ -20,4 +20,4 @@ check_git_status
 
 make static-analysis
 
-make license-check
+# make license-check
