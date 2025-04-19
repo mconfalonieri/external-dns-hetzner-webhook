@@ -1,9 +1,9 @@
 # Makefile
 
 # Tools
-GO_FUMPT = mvdan.cc/gofumpt
-GO_LINT = github.com/golangci/golangci-lint/cmd/golangci-lint
-GO_TEST = gotest.tools/gotestsum
+GO_FUMPT = mvdan.cc/gofumpt@latest
+GO_LINT = github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+GO_TEST = gotest.tools/gotestsum@latest
 GO_LICENSE = github.com/google/go-licenses/v2@latest
 
 # Tool targets
@@ -171,16 +171,21 @@ license-report: $(T_LICENSE) ## Create licenses report against code.
 	go run $(GO_LICENSE) report --include_tests --ignore "$(LICENSES_IGNORE_LIST)" ./... > build/reports/licenses/licenses-list.csv
 	cat licences/manual-list.csv >> build/reports/licenses/licenses-list.csv
 
+# Extra targets used for tool control
 
-$(T_FUMPT):
+tools/info.txt:
+	mkdir -p tools
+	echo "Directory used for tool installation" > tools/info.txt
+
+$(T_FUMPT): tools/info.txt
 	go install $(GO_FUMPT) && touch $(T_FUMPT)
 
-$(T_LINT):
+$(T_LINT): tools/info.txt
 	go install $(GO_LINT) && touch $(T_LINT)
 
-$(T_TEST):
+$(T_TEST): tools/info.txt
 	go install $(GO_TEST) && touch $(T_TEST)
 
-$(T_LICENSE):
+$(T_LICENSE): tools/info.txt
 	go install $(GO_LICENSE) && touch $(T_LICENSE)
 

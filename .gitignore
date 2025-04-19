@@ -7,4 +7,4 @@ coverage.out
 reports/
 cosign.key
 dist/
-tools/*
+tools/
