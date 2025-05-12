@@ -75,13 +75,13 @@ provider:
     livenessProbe:
       httpGet:
         path: /health
-        port: http-wh-metrics
+        port: http-webhook
       initialDelaySeconds: 10
       timeoutSeconds: 5
     readinessProbe:
       httpGet:
         path: /ready
-        port: http-wh-metrics
+        port: http-webhook
       initialDelaySeconds: 10
       timeoutSeconds: 5
 
