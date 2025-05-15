@@ -224,7 +224,7 @@ Please notice that the following variables were **deprecated**:
 ### Domain filtering
 
 Additional environment variables for domain filtering. When used, this webhook
-will be able to work only on domains matching the filter.
+will be able to work only on domains (zones) matching the filter.
 
 | Environment variable           | Description                        |
 | ------------------------------ | ---------------------------------- |
