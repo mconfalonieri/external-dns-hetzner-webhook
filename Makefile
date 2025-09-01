@@ -6,12 +6,6 @@ GO_LINT = github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 GO_TEST = gotest.tools/gotestsum@latest
 GO_LICENSE = github.com/google/go-licenses/v2@latest
 
-# Tool targets
-T_FUMPT = tools/$(subst /,_,$(GO_FUMPT))
-T_LINT = tools/$(subst /,_,$(GO_LINT))
-T_TEST = tools/$(subst /,_,$(GO_TEST))
-T_LICENSE = tools/$(subst /,_,$(GO_LICENSE))
-
 # Ignored list
 LICENSES_IGNORE_LIST = $(shell cat licenses/ignore-list.txt)
 
@@ -47,7 +41,7 @@ show: ## Show variables
 ##@ Code analysis
 
 .PHONY: fmt
-fmt: $(T_FUMPT) ## Run gofumpt against code.
+fmt: ## Run gofumpt against code.
 	go run $(GO_FUMPT) -w .
 
 .PHONY: vet
@@ -55,7 +49,7 @@ vet: ## Run go vet against code.
 	go vet ./...
 
 .PHONY: lint
-lint: $(T_LINT) ## Run golangci-lint against code.
+lint: ## Run golangci-lint against code.
 	mkdir -p build/reports
 	go run $(GO_LINT) run --timeout 2m
 
@@ -141,7 +135,7 @@ docker-multiarch-all: docker-build-multiarch docker-push-multiarch ## Build and 
 ##@ Test
 
 .PHONY: unit-test
-unit-test: $(T_TEST) ## Run unit tests
+unit-test: ## Run unit tests
 	mkdir -p build/reports
 	go run $(GO_TEST) --format pkgname \
 	  --junitfile build/reports/unit-test.xml -- \
@@ -161,31 +155,12 @@ release-check: ## Check if the release will work
 ##@ License
 
 .PHONY: license-check
-license-check: $(T_LICENSE) ## Run go-licenses check against code.
+license-check: ## Run go-licenses check against code.
 	mkdir -p build/reports
 	go run $(GO_LICENSE) check --include_tests --ignore "$(LICENSES_IGNORE_LIST)" ./...
 
 .PHONY: license-report
-license-report: $(T_LICENSE) ## Create licenses report against code.
+license-report: ## Create licenses report against code.
 	mkdir -p build/reports/licenses
 	go run $(GO_LICENSE) report --include_tests --ignore "$(LICENSES_IGNORE_LIST)" ./... > build/reports/licenses/licenses-list.csv
 	cat licences/manual-list.csv >> build/reports/licenses/licenses-list.csv
-
-# Extra targets used for tool control
-
-tools/info.txt:
-	mkdir -p tools
-	echo "Directory used for tool installation" > tools/info.txt
-
-$(T_FUMPT): tools/info.txt
-	go install $(GO_FUMPT) && touch $(T_FUMPT)
-
-$(T_LINT): tools/info.txt
-	go install $(GO_LINT) && touch $(T_LINT)
-
-$(T_TEST): tools/info.txt
-	go install $(GO_TEST) && touch $(T_TEST)
-
-$(T_LICENSE): tools/info.txt
-	go install $(GO_LICENSE) && touch $(T_LICENSE)
-
