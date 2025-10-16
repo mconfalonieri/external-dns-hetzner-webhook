@@ -1,8 +1,5 @@
 # Makefile
 
-# Options
-WITH_CLOUD_API = true
-
 # Tools
 GO_FUMPT = mvdan.cc/gofumpt@latest
 GO_LINT = github.com/golangci/golangci-lint/cmd/golangci-lint@latest
@@ -58,6 +55,12 @@ lint: ## Run golangci-lint against code.
 
 .PHONY: static-analysis
 static-analysis: lint vet ## Run static analysis against code.
+
+##@ Code generation
+
+.PHONY: cloud-api
+cloud-api: ## Generate the cloud API
+	oapi-codegen --config=config/oapi-codegen.yaml ./api/cloud.spec.json
 
 ##@ GO
 
