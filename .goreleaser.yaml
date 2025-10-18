@@ -3,7 +3,6 @@ version: 2
 before:
   hooks:
     - scripts/release_precheck.sh
-
 builds:
   - main: ./cmd/webhook
     env:
@@ -33,59 +32,25 @@ archives:
     format_overrides:
       - goos: windows
         formats: [ 'zip' ]
-dockers:
-  - id: external-dns-hetzner-webhook-amd64
-    use: buildx
-    image_templates:
-      - "{{ .Env.REGISTRY }}/{{ .Env.IMAGE_NAME }}:{{ .Tag }}-amd64"
-    goos: linux
-    goarch: amd64
-    build_flag_templates:
-      - --platform=linux/amd64
-      - --label=org.opencontainers.image.title={{ .ProjectName }}
-      - --label=org.opencontainers.image.description=Hetzner DNS webhook for external-dns
-      - --label=org.opencontainers.image.url=https://{{ .Env.GITHUB_SERVER_URL }}/{{ .Env.GITHUB_REPOSITORY}}
-      - --label=org.opencontainers.image.source=https://{{ .Env.GITHUB_SERVER_URL }}/{{ .Env.GITHUB_REPOSITORY}}
-      - --label=org.opencontainers.image.version={{ .Version }}
-      - --label=org.opencontainers.image.created={{ time "2006-01-02T15:04:05Z07:00" }}
-      - --label=org.opencontainers.image.revision={{ .FullCommit }}
-      - --label=org.opencontainers.image.licenses=Apache-2.0
-  - id: external-dns-hetzner-webhook-arm64
-    use: buildx
-    image_templates:
-      - "{{ .Env.REGISTRY }}/{{ .Env.IMAGE_NAME }}:{{ .Tag }}-arm64"
-    goos: linux
-    goarch: arm64
-    build_flag_templates:
-      - --platform=linux/arm64/v8
-      - --label=org.opencontainers.image.title={{ .ProjectName }}
-      - --label=org.opencontainers.image.description=Hetzner DNS webhook for external-dns
-      - --label=org.opencontainers.image.url=https://{{ .Env.GITHUB_SERVER_URL }}/{{ .Env.GITHUB_REPOSITORY}}
-      - --label=org.opencontainers.image.source=https://{{ .Env.GITHUB_SERVER_URL }}/{{ .Env.GITHUB_REPOSITORY}}
-      - --label=org.opencontainers.image.version={{ .Version }}
-      - --label=org.opencontainers.image.created={{ time "2006-01-02T15:04:05Z07:00" }}
-      - --label=org.opencontainers.image.revision={{ .FullCommit }}
-      - --label=org.opencontainers.image.licenses=Apache-2.0
-docker_manifests:
-  - name_template: "{{ .Env.REGISTRY }}/{{ .Env.IMAGE_NAME }}:{{ .Tag }}"
-    image_templates:
-      - "{{ .Env.REGISTRY }}/{{ .Env.IMAGE_NAME }}:{{ .Tag }}-amd64"
-      - "{{ .Env.REGISTRY }}/{{ .Env.IMAGE_NAME }}:{{ .Tag }}-arm64"
-  - name_template: "{{ .Env.REGISTRY }}/{{ .Env.IMAGE_NAME }}:{{ .ShortCommit }}"
-    image_templates:
-      - "{{ .Env.REGISTRY }}/{{ .Env.IMAGE_NAME }}:{{ .Tag }}-amd64"
-      - "{{ .Env.REGISTRY }}/{{ .Env.IMAGE_NAME }}:{{ .Tag }}-arm64"
-  - name_template: "{{ .Env.REGISTRY }}/{{ .Env.IMAGE_NAME }}:latest"
-    image_templates:
-      - "{{ .Env.REGISTRY }}/{{ .Env.IMAGE_NAME }}:{{ .Tag }}-amd64"
-      - "{{ .Env.REGISTRY }}/{{ .Env.IMAGE_NAME }}:{{ .Tag }}-arm64"
+dockers_v2:
+  - images:
+    - "{{ .Env.REGISTRY }}/{{ .Env.IMAGE_NAME }}"
+    tags:
+      - "{{ .Tag }}"
+    labels:
+      "org.opencontainers.image.title": "{{ .ProjectName }}"
+      "org.opencontainers.image.description": "Hetzner DNS webhook for external-dns"
+      "org.opencontainers.image.url": "https://{{ .Env.GITHUB_SERVER_URL }}/{{ .Env.GITHUB_REPOSITORY}}"
+      "org.opencontainers.image.source": "https://{{ .Env.GITHUB_SERVER_URL }}/{{ .Env.GITHUB_REPOSITORY}}"
+      "org.opencontainers.image.version": "{{ .Version }}"
+      "org.opencontainers.image.created": "{{ time \"2006-01-02T15:04:05Z07:00\" }}"
+      "org.opencontainers.image.revision": "{{ .FullCommit }}"
+      "org.opencontainers.image.licenses": "Apache-2.0"
 checksum:
   disable: false
   name_template: "{{ .ProjectName }}_{{ .Version }}_checksums.txt"
-
 snapshot:
   version_template: "{{ incpatch .Version }}-next"
-
 changelog:
   use: github
   sort: asc
@@ -93,7 +58,3 @@ changelog:
     exclude:
       - "^docs:"
       - "^test:"
-# The lines beneath this are called `modelines`. See `:help modeline`
-# Feel free to remove those if you don't want/use them.
-# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
-# vim: set ts=2 sw=2 tw=0 fo=cnqoj
