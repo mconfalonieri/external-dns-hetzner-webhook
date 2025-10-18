@@ -1,5 +1,5 @@
 /*
- * Conversion utilities.
+ * HetznerDNS - Conversion utilities.
  *
  * Copyright 2023 Marco Confalonieri.
  *
@@ -85,7 +85,7 @@ func getPZoneArray(zones []*hdns.Zone) []model.Zone {
 
 // getDNSTtl converts the TTL value to a pointer.
 func getDNSTtl(ttl int) *int {
-	if ttl < 0 {
+	if ttl <= 0 {
 		return nil
 	}
 	libTTL := ttl
@@ -94,13 +94,17 @@ func getDNSTtl(ttl int) *int {
 
 // getRecord converts a library record to a common model record.
 func getRecord(record hdns.Record) model.Record {
-	z := getZone(*record.Zone)
+	var z *model.Zone = nil
+	if record.Zone != nil {
+		zone := getZone(*record.Zone)
+		z = &zone
+	}
 	return model.Record{
 		ID:       record.ID,
 		Name:     record.Name,
 		Created:  time.Time(record.Created),
 		Modified: time.Time(record.Modified),
-		Zone:     &z,
+		Zone:     z,
 		Type:     string(record.Type),
 		Value:    record.Value,
 		TTL:      record.Ttl,
