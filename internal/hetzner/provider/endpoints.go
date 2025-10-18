@@ -18,9 +18,10 @@
 package provider
 
 import (
-	"external-dns-hetzner-webhook/internal/hetzner/model"
 	"fmt"
 	"strings"
+
+	"external-dns-hetzner-webhook/internal/hetzner/model"
 
 	log "github.com/sirupsen/logrus"
 	"sigs.k8s.io/external-dns/endpoint"

@@ -18,8 +18,9 @@
 package dns
 
 import (
-	"external-dns-hetzner-webhook/internal/hetzner/model"
 	"time"
+
+	"external-dns-hetzner-webhook/internal/hetzner/model"
 
 	hdns "github.com/jobstoit/hetzner-dns-go/dns"
 	"github.com/jobstoit/hetzner-dns-go/dns/schema"

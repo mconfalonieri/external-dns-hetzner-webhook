@@ -19,8 +19,9 @@ package provider
 
 import (
 	"context"
-	"external-dns-hetzner-webhook/internal/hetzner/model"
 	"net/http"
+
+	"external-dns-hetzner-webhook/internal/hetzner/model"
 )
 
 // zonesResponse simulates a response that returns a list of zones.

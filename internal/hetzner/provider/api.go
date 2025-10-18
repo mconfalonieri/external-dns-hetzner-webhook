@@ -20,8 +20,9 @@ package provider
 
 import (
 	"context"
-	"external-dns-hetzner-webhook/internal/hetzner/model"
 	"net/http"
+
+	"external-dns-hetzner-webhook/internal/hetzner/model"
 )
 
 // apiClient is an abstraction of the REST API client.

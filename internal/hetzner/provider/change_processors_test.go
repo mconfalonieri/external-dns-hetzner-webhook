@@ -19,8 +19,9 @@
 package provider
 
 import (
-	"external-dns-hetzner-webhook/internal/hetzner/model"
 	"testing"
+
+	"external-dns-hetzner-webhook/internal/hetzner/model"
 
 	"github.com/stretchr/testify/assert"
 	"sigs.k8s.io/external-dns/endpoint"

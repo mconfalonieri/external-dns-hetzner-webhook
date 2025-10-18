@@ -20,8 +20,9 @@
 package provider
 
 import (
-	"external-dns-hetzner-webhook/internal/hetzner/model"
 	"strings"
+
+	"external-dns-hetzner-webhook/internal/hetzner/model"
 
 	"sigs.k8s.io/external-dns/endpoint"
 	"sigs.k8s.io/external-dns/provider"

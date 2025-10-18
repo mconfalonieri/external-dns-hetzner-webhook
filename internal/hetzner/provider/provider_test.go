@@ -20,9 +20,10 @@ package provider
 import (
 	"context"
 	"errors"
-	"external-dns-hetzner-webhook/internal/hetzner/model"
 	"net/http"
 	"testing"
+
+	"external-dns-hetzner-webhook/internal/hetzner/model"
 
 	"github.com/stretchr/testify/assert"
 

@@ -18,8 +18,9 @@
 package provider
 
 import (
-	"external-dns-hetzner-webhook/internal/hetzner/model"
 	"testing"
+
+	"external-dns-hetzner-webhook/internal/hetzner/model"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
