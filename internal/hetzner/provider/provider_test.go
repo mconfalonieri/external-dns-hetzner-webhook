@@ -20,7 +20,6 @@ package provider
 import (
 	"context"
 	"errors"
-	"net/http"
 	"testing"
 
 	"external-dns-hetzner-webhook/internal/hetzner/model"
@@ -102,7 +101,6 @@ func Test_Zones(t *testing.T) {
 								Name: "beta.com",
 							},
 						},
-						resp: &http.Response{},
 						pagination: &model.Pagination{
 							PageIdx:      1,
 							ItemsPerPage: 100,
@@ -152,7 +150,6 @@ func Test_Zones(t *testing.T) {
 								Name: "gamma.com",
 							},
 						},
-						resp: &http.Response{StatusCode: http.StatusOK},
 						pagination: &model.Pagination{
 							PageIdx:      1,
 							ItemsPerPage: 100,
@@ -336,7 +333,6 @@ func Test_Records(t *testing.T) {
 								Name: "alpha.com",
 							},
 						},
-						resp: &http.Response{StatusCode: http.StatusOK},
 						pagination: &model.Pagination{
 							PageIdx:      1,
 							ItemsPerPage: 100,
@@ -346,7 +342,6 @@ func Test_Records(t *testing.T) {
 					},
 					getRecords: recordsResponse{
 						records: []model.Record{},
-						resp:    &http.Response{StatusCode: http.StatusOK},
 						pagination: &model.Pagination{
 							PageIdx:      1,
 							ItemsPerPage: 100,
@@ -384,7 +379,6 @@ func Test_Records(t *testing.T) {
 								Name: "beta.com",
 							},
 						},
-						resp: &http.Response{StatusCode: http.StatusOK},
 						pagination: &model.Pagination{
 							PageIdx:      1,
 							ItemsPerPage: 100,
@@ -439,7 +433,6 @@ func Test_Records(t *testing.T) {
 								TTL:   -1,
 							},
 						},
-						resp: &http.Response{StatusCode: http.StatusOK},
 						pagination: &model.Pagination{
 							PageIdx:      1,
 							ItemsPerPage: 100,
@@ -523,7 +516,6 @@ func Test_Records(t *testing.T) {
 								Name: "alpha.com",
 							},
 						},
-						resp: &http.Response{StatusCode: http.StatusOK},
 						pagination: &model.Pagination{
 							PageIdx:      1,
 							ItemsPerPage: 100,
@@ -639,7 +631,6 @@ func Test_getRecordsByZoneID(t *testing.T) {
 								Name: "alpha.com",
 							},
 						},
-						resp: &http.Response{StatusCode: http.StatusOK},
 						pagination: &model.Pagination{
 							PageIdx:      1,
 							ItemsPerPage: 100,
@@ -649,7 +640,6 @@ func Test_getRecordsByZoneID(t *testing.T) {
 					},
 					getRecords: recordsResponse{
 						records: []model.Record{},
-						resp:    &http.Response{StatusCode: http.StatusOK},
 						pagination: &model.Pagination{
 							PageIdx:      1,
 							ItemsPerPage: 100,
@@ -687,7 +677,6 @@ func Test_getRecordsByZoneID(t *testing.T) {
 								Name: "beta.com",
 							},
 						},
-						resp: &http.Response{StatusCode: http.StatusOK},
 						pagination: &model.Pagination{
 							PageIdx:      1,
 							ItemsPerPage: 100,
@@ -742,7 +731,6 @@ func Test_getRecordsByZoneID(t *testing.T) {
 								TTL:   -1,
 							},
 						},
-						resp: &http.Response{StatusCode: http.StatusOK},
 						pagination: &model.Pagination{
 							PageIdx:      1,
 							ItemsPerPage: 100,
@@ -846,7 +834,6 @@ func Test_getRecordsByZoneID(t *testing.T) {
 								Name: "alpha.com",
 							},
 						},
-						resp: &http.Response{StatusCode: http.StatusOK},
 						pagination: &model.Pagination{
 							PageIdx:      1,
 							ItemsPerPage: 100,

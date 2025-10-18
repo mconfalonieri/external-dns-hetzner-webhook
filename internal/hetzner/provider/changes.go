@@ -70,7 +70,7 @@ func (c hetznerChanges) applyDeletes(ctx context.Context, dnsClient apiClient) e
 			continue
 		}
 		start := time.Now()
-		if _, err := dnsClient.DeleteRecord(ctx, e.ID); err != nil {
+		if err := dnsClient.DeleteRecord(ctx, e.ID); err != nil {
 			metrics.IncFailedApiCallsTotal(actDeleteRecord)
 			return err
 		}
@@ -95,7 +95,7 @@ func (c hetznerChanges) applyCreates(ctx context.Context, dnsClient apiClient) e
 			continue
 		}
 		start := time.Now()
-		if _, _, err := dnsClient.CreateRecord(ctx, model.Record(e)); err != nil {
+		if _, err := dnsClient.CreateRecord(ctx, model.Record(e)); err != nil {
 			metrics.IncFailedApiCallsTotal(actCreateRecord)
 			return err
 		}
@@ -120,7 +120,7 @@ func (c hetznerChanges) applyUpdates(ctx context.Context, dnsClient apiClient) e
 			continue
 		}
 		start := time.Now()
-		if _, _, err := dnsClient.UpdateRecord(ctx, e.ID, model.Record(e)); err != nil {
+		if _, err := dnsClient.UpdateRecord(ctx, e.ID, model.Record(e)); err != nil {
 			metrics.IncFailedApiCallsTotal(actUpdateRecord)
 			return err
 		}

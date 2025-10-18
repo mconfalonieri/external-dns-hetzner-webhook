@@ -20,7 +20,6 @@ package provider
 import (
 	"context"
 	"errors"
-	"net/http"
 	"testing"
 
 	"external-dns-hetzner-webhook/internal/hetzner/model"
@@ -98,7 +97,6 @@ func Test_fetchRecords(t *testing.T) {
 								TTL:   -1,
 							},
 						},
-						resp: &http.Response{StatusCode: http.StatusOK},
 						pagination: &model.Pagination{
 							PageIdx:      1,
 							LastPage:     1,
@@ -223,7 +221,6 @@ func Test_fetchZones(t *testing.T) {
 								Name: "beta.com",
 							},
 						},
-						resp: &http.Response{StatusCode: http.StatusOK},
 						pagination: &model.Pagination{
 							PageIdx:      1,
 							ItemsPerPage: 100,

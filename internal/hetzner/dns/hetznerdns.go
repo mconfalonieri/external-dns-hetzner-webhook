@@ -19,7 +19,6 @@ package dns
 
 import (
 	"context"
-	"net/http"
 
 	"external-dns-hetzner-webhook/internal/hetzner/model"
 
@@ -39,62 +38,40 @@ func NewHetznerDNS(apiKey string) *hetznerDNS {
 }
 
 // GetZones returns the available zones.
-func (h hetznerDNS) GetZones(
-	ctx context.Context,
-	opts model.ZoneListOpts,
-) (
-	[]model.Zone,
-	*http.Response,
-	*model.Pagination,
-	error,
-) {
+func (h hetznerDNS) GetZones(ctx context.Context, opts model.ZoneListOpts) ([]model.Zone, *model.Pagination, error) {
 	zoneClient := h.client.Zone
 	libOpts := getDNSZoneListOpts(opts)
 	libZones, libResponse, err := zoneClient.List(ctx, libOpts)
-	return getPZoneArray(libZones),
-		libResponse.Response,
-		getPaginationMeta(libResponse.Meta),
-		err
+	return getPZoneArray(libZones), getPaginationMeta(libResponse.Meta), err
 }
 
 // GetRecords returns the records for a given zone.
-func (h hetznerDNS) GetRecords(
-	ctx context.Context,
-	opts model.RecordListOpts,
-) (
-	[]model.Record,
-	*http.Response,
-	*model.Pagination,
-	error,
-) {
+func (h hetznerDNS) GetRecords(ctx context.Context, opts model.RecordListOpts) ([]model.Record, *model.Pagination, error) {
 	recordClient := h.client.Record
 	libOpts := getDNSRecordListOpts(opts)
 	libRecords, libResponse, err := recordClient.List(ctx, libOpts)
-	return getPRecordArray(libRecords),
-		libResponse.Response,
-		getPaginationMeta(libResponse.Meta),
-		err
+	return getPRecordArray(libRecords), getPaginationMeta(libResponse.Meta), err
 }
 
 // CreateRecord creates a record.
-func (h hetznerDNS) CreateRecord(ctx context.Context, record model.Record) (model.Record, *http.Response, error) {
+func (h hetznerDNS) CreateRecord(ctx context.Context, record model.Record) (model.Record, error) {
 	recordClient := h.client.Record
 	libOpts := getDNSRecordCreateOpts(record)
-	libRecord, libResponse, err := recordClient.Create(ctx, libOpts)
-	return getRecord(*libRecord), libResponse.Response, err
+	libRecord, _, err := recordClient.Create(ctx, libOpts)
+	return getRecord(*libRecord), err
 }
 
 // UpdateRecord updates a single record.
-func (h hetznerDNS) UpdateRecord(ctx context.Context, id string, record model.Record) (model.Record, *http.Response, error) {
+func (h hetznerDNS) UpdateRecord(ctx context.Context, id string, record model.Record) (model.Record, error) {
 	recordClient := h.client.Record
 	libOpts := getDNSRecordUpdateOpts(record)
-	libRecord, libResponse, err := recordClient.Update(ctx, &hdns.Record{ID: id}, libOpts)
-	return getRecord(*libRecord), libResponse.Response, err
+	libRecord, _, err := recordClient.Update(ctx, &hdns.Record{ID: id}, libOpts)
+	return getRecord(*libRecord), err
 }
 
 // DeleteRecord deletes a single record.
-func (h hetznerDNS) DeleteRecord(ctx context.Context, id string) (*http.Response, error) {
+func (h hetznerDNS) DeleteRecord(ctx context.Context, id string) error {
 	recordClient := h.client.Record
-	libResponse, err := recordClient.Delete(ctx, &hdns.Record{ID: id})
-	return libResponse.Response, err
+	_, err := recordClient.Delete(ctx, &hdns.Record{ID: id})
+	return err
 }

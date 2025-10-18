@@ -19,7 +19,6 @@ package provider
 
 import (
 	"context"
-	"net/http"
 
 	"external-dns-hetzner-webhook/internal/hetzner/model"
 )
@@ -27,7 +26,6 @@ import (
 // zonesResponse simulates a response that returns a list of zones.
 type zonesResponse struct {
 	zones      []model.Zone
-	resp       *http.Response
 	pagination *model.Pagination
 	err        error
 }
@@ -35,7 +33,6 @@ type zonesResponse struct {
 // recordsResponse simulates a response that returns a list of records.
 type recordsResponse struct {
 	records    []model.Record
-	resp       *http.Response
 	pagination *model.Pagination
 	err        error
 }
@@ -43,14 +40,12 @@ type recordsResponse struct {
 // recordResponse simulates a response that returns a single record.
 type recordResponse struct {
 	record model.Record
-	resp   *http.Response
 	err    error
 }
 
 // deleteResponse simulates a response to a record deletion request.
 type deleteResponse struct {
-	resp *http.Response
-	err  error
+	err error
 }
 
 // mockClientState keeps track of which methods were called.
@@ -84,13 +79,12 @@ func (m *mockClient) GetZones(
 	opts model.ZoneListOpts,
 ) (
 	[]model.Zone,
-	*http.Response,
 	*model.Pagination,
 	error,
 ) {
 	r := m.getZones
 	m.state.GetZonesCalled = true
-	return r.zones, r.resp, r.pagination, r.err
+	return r.zones, r.pagination, r.err
 }
 
 // filterRecordsByZone filters the records, returning only those for the selected zone.
@@ -110,7 +104,6 @@ func (m *mockClient) GetRecords(
 	opts model.RecordListOpts,
 ) (
 	[]model.Record,
-	*http.Response,
 	*model.Pagination,
 	error,
 ) {
@@ -123,26 +116,26 @@ func (m *mockClient) GetRecords(
 	} else {
 		records = r.records
 	}
-	return records, r.resp, r.pagination, r.err
+	return records, r.pagination, r.err
 }
 
 // CreateRecord simulates a request to create a DNS record.
-func (m *mockClient) CreateRecord(ctx context.Context, opts model.Record) (model.Record, *http.Response, error) {
+func (m *mockClient) CreateRecord(ctx context.Context, opts model.Record) (model.Record, error) {
 	r := m.createRecord
 	m.state.CreateRecordCalled = true
-	return r.record, r.resp, r.err
+	return r.record, r.err
 }
 
 // UpdateRecord simulates a request to update a DNS record.
-func (m *mockClient) UpdateRecord(ctx context.Context, id string, opts model.Record) (model.Record, *http.Response, error) {
+func (m *mockClient) UpdateRecord(ctx context.Context, id string, opts model.Record) (model.Record, error) {
 	r := m.updateRecord
 	m.state.UpdateRecordCalled = true
-	return r.record, r.resp, r.err
+	return r.record, r.err
 }
 
 // DeleteRecord simulates a request to delete a DNS record.
-func (m *mockClient) DeleteRecord(ctx context.Context, id string) (*http.Response, error) {
+func (m *mockClient) DeleteRecord(ctx context.Context, id string) error {
 	r := m.deleteRecord
 	m.state.DeleteRecordCalled = true
-	return r.resp, r.err
+	return r.err
 }

@@ -20,7 +20,6 @@ package provider
 
 import (
 	"context"
-	"net/http"
 
 	"external-dns-hetzner-webhook/internal/hetzner/model"
 )
@@ -28,29 +27,13 @@ import (
 // apiClient is an abstraction of the REST API client.
 type apiClient interface {
 	// GetZones returns the available zones.
-	GetZones(
-		ctx context.Context,
-		opts model.ZoneListOpts,
-	) (
-		[]model.Zone,
-		*http.Response,
-		*model.Pagination,
-		error,
-	)
+	GetZones(ctx context.Context, opts model.ZoneListOpts) ([]model.Zone, *model.Pagination, error)
 	// GetRecords returns the records for a given zone.
-	GetRecords(
-		ctx context.Context,
-		opts model.RecordListOpts,
-	) (
-		[]model.Record,
-		*http.Response,
-		*model.Pagination,
-		error,
-	)
+	GetRecords(ctx context.Context, opts model.RecordListOpts) ([]model.Record, *model.Pagination, error)
 	// CreateRecord creates a record.
-	CreateRecord(ctx context.Context, record model.Record) (model.Record, *http.Response, error)
+	CreateRecord(ctx context.Context, record model.Record) (model.Record, error)
 	// UpdateRecord updates a single record.
-	UpdateRecord(ctx context.Context, id string, record model.Record) (model.Record, *http.Response, error)
+	UpdateRecord(ctx context.Context, id string, record model.Record) (model.Record, error)
 	// DeleteRecord deletes a single record.
-	DeleteRecord(ctx context.Context, id string) (*http.Response, error)
+	DeleteRecord(ctx context.Context, id string) error
 }

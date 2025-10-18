@@ -33,6 +33,12 @@ const (
 	actDeleteRecord = "delete_record"
 )
 
+// hasMoreResults returns true if there are more results according to
+// pagination and false otherwise.
+func hasMoreResults(pagination *model.Pagination) bool {
+	return pagination != nil && pagination.PageIdx < pagination.LastPage
+}
+
 // fetchRecords fetches all records for a given zoneID.
 func fetchRecords(ctx context.Context, zoneID string, dnsClient apiClient, batchSize int) ([]model.Record, error) {
 	metrics := metrics.GetOpenMetricsInstance()
@@ -43,7 +49,7 @@ func fetchRecords(ctx context.Context, zoneID string, dnsClient apiClient, batch
 	}
 	for {
 		start := time.Now()
-		pagedRecords, resp, pagination, err := dnsClient.GetRecords(ctx, listOpts)
+		pagedRecords, pagination, err := dnsClient.GetRecords(ctx, listOpts)
 		if err != nil {
 			metrics.IncFailedApiCallsTotal(actGetRecords)
 			return nil, err
@@ -53,7 +59,7 @@ func fetchRecords(ctx context.Context, zoneID string, dnsClient apiClient, batch
 		metrics.AddApiDelayHist(actGetRecords, delay.Milliseconds())
 		records = append(records, pagedRecords...)
 
-		if resp == nil || pagination == nil || pagination.LastPage <= pagination.PageIdx {
+		if !hasMoreResults(pagination) {
 			break
 		}
 
@@ -73,7 +79,7 @@ func fetchZones(ctx context.Context, dnsClient apiClient, batchSize int) ([]mode
 
 	for {
 		start := time.Now()
-		pagedZones, resp, pagination, err := dnsClient.GetZones(ctx, *listOpts)
+		pagedZones, pagination, err := dnsClient.GetZones(ctx, *listOpts)
 		if err != nil {
 			metrics.IncFailedApiCallsTotal(actGetZones)
 			return nil, err
@@ -83,7 +89,7 @@ func fetchZones(ctx context.Context, dnsClient apiClient, batchSize int) ([]mode
 		metrics.AddApiDelayHist(actGetZones, delay.Milliseconds())
 		zones = append(zones, pagedZones...)
 
-		if resp == nil || pagination == nil || pagination.LastPage <= pagination.PageIdx {
+		if pagination == nil || pagination.LastPage <= pagination.PageIdx {
 			break
 		}
 
