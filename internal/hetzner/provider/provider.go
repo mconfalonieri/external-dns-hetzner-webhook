@@ -19,18 +19,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package hetzner
+package provider
 
 import (
 	"context"
 
+	"external-dns-hetzner-webhook/internal/hetzner/dns"
+	"external-dns-hetzner-webhook/internal/hetzner/model"
 	"external-dns-hetzner-webhook/internal/metrics"
 
 	"sigs.k8s.io/external-dns/endpoint"
 	"sigs.k8s.io/external-dns/plan"
 	"sigs.k8s.io/external-dns/provider"
 
-	hdns "github.com/jobstoit/hetzner-dns-go/dns"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -58,7 +59,7 @@ func NewHetznerProvider(config *Configuration) (*HetznerProvider, error) {
 	log.SetLevel(logLevel)
 
 	return &HetznerProvider{
-		client:       NewHetznerDNS(config.APIKey),
+		client:       dns.NewHetznerDNS(config.APIKey),
 		batchSize:    config.BatchSize,
 		debug:        config.Debug,
 		dryRun:       config.DryRun,
@@ -69,9 +70,9 @@ func NewHetznerProvider(config *Configuration) (*HetznerProvider, error) {
 
 // Zones returns the list of the hosted DNS zones.
 // If a domain filter is set, it only returns the zones that match it.
-func (p *HetznerProvider) Zones(ctx context.Context) ([]hdns.Zone, error) {
+func (p *HetznerProvider) Zones(ctx context.Context) ([]model.Zone, error) {
 	metrics := metrics.GetOpenMetricsInstance()
-	result := []hdns.Zone{}
+	result := []model.Zone{}
 
 	zones, err := fetchZones(ctx, p.client, p.batchSize)
 	if err != nil {
@@ -165,7 +166,7 @@ func (p *HetznerProvider) Records(ctx context.Context) ([]*endpoint.Endpoint, er
 
 // ensureZoneIDMappingPresent prepares the zoneIDNameMapper, that associates
 // each ZoneID woth the zone name.
-func (p *HetznerProvider) ensureZoneIDMappingPresent(zones []hdns.Zone) {
+func (p *HetznerProvider) ensureZoneIDMappingPresent(zones []model.Zone) {
 	zoneIDNameMapper := provider.ZoneIDName{}
 	for _, z := range zones {
 		zoneIDNameMapper.Add(z.ID, z.Name)
@@ -175,8 +176,8 @@ func (p *HetznerProvider) ensureZoneIDMappingPresent(zones []hdns.Zone) {
 
 // getRecordsByZoneID returns a map that associates each ZoneID with the
 // records contained in that zone.
-func (p *HetznerProvider) getRecordsByZoneID(ctx context.Context) (map[string][]hdns.Record, error) {
-	recordsByZoneID := map[string][]hdns.Record{}
+func (p *HetznerProvider) getRecordsByZoneID(ctx context.Context) (map[string][]model.Record, error) {
+	recordsByZoneID := map[string][]model.Record{}
 
 	zones, err := p.Zones(ctx)
 	if err != nil {
@@ -190,7 +191,7 @@ func (p *HetznerProvider) getRecordsByZoneID(ctx context.Context) (map[string][]
 			return nil, err
 		}
 		// Add full zone information
-		zonedRecords := []hdns.Record{}
+		zonedRecords := []model.Record{}
 		for _, r := range records {
 			r.Zone = &zone
 			zonedRecords = append(zonedRecords, r)

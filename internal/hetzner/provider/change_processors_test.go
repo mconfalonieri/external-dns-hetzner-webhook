@@ -16,21 +16,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package hetzner
+package provider
 
 import (
+	"external-dns-hetzner-webhook/internal/hetzner/model"
 	"testing"
 
-	hdns "github.com/jobstoit/hetzner-dns-go/dns"
 	"github.com/stretchr/testify/assert"
 	"sigs.k8s.io/external-dns/endpoint"
 	"sigs.k8s.io/external-dns/provider"
 )
 
-var testZoneIDMapper = provider.ZoneIDName{
-	"zoneIDAlpha": "alpha.com",
-	"zoneIDBeta":  "beta.com",
-}
+var (
+	testTTL          = 7200
+	testZoneIDMapper = provider.ZoneIDName{
+		"zoneIDAlpha": "alpha.com",
+		"zoneIDBeta":  "beta.com",
+	}
+)
 
 func assertEqualChanges(t *testing.T, expected, actual hetznerChanges) {
 	assert.Equal(t, expected.dryRun, actual.dryRun)
@@ -117,7 +120,7 @@ func Test_processCreateActionsByZone(t *testing.T) {
 		input struct {
 			zoneID    string
 			zoneName  string
-			records   []hdns.Record
+			records   []model.Record
 			endpoints []*endpoint.Endpoint
 		}
 		expectedChanges hetznerChanges
@@ -137,17 +140,17 @@ func Test_processCreateActionsByZone(t *testing.T) {
 			input: struct {
 				zoneID    string
 				zoneName  string
-				records   []hdns.Record
+				records   []model.Record
 				endpoints []*endpoint.Endpoint
 			}{
 				zoneID:   "zoneIDAlpha",
 				zoneName: "alpha.com",
-				records: []hdns.Record{
+				records: []model.Record{
 					{
 						Type:  "A",
 						Name:  "www",
 						Value: "127.0.0.1",
-						Ttl:   7200,
+						TTL:   7200,
 					},
 				},
 				endpoints: []*endpoint.Endpoint{
@@ -160,18 +163,15 @@ func Test_processCreateActionsByZone(t *testing.T) {
 				},
 			},
 			expectedChanges: hetznerChanges{
-				creates: []*hetznerChangeCreate{
+				creates: []hetznerChangeCreate{
 					{
-						ZoneID: "zoneIDAlpha",
-						Options: &hdns.RecordCreateOpts{
-							Name:  "www",
-							Ttl:   &testTTL,
-							Type:  "A",
-							Value: "127.0.0.1",
-							Zone: &hdns.Zone{
-								ID:   "zoneIDAlpha",
-								Name: "alpha.com",
-							},
+						Name:  "www",
+						TTL:   7200,
+						Type:  "A",
+						Value: "127.0.0.1",
+						Zone: &model.Zone{
+							ID:   "zoneIDAlpha",
+							Name: "alpha.com",
 						},
 					},
 				},
@@ -182,17 +182,17 @@ func Test_processCreateActionsByZone(t *testing.T) {
 			input: struct {
 				zoneID    string
 				zoneName  string
-				records   []hdns.Record
+				records   []model.Record
 				endpoints []*endpoint.Endpoint
 			}{
 				zoneID:   "zoneIDAlpha",
 				zoneName: "alpha.com",
-				records: []hdns.Record{
+				records: []model.Record{
 					{
 						Type:  "A",
 						Name:  "ftp",
 						Value: "127.0.0.1",
-						Ttl:   7200,
+						TTL:   7200,
 					},
 				},
 				endpoints: []*endpoint.Endpoint{
@@ -205,18 +205,15 @@ func Test_processCreateActionsByZone(t *testing.T) {
 				},
 			},
 			expectedChanges: hetznerChanges{
-				creates: []*hetznerChangeCreate{
+				creates: []hetznerChangeCreate{
 					{
-						ZoneID: "zoneIDAlpha",
-						Options: &hdns.RecordCreateOpts{
-							Name:  "www",
-							Ttl:   &testTTL,
-							Type:  "A",
-							Value: "127.0.0.1",
-							Zone: &hdns.Zone{
-								ID:   "zoneIDAlpha",
-								Name: "alpha.com",
-							},
+						Name:  "www",
+						TTL:   7200,
+						Type:  "A",
+						Value: "127.0.0.1",
+						Zone: &model.Zone{
+							ID:   "zoneIDAlpha",
+							Name: "alpha.com",
 						},
 					},
 				},
@@ -237,7 +234,7 @@ func Test_processCreateActions(t *testing.T) {
 		name  string
 		input struct {
 			zoneIDNameMapper provider.ZoneIDName
-			recordsByZoneID  map[string][]hdns.Record
+			recordsByZoneID  map[string][]model.Record
 			createsByZoneID  map[string][]*endpoint.Endpoint
 		}
 		expectedChanges hetznerChanges
@@ -256,13 +253,13 @@ func Test_processCreateActions(t *testing.T) {
 			name: "empty changeset",
 			input: struct {
 				zoneIDNameMapper provider.ZoneIDName
-				recordsByZoneID  map[string][]hdns.Record
+				recordsByZoneID  map[string][]model.Record
 				createsByZoneID  map[string][]*endpoint.Endpoint
 			}{
 				zoneIDNameMapper: testZoneIDMapper,
-				recordsByZoneID: map[string][]hdns.Record{
+				recordsByZoneID: map[string][]model.Record{
 					"zoneIDAlpha": {
-						hdns.Record{
+						model.Record{
 							Type:  "A",
 							Name:  "www",
 							Value: "127.0.0.1",
@@ -276,13 +273,13 @@ func Test_processCreateActions(t *testing.T) {
 			name: "empty changeset with key present",
 			input: struct {
 				zoneIDNameMapper provider.ZoneIDName
-				recordsByZoneID  map[string][]hdns.Record
+				recordsByZoneID  map[string][]model.Record
 				createsByZoneID  map[string][]*endpoint.Endpoint
 			}{
 				zoneIDNameMapper: testZoneIDMapper,
-				recordsByZoneID: map[string][]hdns.Record{
+				recordsByZoneID: map[string][]model.Record{
 					"zoneIDAlpha": {
-						hdns.Record{
+						model.Record{
 							Type:  "A",
 							Name:  "www",
 							Value: "127.0.0.1",
@@ -298,17 +295,17 @@ func Test_processCreateActions(t *testing.T) {
 			name: "record already created",
 			input: struct {
 				zoneIDNameMapper provider.ZoneIDName
-				recordsByZoneID  map[string][]hdns.Record
+				recordsByZoneID  map[string][]model.Record
 				createsByZoneID  map[string][]*endpoint.Endpoint
 			}{
 				zoneIDNameMapper: testZoneIDMapper,
-				recordsByZoneID: map[string][]hdns.Record{
+				recordsByZoneID: map[string][]model.Record{
 					"zoneIDAlpha": {
-						hdns.Record{
+						model.Record{
 							Type:  "A",
 							Name:  "www",
 							Value: "127.0.0.1",
-							Ttl:   7200,
+							TTL:   7200,
 						},
 					},
 				},
@@ -324,18 +321,15 @@ func Test_processCreateActions(t *testing.T) {
 				},
 			},
 			expectedChanges: hetznerChanges{
-				creates: []*hetznerChangeCreate{
+				creates: []hetznerChangeCreate{
 					{
-						ZoneID: "zoneIDAlpha",
-						Options: &hdns.RecordCreateOpts{
-							Name:  "www",
-							Ttl:   &testTTL,
-							Type:  "A",
-							Value: "127.0.0.1",
-							Zone: &hdns.Zone{
-								ID:   "zoneIDAlpha",
-								Name: "alpha.com",
-							},
+						Name:  "www",
+						TTL:   7200,
+						Type:  "A",
+						Value: "127.0.0.1",
+						Zone: &model.Zone{
+							ID:   "zoneIDAlpha",
+							Name: "alpha.com",
 						},
 					},
 				},
@@ -345,17 +339,17 @@ func Test_processCreateActions(t *testing.T) {
 			name: "new record created",
 			input: struct {
 				zoneIDNameMapper provider.ZoneIDName
-				recordsByZoneID  map[string][]hdns.Record
+				recordsByZoneID  map[string][]model.Record
 				createsByZoneID  map[string][]*endpoint.Endpoint
 			}{
 				zoneIDNameMapper: testZoneIDMapper,
-				recordsByZoneID: map[string][]hdns.Record{
+				recordsByZoneID: map[string][]model.Record{
 					"zoneIDAlpha": {
-						hdns.Record{
+						model.Record{
 							Type:  "A",
 							Name:  "ftp",
 							Value: "127.0.0.1",
-							Ttl:   7200,
+							TTL:   7200,
 						},
 					},
 				},
@@ -371,18 +365,15 @@ func Test_processCreateActions(t *testing.T) {
 				},
 			},
 			expectedChanges: hetznerChanges{
-				creates: []*hetznerChangeCreate{
+				creates: []hetznerChangeCreate{
 					{
-						ZoneID: "zoneIDAlpha",
-						Options: &hdns.RecordCreateOpts{
-							Name:  "www",
-							Ttl:   &testTTL,
-							Type:  "A",
-							Value: "127.0.0.1",
-							Zone: &hdns.Zone{
-								ID:   "zoneIDAlpha",
-								Name: "alpha.com",
-							},
+						Name:  "www",
+						TTL:   7200,
+						Type:  "A",
+						Value: "127.0.0.1",
+						Zone: &model.Zone{
+							ID:   "zoneIDAlpha",
+							Name: "alpha.com",
 						},
 					},
 				},
@@ -404,7 +395,7 @@ func Test_processUpdateEndpoint(t *testing.T) {
 		input struct {
 			zoneID                  string
 			zoneName                string
-			matchingRecordsByTarget map[string]hdns.Record
+			matchingRecordsByTarget map[string]model.Record
 			ep                      *endpoint.Endpoint
 		}
 		expectedChanges hetznerChanges
@@ -424,22 +415,22 @@ func Test_processUpdateEndpoint(t *testing.T) {
 			input: struct {
 				zoneID                  string
 				zoneName                string
-				matchingRecordsByTarget map[string]hdns.Record
+				matchingRecordsByTarget map[string]model.Record
 				ep                      *endpoint.Endpoint
 			}{
 				zoneID:   "zoneIDAlpha",
 				zoneName: "alpha.com",
-				matchingRecordsByTarget: map[string]hdns.Record{
+				matchingRecordsByTarget: map[string]model.Record{
 					"1.1.1.1": {
 						ID:   "id_1",
-						Type: hdns.RecordTypeA,
+						Type: "A",
 						Name: "www",
-						Zone: &hdns.Zone{
+						Zone: &model.Zone{
 							ID:   "zoneIDAlpha",
 							Name: "alpha.com",
 						},
 						Value: "1.1.1.1",
-						Ttl:   -1,
+						TTL:   7200,
 					},
 				},
 				ep: &endpoint.Endpoint{
@@ -450,30 +441,17 @@ func Test_processUpdateEndpoint(t *testing.T) {
 				},
 			},
 			expectedChanges: hetznerChanges{
-				updates: []*hetznerChangeUpdate{
+				updates: []hetznerChangeUpdate{
 					{
-						ZoneID: "zoneIDAlpha",
-						Record: hdns.Record{
-							ID:   "id_1",
-							Type: hdns.RecordTypeA,
-							Name: "www",
-							Zone: &hdns.Zone{
-								ID:   "zoneIDAlpha",
-								Name: "alpha.com",
-							},
-							Value: "1.1.1.1",
-							Ttl:   -1,
+						ID:   "id_1",
+						Name: "ftp",
+						Type: "A",
+						Zone: &model.Zone{
+							ID:   "zoneIDAlpha",
+							Name: "alpha.com",
 						},
-						Options: &hdns.RecordUpdateOpts{
-							Name: "ftp",
-							Type: hdns.RecordTypeA,
-							Zone: &hdns.Zone{
-								ID:   "zoneIDAlpha",
-								Name: "alpha.com",
-							},
-							Ttl:   nil,
-							Value: "1.1.1.1",
-						},
+						TTL:   -1,
+						Value: "1.1.1.1",
 					},
 				},
 			},
@@ -483,22 +461,22 @@ func Test_processUpdateEndpoint(t *testing.T) {
 			input: struct {
 				zoneID                  string
 				zoneName                string
-				matchingRecordsByTarget map[string]hdns.Record
+				matchingRecordsByTarget map[string]model.Record
 				ep                      *endpoint.Endpoint
 			}{
 				zoneID:   "zoneIDAlpha",
 				zoneName: "alpha.com",
-				matchingRecordsByTarget: map[string]hdns.Record{
+				matchingRecordsByTarget: map[string]model.Record{
 					"1.1.1.1": {
 						ID:   "id_1",
-						Type: hdns.RecordTypeA,
+						Type: "A",
 						Name: "www",
-						Zone: &hdns.Zone{
+						Zone: &model.Zone{
 							ID:   "zoneIDAlpha",
 							Name: "alpha.com",
 						},
 						Value: "1.1.1.1",
-						Ttl:   -1,
+						TTL:   -1,
 					},
 				},
 				ep: &endpoint.Endpoint{
@@ -509,30 +487,17 @@ func Test_processUpdateEndpoint(t *testing.T) {
 				},
 			},
 			expectedChanges: hetznerChanges{
-				updates: []*hetznerChangeUpdate{
+				updates: []hetznerChangeUpdate{
 					{
-						ZoneID: "zoneIDAlpha",
-						Record: hdns.Record{
-							ID:   "id_1",
-							Type: hdns.RecordTypeA,
-							Name: "www",
-							Zone: &hdns.Zone{
-								ID:   "zoneIDAlpha",
-								Name: "alpha.com",
-							},
-							Value: "1.1.1.1",
-							Ttl:   -1,
+						ID:   "id_1",
+						Name: "ftp",
+						Type: "A",
+						Zone: &model.Zone{
+							ID:   "zoneIDAlpha",
+							Name: "alpha.com",
 						},
-						Options: &hdns.RecordUpdateOpts{
-							Name: "ftp",
-							Type: hdns.RecordTypeA,
-							Zone: &hdns.Zone{
-								ID:   "zoneIDAlpha",
-								Name: "alpha.com",
-							},
-							Ttl:   &testTTL,
-							Value: "1.1.1.1",
-						},
+						TTL:   7200,
+						Value: "1.1.1.1",
 					},
 				},
 			},
@@ -542,22 +507,22 @@ func Test_processUpdateEndpoint(t *testing.T) {
 			input: struct {
 				zoneID                  string
 				zoneName                string
-				matchingRecordsByTarget map[string]hdns.Record
+				matchingRecordsByTarget map[string]model.Record
 				ep                      *endpoint.Endpoint
 			}{
 				zoneID:   "zoneIDAlpha",
 				zoneName: "alpha.com",
-				matchingRecordsByTarget: map[string]hdns.Record{
+				matchingRecordsByTarget: map[string]model.Record{
 					"1.1.1.1": {
 						ID:   "id_1",
 						Name: "www",
-						Type: hdns.RecordTypeA,
-						Zone: &hdns.Zone{
+						Type: "A",
+						Zone: &model.Zone{
 							ID:   "zoneIDAlpha",
 							Name: "alpha.com",
 						},
 						Value: "1.1.1.1",
-						Ttl:   -1,
+						TTL:   -1,
 					},
 				},
 				ep: &endpoint.Endpoint{
@@ -568,18 +533,15 @@ func Test_processUpdateEndpoint(t *testing.T) {
 				},
 			},
 			expectedChanges: hetznerChanges{
-				creates: []*hetznerChangeCreate{
+				creates: []hetznerChangeCreate{
 					{
-						ZoneID: "zoneIDAlpha",
-						Options: &hdns.RecordCreateOpts{
-							Name:  "www",
-							Ttl:   nil,
-							Type:  hdns.RecordTypeA,
-							Value: "2.2.2.2",
-							Zone: &hdns.Zone{
-								ID:   "zoneIDAlpha",
-								Name: "alpha.com",
-							},
+						Name:  "www",
+						TTL:   -1,
+						Type:  "A",
+						Value: "2.2.2.2",
+						Zone: &model.Zone{
+							ID:   "zoneIDAlpha",
+							Name: "alpha.com",
 						},
 					},
 				},
@@ -600,7 +562,7 @@ func Test_cleanupRemainingTargets(t *testing.T) {
 		name  string
 		input struct {
 			zoneID                  string
-			matchingRecordsByTarget map[string]hdns.Record
+			matchingRecordsByTarget map[string]model.Record
 		}
 		expectedChanges hetznerChanges
 	}
@@ -618,48 +580,45 @@ func Test_cleanupRemainingTargets(t *testing.T) {
 			name: "no deletes",
 			input: struct {
 				zoneID                  string
-				matchingRecordsByTarget map[string]hdns.Record
+				matchingRecordsByTarget map[string]model.Record
 			}{
 				zoneID:                  "zoneIDAlpha",
-				matchingRecordsByTarget: map[string]hdns.Record{},
+				matchingRecordsByTarget: map[string]model.Record{},
 			},
 		},
 		{
 			name: "delete",
 			input: struct {
 				zoneID                  string
-				matchingRecordsByTarget map[string]hdns.Record
+				matchingRecordsByTarget map[string]model.Record
 			}{
 				zoneID: "zoneIDAlpha",
-				matchingRecordsByTarget: map[string]hdns.Record{
+				matchingRecordsByTarget: map[string]model.Record{
 					"1.1.1.1": {
 						ID:   "id_1",
 						Name: "www",
-						Type: hdns.RecordTypeA,
-						Zone: &hdns.Zone{
+						Type: "A",
+						Zone: &model.Zone{
 							ID:   "zoneIDAlpha",
 							Name: "alpha.com",
 						},
 						Value: "1.1.1.1",
-						Ttl:   -1,
+						TTL:   -1,
 					},
 				},
 			},
 			expectedChanges: hetznerChanges{
-				deletes: []*hetznerChangeDelete{
+				deletes: []hetznerChangeDelete{
 					{
-						ZoneID: "zoneIDAlpha",
-						Record: hdns.Record{
-							ID:   "id_1",
-							Name: "www",
-							Type: hdns.RecordTypeA,
-							Zone: &hdns.Zone{
-								ID:   "zoneIDAlpha",
-								Name: "alpha.com",
-							},
-							Value: "1.1.1.1",
-							Ttl:   -1,
+						ID:   "id_1",
+						Name: "www",
+						Type: "A",
+						Zone: &model.Zone{
+							ID:   "zoneIDAlpha",
+							Name: "alpha.com",
 						},
+						Value: "1.1.1.1",
+						TTL:   -1,
 					},
 				},
 			},
@@ -677,8 +636,8 @@ func Test_cleanupRemainingTargets(t *testing.T) {
 func Test_getMatchingRecordsByTarget(t *testing.T) {
 	type testCase struct {
 		name     string
-		input    []hdns.Record
-		expected map[string]hdns.Record
+		input    []model.Record
+		expected map[string]model.Record
 	}
 
 	run := func(t *testing.T, tc testCase) {
@@ -689,57 +648,57 @@ func Test_getMatchingRecordsByTarget(t *testing.T) {
 	testCases := []testCase{
 		{
 			name:     "empty array",
-			input:    []hdns.Record{},
-			expected: map[string]hdns.Record{},
+			input:    []model.Record{},
+			expected: map[string]model.Record{},
 		},
 		{
 			name: "some values",
-			input: []hdns.Record{
+			input: []model.Record{
 				{
 					ID:   "id_1",
 					Name: "www",
-					Type: hdns.RecordTypeA,
-					Zone: &hdns.Zone{
+					Type: "A",
+					Zone: &model.Zone{
 						ID:   "zoneIDAlpha",
 						Name: "alpha.com",
 					},
 					Value: "1.1.1.1",
-					Ttl:   -1,
+					TTL:   -1,
 				},
 				{
 					ID:   "id_2",
 					Name: "ftp",
-					Type: hdns.RecordTypeA,
-					Zone: &hdns.Zone{
+					Type: "A",
+					Zone: &model.Zone{
 						ID:   "zoneIDAlpha",
 						Name: "alpha.com",
 					},
 					Value: "2.2.2.2",
-					Ttl:   -1,
+					TTL:   -1,
 				},
 			},
-			expected: map[string]hdns.Record{
+			expected: map[string]model.Record{
 				"1.1.1.1": {
 					ID:   "id_1",
 					Name: "www",
-					Type: hdns.RecordTypeA,
-					Zone: &hdns.Zone{
+					Type: "A",
+					Zone: &model.Zone{
 						ID:   "zoneIDAlpha",
 						Name: "alpha.com",
 					},
 					Value: "1.1.1.1",
-					Ttl:   -1,
+					TTL:   -1,
 				},
 				"2.2.2.2": {
 					ID:   "id_2",
 					Name: "ftp",
-					Type: hdns.RecordTypeA,
-					Zone: &hdns.Zone{
+					Type: "A",
+					Zone: &model.Zone{
 						ID:   "zoneIDAlpha",
 						Name: "alpha.com",
 					},
 					Value: "2.2.2.2",
-					Ttl:   -1,
+					TTL:   -1,
 				},
 			},
 		},
@@ -759,7 +718,7 @@ func Test_processUpdateActionsByZone(t *testing.T) {
 		input struct {
 			zoneID    string
 			zoneName  string
-			records   []hdns.Record
+			records   []model.Record
 			endpoints []*endpoint.Endpoint
 		}
 		expectedChanges hetznerChanges
@@ -779,21 +738,21 @@ func Test_processUpdateActionsByZone(t *testing.T) {
 			input: struct {
 				zoneID    string
 				zoneName  string
-				records   []hdns.Record
+				records   []model.Record
 				endpoints []*endpoint.Endpoint
 			}{
 				zoneID:   "zoneIDAlpha",
 				zoneName: "alpha.com",
-				records: []hdns.Record{
+				records: []model.Record{
 					{
 						ID:   "id_1",
 						Name: "www",
-						Zone: &hdns.Zone{
+						Zone: &model.Zone{
 							ID:   "zoneIDAlpha",
 							Name: "alpha.com",
 						},
 						Value: "1.1.1.1",
-						Ttl:   -1,
+						TTL:   -1,
 					},
 				},
 				endpoints: []*endpoint.Endpoint{},
@@ -805,33 +764,33 @@ func Test_processUpdateActionsByZone(t *testing.T) {
 			input: struct {
 				zoneID    string
 				zoneName  string
-				records   []hdns.Record
+				records   []model.Record
 				endpoints []*endpoint.Endpoint
 			}{
 				zoneID:   "zoneIDAlpha",
 				zoneName: "alpha.com",
-				records: []hdns.Record{
+				records: []model.Record{
 					{
 						ID:   "id_1",
 						Name: "www",
-						Type: hdns.RecordTypeA,
-						Zone: &hdns.Zone{
+						Type: "A",
+						Zone: &model.Zone{
 							ID:   "zoneIDAlpha",
 							Name: "alpha.com",
 						},
 						Value: "1.1.1.1",
-						Ttl:   -1,
+						TTL:   -1,
 					},
 					{
 						ID:   "id_2",
 						Name: "ftp",
-						Type: hdns.RecordTypeA,
-						Zone: &hdns.Zone{
+						Type: "A",
+						Zone: &model.Zone{
 							ID:   "zoneIDAlpha",
 							Name: "alpha.com",
 						},
 						Value: "2.2.2.2",
-						Ttl:   -1,
+						TTL:   -1,
 					},
 				},
 				endpoints: []*endpoint.Endpoint{
@@ -850,61 +809,42 @@ func Test_processUpdateActionsByZone(t *testing.T) {
 				},
 			},
 			expectedChanges: hetznerChanges{
-				creates: []*hetznerChangeCreate{
+				creates: []hetznerChangeCreate{
 					{
-						ZoneID: "zoneIDAlpha",
-						Options: &hdns.RecordCreateOpts{
-							Name:  "www",
-							Ttl:   nil,
-							Type:  hdns.RecordTypeA,
-							Value: "3.3.3.3",
-							Zone: &hdns.Zone{
-								ID:   "zoneIDAlpha",
-								Name: "alpha.com",
-							},
+						Name:  "www",
+						TTL:   -1,
+						Type:  "A",
+						Value: "3.3.3.3",
+						Zone: &model.Zone{
+							ID:   "zoneIDAlpha",
+							Name: "alpha.com",
 						},
 					},
 				},
-				deletes: []*hetznerChangeDelete{
+				deletes: []hetznerChangeDelete{
 					{
-						ZoneID: "zoneIDAlpha",
-						Record: hdns.Record{
-							ID:   "id_1",
-							Name: "www",
-							Type: hdns.RecordTypeA,
-							Zone: &hdns.Zone{
-								ID:   "zoneIDAlpha",
-								Name: "alpha.com",
-							},
-							Value: "1.1.1.1",
-							Ttl:   -1,
+						ID:   "id_1",
+						Name: "www",
+						Type: "A",
+						Zone: &model.Zone{
+							ID:   "zoneIDAlpha",
+							Name: "alpha.com",
 						},
+						Value: "1.1.1.1",
+						TTL:   -1,
 					},
 				},
-				updates: []*hetznerChangeUpdate{
+				updates: []hetznerChangeUpdate{
 					{
-						ZoneID: "zoneIDAlpha",
-						Record: hdns.Record{
-							ID:   "id_2",
-							Name: "ftp",
-							Type: hdns.RecordTypeA,
-							Zone: &hdns.Zone{
-								ID:   "zoneIDAlpha",
-								Name: "alpha.com",
-							},
-							Value: "2.2.2.2",
-							Ttl:   -1,
+						ID:   "id_2",
+						Name: "ftp",
+						Zone: &model.Zone{
+							ID:   "zoneIDAlpha",
+							Name: "alpha.com",
 						},
-						Options: &hdns.RecordUpdateOpts{
-							Name: "ftp",
-							Zone: &hdns.Zone{
-								ID:   "zoneIDAlpha",
-								Name: "alpha.com",
-							},
-							Type:  hdns.RecordTypeA,
-							Value: "2.2.2.2",
-							Ttl:   &testTTL,
-						},
+						Type:  "A",
+						Value: "2.2.2.2",
+						TTL:   7200,
 					},
 				},
 			},
@@ -924,7 +864,7 @@ func Test_processUpdateActions(t *testing.T) {
 		name  string
 		input struct {
 			zoneIDNameMapper provider.ZoneIDName
-			recordsByZoneID  map[string][]hdns.Record
+			recordsByZoneID  map[string][]model.Record
 			updatesByZoneID  map[string][]*endpoint.Endpoint
 		}
 		expectedChanges hetznerChanges
@@ -943,36 +883,36 @@ func Test_processUpdateActions(t *testing.T) {
 			name: "empty changeset",
 			input: struct {
 				zoneIDNameMapper provider.ZoneIDName
-				recordsByZoneID  map[string][]hdns.Record
+				recordsByZoneID  map[string][]model.Record
 				updatesByZoneID  map[string][]*endpoint.Endpoint
 			}{
 				zoneIDNameMapper: provider.ZoneIDName{
 					"zoneIDAlpha": "alpha.com",
 					"zoneIDBeta":  "beta.com",
 				},
-				recordsByZoneID: map[string][]hdns.Record{
+				recordsByZoneID: map[string][]model.Record{
 					"zoneIDAlpha": {
-						hdns.Record{
+						model.Record{
 							ID:   "id_1",
 							Name: "www",
-							Zone: &hdns.Zone{
+							Zone: &model.Zone{
 								ID:   "zoneIDAlpha",
 								Name: "alpha.com",
 							},
 							Value: "1.1.1.1",
-							Ttl:   -1,
+							TTL:   -1,
 						},
 					},
 					"zoneIDBeta": {
-						hdns.Record{
+						model.Record{
 							ID:   "id_2",
 							Name: "ftp",
-							Zone: &hdns.Zone{
+							Zone: &model.Zone{
 								ID:   "zoneIDBeta",
 								Name: "beta.com",
 							},
 							Value: "2.2.2.2",
-							Ttl:   -1,
+							TTL:   -1,
 						},
 					},
 				},
@@ -984,36 +924,36 @@ func Test_processUpdateActions(t *testing.T) {
 			name: "empty changeset with key present",
 			input: struct {
 				zoneIDNameMapper provider.ZoneIDName
-				recordsByZoneID  map[string][]hdns.Record
+				recordsByZoneID  map[string][]model.Record
 				updatesByZoneID  map[string][]*endpoint.Endpoint
 			}{
 				zoneIDNameMapper: provider.ZoneIDName{
 					"zoneIDAlpha": "alpha.com",
 					"zoneIDBeta":  "beta.com",
 				},
-				recordsByZoneID: map[string][]hdns.Record{
+				recordsByZoneID: map[string][]model.Record{
 					"zoneIDAlpha": {
-						hdns.Record{
+						model.Record{
 							ID:   "id_1",
 							Name: "www",
-							Zone: &hdns.Zone{
+							Zone: &model.Zone{
 								ID:   "zoneIDAlpha",
 								Name: "alpha.com",
 							},
 							Value: "1.1.1.1",
-							Ttl:   -1,
+							TTL:   -1,
 						},
 					},
 					"zoneIDBeta": {
-						hdns.Record{
+						model.Record{
 							ID:   "id_2",
 							Name: "ftp",
-							Zone: &hdns.Zone{
+							Zone: &model.Zone{
 								ID:   "zoneIDBeta",
 								Name: "beta.com",
 							},
 							Value: "2.2.2.2",
-							Ttl:   -1,
+							TTL:   -1,
 						},
 					},
 				},
@@ -1027,38 +967,38 @@ func Test_processUpdateActions(t *testing.T) {
 			name: "mixed changeset",
 			input: struct {
 				zoneIDNameMapper provider.ZoneIDName
-				recordsByZoneID  map[string][]hdns.Record
+				recordsByZoneID  map[string][]model.Record
 				updatesByZoneID  map[string][]*endpoint.Endpoint
 			}{
 				zoneIDNameMapper: provider.ZoneIDName{
 					"zoneIDAlpha": "alpha.com",
 					"zoneIDBeta":  "beta.com",
 				},
-				recordsByZoneID: map[string][]hdns.Record{
+				recordsByZoneID: map[string][]model.Record{
 					"zoneIDAlpha": {
-						hdns.Record{
+						model.Record{
 							ID:   "id_1",
 							Name: "www",
-							Type: hdns.RecordTypeA,
-							Zone: &hdns.Zone{
+							Type: "A",
+							Zone: &model.Zone{
 								ID:   "zoneIDAlpha",
 								Name: "alpha.com",
 							},
 							Value: "1.1.1.1",
-							Ttl:   -1,
+							TTL:   -1,
 						},
 					},
 					"zoneIDBeta": {
-						hdns.Record{
+						model.Record{
 							ID:   "id_2",
 							Name: "ftp",
-							Type: hdns.RecordTypeA,
-							Zone: &hdns.Zone{
+							Type: "A",
+							Zone: &model.Zone{
 								ID:   "zoneIDBeta",
 								Name: "beta.com",
 							},
 							Value: "2.2.2.2",
-							Ttl:   -1,
+							TTL:   -1,
 						},
 					},
 				},
@@ -1082,61 +1022,42 @@ func Test_processUpdateActions(t *testing.T) {
 				},
 			},
 			expectedChanges: hetznerChanges{
-				creates: []*hetznerChangeCreate{
+				creates: []hetznerChangeCreate{
 					{
-						ZoneID: "zoneIDAlpha",
-						Options: &hdns.RecordCreateOpts{
-							Name:  "www",
-							Type:  hdns.RecordTypeA,
-							Value: "3.3.3.3",
-							Zone: &hdns.Zone{
-								ID:   "zoneIDAlpha",
-								Name: "alpha.com",
-							},
-							Ttl: nil,
+						Name:  "www",
+						Type:  "A",
+						Value: "3.3.3.3",
+						Zone: &model.Zone{
+							ID:   "zoneIDAlpha",
+							Name: "alpha.com",
 						},
+						TTL: -1,
 					},
 				},
-				deletes: []*hetznerChangeDelete{
+				deletes: []hetznerChangeDelete{
 					{
-						ZoneID: "zoneIDAlpha",
-						Record: hdns.Record{
-							ID:   "id_1",
-							Name: "www",
-							Type: hdns.RecordTypeA,
-							Zone: &hdns.Zone{
-								ID:   "zoneIDAlpha",
-								Name: "alpha.com",
-							},
-							Value: "1.1.1.1",
-							Ttl:   -1,
+						ID:   "id_1",
+						Name: "www",
+						Type: "A",
+						Zone: &model.Zone{
+							ID:   "zoneIDAlpha",
+							Name: "alpha.com",
 						},
+						Value: "1.1.1.1",
+						TTL:   -1,
 					},
 				},
-				updates: []*hetznerChangeUpdate{
+				updates: []hetznerChangeUpdate{
 					{
-						ZoneID: "zoneIDBeta",
-						Record: hdns.Record{
-							ID:   "id_2",
-							Name: "ftp",
-							Type: hdns.RecordTypeA,
-							Zone: &hdns.Zone{
-								ID:   "zoneIDBeta",
-								Name: "beta.com",
-							},
-							Value: "2.2.2.2",
-							Ttl:   -1,
+						ID:   "id_2",
+						Name: "ftp",
+						Type: "A",
+						Zone: &model.Zone{
+							ID:   "zoneIDBeta",
+							Name: "beta.com",
 						},
-						Options: &hdns.RecordUpdateOpts{
-							Name: "ftp",
-							Type: hdns.RecordTypeA,
-							Zone: &hdns.Zone{
-								ID:   "zoneIDBeta",
-								Name: "beta.com",
-							},
-							Value: "2.2.2.2",
-							Ttl:   &testTTL,
-						},
+						Value: "2.2.2.2",
+						TTL:   7200,
 					},
 				},
 			},
@@ -1154,7 +1075,7 @@ func Test_targetsMatch(t *testing.T) {
 	type testCase struct {
 		name  string
 		input struct {
-			record hdns.Record
+			record model.Record
 			ep     *endpoint.Endpoint
 		}
 		expected bool
@@ -1170,19 +1091,19 @@ func Test_targetsMatch(t *testing.T) {
 		{
 			name: "record does not matches",
 			input: struct {
-				record hdns.Record
+				record model.Record
 				ep     *endpoint.Endpoint
 			}{
-				record: hdns.Record{
+				record: model.Record{
 					ID:   "id_1",
 					Name: "www",
-					Type: hdns.RecordTypeA,
-					Zone: &hdns.Zone{
+					Type: "A",
+					Zone: &model.Zone{
 						ID:   "zoneIDAlpha",
 						Name: "alpha.com",
 					},
 					Value: "1.1.1.1",
-					Ttl:   -1,
+					TTL:   -1,
 				},
 				ep: &endpoint.Endpoint{
 					DNSName:    "www.alpha.com",
@@ -1196,19 +1117,19 @@ func Test_targetsMatch(t *testing.T) {
 		{
 			name: "record matches",
 			input: struct {
-				record hdns.Record
+				record model.Record
 				ep     *endpoint.Endpoint
 			}{
-				record: hdns.Record{
+				record: model.Record{
 					ID:   "id_1",
 					Name: "www",
-					Type: hdns.RecordTypeA,
-					Zone: &hdns.Zone{
+					Type: "A",
+					Zone: &model.Zone{
 						ID:   "zoneIDAlpha",
 						Name: "alpha.com",
 					},
 					Value: "1.1.1.1",
-					Ttl:   -1,
+					TTL:   -1,
 				},
 				ep: &endpoint.Endpoint{
 					DNSName:    "www.alpha.com",
@@ -1222,19 +1143,19 @@ func Test_targetsMatch(t *testing.T) {
 		{
 			name: "cname special matching",
 			input: struct {
-				record hdns.Record
+				record model.Record
 				ep     *endpoint.Endpoint
 			}{
-				record: hdns.Record{
+				record: model.Record{
 					ID:   "id_2",
 					Name: "ftp",
-					Type: hdns.RecordTypeCNAME,
-					Zone: &hdns.Zone{
+					Type: "CNAME",
+					Zone: &model.Zone{
 						ID:   "zoneIDAlpha",
 						Name: "alpha.com",
 					},
 					Value: "www.beta.com.",
-					Ttl:   -1,
+					TTL:   -1,
 				},
 				ep: &endpoint.Endpoint{
 					DNSName:    "ftp.alpha.com",
@@ -1260,7 +1181,7 @@ func Test_processDeleteActionsByEndpoint(t *testing.T) {
 		name  string
 		input struct {
 			zoneID          string
-			matchingRecords []hdns.Record
+			matchingRecords []model.Record
 			ep              *endpoint.Endpoint
 		}
 		expectedChanges hetznerChanges
@@ -1279,11 +1200,11 @@ func Test_processDeleteActionsByEndpoint(t *testing.T) {
 			name: "no matching records",
 			input: struct {
 				zoneID          string
-				matchingRecords []hdns.Record
+				matchingRecords []model.Record
 				ep              *endpoint.Endpoint
 			}{
 				zoneID:          "zoneIDAlpha",
-				matchingRecords: []hdns.Record{},
+				matchingRecords: []model.Record{},
 				ep: &endpoint.Endpoint{
 					DNSName:    "ccx.alpha.com",
 					Targets:    endpoint.Targets{"7.7.7.7"},
@@ -1297,32 +1218,32 @@ func Test_processDeleteActionsByEndpoint(t *testing.T) {
 			name: "one matching record",
 			input: struct {
 				zoneID          string
-				matchingRecords []hdns.Record
+				matchingRecords []model.Record
 				ep              *endpoint.Endpoint
 			}{
 				zoneID: "zoneIDAlpha",
-				matchingRecords: []hdns.Record{
+				matchingRecords: []model.Record{
 					{
 						ID:   "id_1",
 						Name: "www",
-						Type: hdns.RecordTypeA,
-						Zone: &hdns.Zone{
+						Type: "A",
+						Zone: &model.Zone{
 							ID:   "zoneIDAlpha",
 							Name: "alpha.com",
 						},
 						Value: "1.1.1.1",
-						Ttl:   -1,
+						TTL:   -1,
 					},
 					{
 						ID:   "id_2",
 						Name: "www",
-						Type: hdns.RecordTypeA,
-						Zone: &hdns.Zone{
+						Type: "A",
+						Zone: &model.Zone{
 							ID:   "zoneIDAlpha",
 							Name: "alpha.com",
 						},
 						Value: "2.2.2.2",
-						Ttl:   -1,
+						TTL:   -1,
 					},
 				},
 				ep: &endpoint.Endpoint{
@@ -1333,20 +1254,17 @@ func Test_processDeleteActionsByEndpoint(t *testing.T) {
 				},
 			},
 			expectedChanges: hetznerChanges{
-				deletes: []*hetznerChangeDelete{
+				deletes: []hetznerChangeDelete{
 					{
-						ZoneID: "zoneIDAlpha",
-						Record: hdns.Record{
-							ID:   "id_1",
-							Name: "www",
-							Type: hdns.RecordTypeA,
-							Zone: &hdns.Zone{
-								ID:   "zoneIDAlpha",
-								Name: "alpha.com",
-							},
-							Value: "1.1.1.1",
-							Ttl:   -1,
+						ID:   "id_1",
+						Name: "www",
+						Type: "A",
+						Zone: &model.Zone{
+							ID:   "zoneIDAlpha",
+							Name: "alpha.com",
 						},
+						Value: "1.1.1.1",
+						TTL:   -1,
 					},
 				},
 			},
@@ -1355,32 +1273,32 @@ func Test_processDeleteActionsByEndpoint(t *testing.T) {
 			name: "cname special matching",
 			input: struct {
 				zoneID          string
-				matchingRecords []hdns.Record
+				matchingRecords []model.Record
 				ep              *endpoint.Endpoint
 			}{
 				zoneID: "zoneIDAlpha",
-				matchingRecords: []hdns.Record{
+				matchingRecords: []model.Record{
 					{
 						ID:   "id_1",
 						Name: "www",
-						Type: hdns.RecordTypeA,
-						Zone: &hdns.Zone{
+						Type: "A",
+						Zone: &model.Zone{
 							ID:   "zoneIDAlpha",
 							Name: "alpha.com",
 						},
 						Value: "1.1.1.1",
-						Ttl:   -1,
+						TTL:   -1,
 					},
 					{
 						ID:   "id_2",
 						Name: "ftp",
-						Type: hdns.RecordTypeCNAME,
-						Zone: &hdns.Zone{
+						Type: "CNAME",
+						Zone: &model.Zone{
 							ID:   "zoneIDAlpha",
 							Name: "alpha.com",
 						},
 						Value: "www.beta.com.",
-						Ttl:   -1,
+						TTL:   -1,
 					},
 				},
 				ep: &endpoint.Endpoint{
@@ -1391,20 +1309,17 @@ func Test_processDeleteActionsByEndpoint(t *testing.T) {
 				},
 			},
 			expectedChanges: hetznerChanges{
-				deletes: []*hetznerChangeDelete{
+				deletes: []hetznerChangeDelete{
 					{
-						ZoneID: "zoneIDAlpha",
-						Record: hdns.Record{
-							ID:   "id_2",
-							Name: "ftp",
-							Type: hdns.RecordTypeCNAME,
-							Zone: &hdns.Zone{
-								ID:   "zoneIDAlpha",
-								Name: "alpha.com",
-							},
-							Value: "www.beta.com.",
-							Ttl:   -1,
+						ID:   "id_2",
+						Name: "ftp",
+						Type: "CNAME",
+						Zone: &model.Zone{
+							ID:   "zoneIDAlpha",
+							Name: "alpha.com",
 						},
+						Value: "www.beta.com.",
+						TTL:   -1,
 					},
 				},
 			},
@@ -1424,7 +1339,7 @@ func Test_processDeleteActions(t *testing.T) {
 		name  string
 		input struct {
 			zoneIDNameMapper provider.ZoneIDName
-			recordsByZoneID  map[string][]hdns.Record
+			recordsByZoneID  map[string][]model.Record
 			deletesByZoneID  map[string][]*endpoint.Endpoint
 		}
 		expectedChanges hetznerChanges
@@ -1443,36 +1358,36 @@ func Test_processDeleteActions(t *testing.T) {
 			name: "No deletes created",
 			input: struct {
 				zoneIDNameMapper provider.ZoneIDName
-				recordsByZoneID  map[string][]hdns.Record
+				recordsByZoneID  map[string][]model.Record
 				deletesByZoneID  map[string][]*endpoint.Endpoint
 			}{
 				zoneIDNameMapper: provider.ZoneIDName{
 					"zoneIDAlpha": "alpha.com",
 					"zoneIDBeta":  "beta.com",
 				},
-				recordsByZoneID: map[string][]hdns.Record{
+				recordsByZoneID: map[string][]model.Record{
 					"zoneIDAlpha": {
-						hdns.Record{
+						model.Record{
 							ID:   "id_1",
 							Name: "www",
-							Zone: &hdns.Zone{
+							Zone: &model.Zone{
 								ID:   "zoneIDAlpha",
 								Name: "alpha.com",
 							},
 							Value: "1.1.1.1",
-							Ttl:   -1,
+							TTL:   -1,
 						},
 					},
 					"zoneIDBeta": {
-						hdns.Record{
+						model.Record{
 							ID:   "id_2",
 							Name: "ftp",
-							Zone: &hdns.Zone{
+							Zone: &model.Zone{
 								ID:   "zoneIDBeta",
 								Name: "beta.com",
 							},
 							Value: "2.2.2.2",
-							Ttl:   -1,
+							TTL:   -1,
 						},
 					},
 				},
@@ -1493,49 +1408,49 @@ func Test_processDeleteActions(t *testing.T) {
 			name: "deletes performed",
 			input: struct {
 				zoneIDNameMapper provider.ZoneIDName
-				recordsByZoneID  map[string][]hdns.Record
+				recordsByZoneID  map[string][]model.Record
 				deletesByZoneID  map[string][]*endpoint.Endpoint
 			}{
 				zoneIDNameMapper: provider.ZoneIDName{
 					"zoneIDAlpha": "alpha.com",
 					"zoneIDBeta":  "beta.com",
 				},
-				recordsByZoneID: map[string][]hdns.Record{
+				recordsByZoneID: map[string][]model.Record{
 					"zoneIDAlpha": {
-						hdns.Record{
+						model.Record{
 							ID:   "id_1",
 							Name: "www",
-							Type: hdns.RecordTypeA,
-							Zone: &hdns.Zone{
+							Type: "A",
+							Zone: &model.Zone{
 								ID:   "zoneIDAlpha",
 								Name: "alpha.com",
 							},
 							Value: "1.1.1.1",
-							Ttl:   -1,
+							TTL:   -1,
 						},
 					},
 					"zoneIDBeta": {
-						hdns.Record{
+						model.Record{
 							ID:   "id_2",
 							Name: "ftp",
-							Type: hdns.RecordTypeA,
-							Zone: &hdns.Zone{
+							Type: "A",
+							Zone: &model.Zone{
 								ID:   "zoneIDBeta",
 								Name: "beta.com",
 							},
 							Value: "2.2.2.2",
-							Ttl:   -1,
+							TTL:   -1,
 						},
-						hdns.Record{
+						model.Record{
 							ID:   "id_3",
 							Name: "ftp",
-							Type: hdns.RecordTypeA,
-							Zone: &hdns.Zone{
+							Type: "A",
+							Zone: &model.Zone{
 								ID:   "zoneIDBeta",
 								Name: "beta.com",
 							},
 							Value: "4.4.4.4",
-							Ttl:   -1,
+							TTL:   -1,
 						},
 					},
 				},
@@ -1559,48 +1474,39 @@ func Test_processDeleteActions(t *testing.T) {
 				},
 			},
 			expectedChanges: hetznerChanges{
-				deletes: []*hetznerChangeDelete{
+				deletes: []hetznerChangeDelete{
 					{
-						ZoneID: "zoneIDAlpha",
-						Record: hdns.Record{
-							ID:   "id_1",
-							Name: "www",
-							Type: hdns.RecordTypeA,
-							Zone: &hdns.Zone{
-								ID:   "zoneIDAlpha",
-								Name: "alpha.com",
-							},
-							Value: "1.1.1.1",
-							Ttl:   -1,
+						ID:   "id_1",
+						Name: "www",
+						Type: "A",
+						Zone: &model.Zone{
+							ID:   "zoneIDAlpha",
+							Name: "alpha.com",
 						},
+						Value: "1.1.1.1",
+						TTL:   -1,
 					},
 					{
-						ZoneID: "zoneIDBeta",
-						Record: hdns.Record{
-							ID:   "id_2",
-							Name: "ftp",
-							Type: hdns.RecordTypeA,
-							Zone: &hdns.Zone{
-								ID:   "zoneIDBeta",
-								Name: "beta.com",
-							},
-							Value: "2.2.2.2",
-							Ttl:   -1,
+						ID:   "id_2",
+						Name: "ftp",
+						Type: "A",
+						Zone: &model.Zone{
+							ID:   "zoneIDBeta",
+							Name: "beta.com",
 						},
+						Value: "2.2.2.2",
+						TTL:   -1,
 					},
 					{
-						ZoneID: "zoneIDBeta",
-						Record: hdns.Record{
-							ID:   "id_3",
-							Name: "ftp",
-							Type: hdns.RecordTypeA,
-							Zone: &hdns.Zone{
-								ID:   "zoneIDBeta",
-								Name: "beta.com",
-							},
-							Value: "4.4.4.4",
-							Ttl:   -1,
+						ID:   "id_3",
+						Name: "ftp",
+						Type: "A",
+						Zone: &model.Zone{
+							ID:   "zoneIDBeta",
+							Name: "beta.com",
 						},
+						Value: "4.4.4.4",
+						TTL:   -1,
 					},
 				},
 			},

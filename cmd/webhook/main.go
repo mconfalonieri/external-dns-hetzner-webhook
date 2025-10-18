@@ -22,7 +22,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"external-dns-hetzner-webhook/internal/hetzner/dns"
+	"external-dns-hetzner-webhook/internal/hetzner/provider"
 	"external-dns-hetzner-webhook/internal/server"
 
 	log "github.com/sirupsen/logrus"
@@ -79,7 +79,7 @@ func main() {
 	go metricsSocket.Start(nil, *socketOptions)
 
 	// Read provider configuration
-	providerConfig := &hetzner.Configuration{}
+	providerConfig := &provider.Configuration{}
 	if err := env.Set(providerConfig); err != nil {
 		serverStatus.SetHealthy(false)
 		log.Fatal("Provider configuration unreadable - shutting down:", err)
@@ -87,7 +87,7 @@ func main() {
 	}
 
 	// instantiate the Hetzner provider
-	provider, err := hetzner.NewHetznerProvider(providerConfig)
+	provider, err := provider.NewHetznerProvider(providerConfig)
 	if err != nil {
 		serverStatus.SetHealthy(false)
 		log.Fatal("Provider cannot be instantiated - shutting down:", err)

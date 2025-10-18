@@ -15,13 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package hetzner
+package provider
 
 import (
+	"external-dns-hetzner-webhook/internal/hetzner/model"
 	"fmt"
 	"strings"
 
-	hdns "github.com/jobstoit/hetzner-dns-go/dns"
 	log "github.com/sirupsen/logrus"
 	"sigs.k8s.io/external-dns/endpoint"
 	"sigs.k8s.io/external-dns/provider"
@@ -93,7 +93,7 @@ func mergeEndpointsByNameType(endpoints []*endpoint.Endpoint) []*endpoint.Endpoi
 }
 
 // createEndpointFromRecord creates an endpoint from a record.
-func createEndpointFromRecord(r hdns.Record) *endpoint.Endpoint {
+func createEndpointFromRecord(r model.Record) *endpoint.Endpoint {
 	name := fmt.Sprintf("%s.%s", r.Name, r.Zone.Name)
 
 	// root name is identified by @ and should be
@@ -104,11 +104,11 @@ func createEndpointFromRecord(r hdns.Record) *endpoint.Endpoint {
 
 	// Handle local CNAMEs
 	target := r.Value
-	if r.Type == hdns.RecordTypeCNAME && !strings.HasSuffix(r.Value, ".") {
+	if r.Type == "CNAME" && !strings.HasSuffix(r.Value, ".") {
 		target = fmt.Sprintf("%s.%s.", r.Value, r.Zone.Name)
 	}
 	ep := endpoint.NewEndpoint(name, string(r.Type), target)
-	ep.RecordTTL = endpoint.TTL(r.Ttl)
+	ep.RecordTTL = endpoint.TTL(r.TTL)
 	return ep
 }
 
@@ -131,7 +131,7 @@ func endpointsByZoneID(zoneIDNameMapper provider.ZoneIDName, endpoints []*endpoi
 }
 
 // getMatchingDomainRecords returns the records that match an endpoint.
-func getMatchingDomainRecords(records []hdns.Record, zoneName string, ep *endpoint.Endpoint) []hdns.Record {
+func getMatchingDomainRecords(records []model.Record, zoneName string, ep *endpoint.Endpoint) []model.Record {
 	var name string
 	if ep.DNSName != zoneName {
 		name = strings.TrimSuffix(ep.DNSName, "."+zoneName)
@@ -139,9 +139,9 @@ func getMatchingDomainRecords(records []hdns.Record, zoneName string, ep *endpoi
 		name = "@"
 	}
 
-	var result []hdns.Record
+	var result []model.Record
 	for _, r := range records {
-		if r.Name == name && string(r.Type) == ep.RecordType {
+		if r.Name == name && r.Type == ep.RecordType {
 			result = append(result, r)
 		}
 	}
@@ -150,12 +150,12 @@ func getMatchingDomainRecords(records []hdns.Record, zoneName string, ep *endpoi
 
 // getEndpointTTL returns a pointer to a value representing the endpoint TTL or
 // nil if it is not configured.
-func getEndpointTTL(ep *endpoint.Endpoint) *int {
+func getEndpointTTL(ep *endpoint.Endpoint) int {
 	if !ep.RecordTTL.IsConfigured() {
-		return nil
+		return -1
 	}
 	ttl := int(ep.RecordTTL)
-	return &ttl
+	return ttl
 }
 
 // getEndpointLogFields returns a loggable field map.

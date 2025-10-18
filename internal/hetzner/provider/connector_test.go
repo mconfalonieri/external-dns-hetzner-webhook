@@ -15,15 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package hetzner
+package provider
 
 import (
 	"context"
 	"errors"
+	"external-dns-hetzner-webhook/internal/hetzner/model"
 	"net/http"
 	"testing"
 
-	hdns "github.com/jobstoit/hetzner-dns-go/dns"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -37,7 +37,7 @@ func Test_fetchRecords(t *testing.T) {
 			batchSize int
 		}
 		expected struct {
-			records []hdns.Record
+			records []model.Record
 			err     error
 		}
 	}
@@ -62,85 +62,89 @@ func Test_fetchRecords(t *testing.T) {
 				zoneID: "zoneIDAlpha",
 				dnsClient: &mockClient{
 					getRecords: recordsResponse{
-						records: []*hdns.Record{
+						records: []model.Record{
 							{
 								ID:   "id_1",
 								Name: "www",
-								Type: hdns.RecordTypeA,
-								Zone: &hdns.Zone{
+								Type: "A",
+								Zone: &model.Zone{
 									ID:   "zoneIDAlpha",
 									Name: "alpha.com",
 								},
 								Value: "1.1.1.1",
-								Ttl:   -1,
+								TTL:   -1,
 							},
 							{
 								ID:   "id_2",
 								Name: "ftp",
-								Type: hdns.RecordTypeA,
-								Zone: &hdns.Zone{
+								Type: "A",
+								Zone: &model.Zone{
 									ID:   "zoneIDAlpha",
 									Name: "alpha.com",
 								},
 								Value: "2.2.2.2",
-								Ttl:   -1,
+								TTL:   -1,
 							},
 							{
 								ID:   "id_3",
 								Name: "mail",
-								Type: hdns.RecordTypeMX,
-								Zone: &hdns.Zone{
+								Type: "MX",
+								Zone: &model.Zone{
 									ID:   "zoneIDAlpha",
 									Name: "alpha.com",
 								},
 								Value: "3.3.3.3",
-								Ttl:   -1,
+								TTL:   -1,
 							},
 						},
-						resp: &hdns.Response{
-							Response: &http.Response{StatusCode: http.StatusOK},
+						resp: &http.Response{StatusCode: http.StatusOK},
+						pagination: &model.Pagination{
+							PageIdx:      1,
+							LastPage:     1,
+							ItemsPerPage: 100,
+							TotalCount:   3,
 						},
 					},
 				},
 				batchSize: 100,
 			},
 			expected: struct {
-				records []hdns.Record
+				records []model.Record
 				err     error
 			}{
-				records: []hdns.Record{
+				records: []model.Record{
 					{
 						ID:   "id_1",
 						Name: "www",
-						Type: hdns.RecordTypeA,
-						Zone: &hdns.Zone{
+						Type: "A",
+						Zone: &model.Zone{
 							ID:   "zoneIDAlpha",
 							Name: "alpha.com",
 						},
 						Value: "1.1.1.1",
-						Ttl:   -1,
+						TTL:   -1,
 					},
 					{
 						ID:   "id_2",
 						Name: "ftp",
-						Type: hdns.RecordTypeA,
-						Zone: &hdns.Zone{
+						Type: "A",
+						Zone: &model.Zone{
 							ID:   "zoneIDAlpha",
 							Name: "alpha.com",
 						},
 						Value: "2.2.2.2",
-						Ttl:   -1,
+						TTL:   -1,
 					},
 					{
 						ID:   "id_3",
 						Name: "mail",
-						Type: hdns.RecordTypeMX,
-						Zone: &hdns.Zone{
+						Type: "MX",
+						Zone: &model.Zone{
 							ID:   "zoneIDAlpha",
 							Name: "alpha.com",
 						},
 						Value: "3.3.3.3",
-						Ttl:   -1,
+						TTL:   -1,
 					},
 				},
 			},
@@ -161,7 +165,7 @@ func Test_fetchRecords(t *testing.T) {
 				batchSize: 100,
 			},
 			expected: struct {
-				records []hdns.Record
+				records []model.Record
 				err     error
 			}{
 				err: errors.New("records test error"),
@@ -185,7 +189,7 @@ func Test_fetchZones(t *testing.T) {
 			batchSize int
 		}
 		expected struct {
-			zones []hdns.Zone
+			zones []model.Zone
 			err   error
 		}
 	}
@@ -208,7 +212,7 @@ func Test_fetchZones(t *testing.T) {
 			}{
 				dnsClient: &mockClient{
 					getZones: zonesResponse{
-						zones: []*hdns.Zone{
+						zones: []model.Zone{
 							{
 								ID:   "zoneIDAlpha",
 								Name: "alpha.com",
@@ -218,26 +222,22 @@ func Test_fetchZones(t *testing.T) {
 								Name: "beta.com",
 							},
 						},
-						resp: &hdns.Response{
-							Response: &http.Response{StatusCode: http.StatusOK},
-							Meta: hdns.Meta{
-								Pagination: &hdns.Pagination{
-									Page:         1,
-									PerPage:      100,
-									LastPage:     1,
-									TotalEntries: 2,
-								},
-							},
+						resp: &http.Response{StatusCode: http.StatusOK},
+						pagination: &model.Pagination{
+							PageIdx:      1,
+							ItemsPerPage: 100,
+							LastPage:     1,
+							TotalCount:   2,
 						},
 					},
 				},
 				batchSize: 100,
 			},
 			expected: struct {
-				zones []hdns.Zone
+				zones []model.Zone
 				err   error
 			}{
-				zones: []hdns.Zone{
+				zones: []model.Zone{
 					{
 						ID:   "zoneIDAlpha",
 						Name: "alpha.com",
@@ -263,7 +263,7 @@ func Test_fetchZones(t *testing.T) {
 				batchSize: 100,
 			},
 			expected: struct {
-				zones []hdns.Zone
+				zones []model.Zone
 				err   error
 			}{
 				err: errors.New("zones test error"),

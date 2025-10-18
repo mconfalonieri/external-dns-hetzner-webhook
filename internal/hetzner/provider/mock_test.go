@@ -1,5 +1,5 @@
 /*
- * HetznerDNS - Common test routines for the hetzner package.
+ * Provider - Mock client
  *
  * Copyright 2024 Marco Confalonieri.
  *
@@ -15,43 +15,40 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package hetzner
+package provider
 
 import (
 	"context"
-	"testing"
-
-	hdns "github.com/jobstoit/hetzner-dns-go/dns"
-	"github.com/stretchr/testify/assert"
+	"external-dns-hetzner-webhook/internal/hetzner/model"
+	"net/http"
 )
-
-// testTTL is a test ttl.
-var testTTL = 7200
 
 // zonesResponse simulates a response that returns a list of zones.
 type zonesResponse struct {
-	zones []*hdns.Zone
-	resp  *hdns.Response
-	err   error
+	zones      []model.Zone
+	resp       *http.Response
+	pagination *model.Pagination
+	err        error
 }
 
 // recordsResponse simulates a response that returns a list of records.
 type recordsResponse struct {
-	records []*hdns.Record
-	resp    *hdns.Response
-	err     error
+	records    []model.Record
+	resp       *http.Response
+	pagination *model.Pagination
+	err        error
 }
 
 // recordResponse simulates a response that returns a single record.
 type recordResponse struct {
-	record *hdns.Record
-	resp   *hdns.Response
+	record model.Record
+	resp   *http.Response
 	err    error
 }
 
 // deleteResponse simulates a response to a record deletion request.
 type deleteResponse struct {
-	resp *hdns.Response
+	resp *http.Response
 	err  error
 }
 
@@ -81,17 +78,25 @@ func (m mockClient) GetState() mockClientState {
 }
 
 // GetZones simulates a request to get a list of zones.
-func (m *mockClient) GetZones(ctx context.Context, opts hdns.ZoneListOpts) ([]*hdns.Zone, *hdns.Response, error) {
+func (m *mockClient) GetZones(
+	ctx context.Context,
+	opts model.ZoneListOpts,
+) (
+	[]model.Zone,
+	*http.Response,
+	*model.Pagination,
+	error,
+) {
 	r := m.getZones
 	m.state.GetZonesCalled = true
-	return r.zones, r.resp, r.err
+	return r.zones, r.resp, r.pagination, r.err
 }
 
 // filterRecordsByZone filters the records, returning only those for the selected zone.
-func filterRecordsByZone(r recordsResponse, opts hdns.RecordListOpts) []*hdns.Record {
-	records := make([]*hdns.Record, 0)
+func filterRecordsByZone(r recordsResponse, opts model.RecordListOpts) []model.Record {
+	records := make([]model.Record, 0)
 	for _, rec := range r.records {
-		if rec != nil && rec.Zone.ID == opts.ZoneID {
+		if rec.Zone.ID == opts.ZoneID {
 			records = append(records, rec)
 		}
 	}
@@ -99,49 +104,44 @@ func filterRecordsByZone(r recordsResponse, opts hdns.RecordListOpts) []*hdns.Re
 }
 
 // GetRecords simulates a request to get a list of records for a given zone.
-func (m *mockClient) GetRecords(ctx context.Context, opts hdns.RecordListOpts) ([]*hdns.Record, *hdns.Response, error) {
+func (m *mockClient) GetRecords(
+	ctx context.Context,
+	opts model.RecordListOpts,
+) (
+	[]model.Record,
+	*http.Response,
+	*model.Pagination,
+	error,
+) {
 	r := m.getRecords
 	m.state.GetRecordsCalled = true
-	var records []*hdns.Record
+	var records []model.Record
 	if m.filterRecordsByZone {
 		records = filterRecordsByZone(r, opts)
-		r.resp.Meta.Pagination.TotalEntries = len(records) // "smart" handling
+		r.pagination = &model.Pagination{TotalCount: len(records)} // "smart" handling
 	} else {
 		records = r.records
 	}
-	return records, r.resp, r.err
+	return records, r.resp, r.pagination, r.err
 }
 
 // CreateRecord simulates a request to create a DNS record.
-func (m *mockClient) CreateRecord(ctx context.Context, opts hdns.RecordCreateOpts) (*hdns.Record, *hdns.Response, error) {
+func (m *mockClient) CreateRecord(ctx context.Context, opts model.Record) (model.Record, *http.Response, error) {
 	r := m.createRecord
 	m.state.CreateRecordCalled = true
 	return r.record, r.resp, r.err
 }
 
 // UpdateRecord simulates a request to update a DNS record.
-func (m *mockClient) UpdateRecord(ctx context.Context, record *hdns.Record, opts hdns.RecordUpdateOpts) (*hdns.Record, *hdns.Response, error) {
+func (m *mockClient) UpdateRecord(ctx context.Context, id string, opts model.Record) (model.Record, *http.Response, error) {
 	r := m.updateRecord
 	m.state.UpdateRecordCalled = true
 	return r.record, r.resp, r.err
 }
 
 // DeleteRecord simulates a request to delete a DNS record.
-func (m *mockClient) DeleteRecord(ctx context.Context, record *hdns.Record) (*hdns.Response, error) {
+func (m *mockClient) DeleteRecord(ctx context.Context, id string) (*http.Response, error) {
 	r := m.deleteRecord
 	m.state.DeleteRecordCalled = true
 	return r.resp, r.err
-}
-
-// assertError checks if an error is thrown when expected.
-func assertError(t *testing.T, expected, actual error) bool {
-	var expError bool
-	if expected == nil {
-		assert.Nil(t, actual)
-		expError = false
-	} else {
-		assert.EqualError(t, actual, expected.Error())
-		expError = true
-	}
-	return expError
 }

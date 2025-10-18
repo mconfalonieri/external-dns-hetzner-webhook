@@ -15,12 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package hetzner
+package provider
 
 import (
+	"external-dns-hetzner-webhook/internal/hetzner/model"
 	"testing"
 
-	hdns "github.com/jobstoit/hetzner-dns-go/dns"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
@@ -46,17 +46,14 @@ func Test_GetLogFields(t *testing.T) {
 	testCases := []testCase{
 		{
 			name: "hetznerChangeCreate",
-			object: &hetznerChangeCreate{
-				ZoneID: "testZoneID",
-				Options: &hdns.RecordCreateOpts{
-					Name:  "testName",
-					Ttl:   &defaultTTL,
-					Value: "testValue",
-					Type:  "CNAME",
-					Zone: &hdns.Zone{
-						ID:   "testZoneID",
-						Name: "testZoneName",
-					},
+			object: hetznerChangeCreate{
+				Name:  "testName",
+				TTL:   defaultTTL,
+				Value: "testValue",
+				Type:  "CNAME",
+				Zone: &model.Zone{
+					ID:   "testZoneID",
+					Name: "testZoneName",
 				},
 			},
 			expected: log.Fields{
@@ -71,25 +68,14 @@ func Test_GetLogFields(t *testing.T) {
 		{
 			name: "hetznerChangeUpdate",
 			object: &hetznerChangeUpdate{
-				ZoneID: "testZoneID",
-				Record: hdns.Record{
-					ID: "recordID",
-					Zone: &hdns.Zone{
-						ID:   "testZoneID",
-						Name: "testZoneName",
-					},
-					Name:  "recordOldName",
-					Value: "recordOldValue",
-				},
-				Options: &hdns.RecordUpdateOpts{
-					Name:  "testNewName",
-					Ttl:   &defaultTTL,
-					Value: "testNewValue",
-					Type:  "CNAME",
-					Zone: &hdns.Zone{
-						ID:   "testZoneID",
-						Name: "testZoneName",
-					},
+				ID:    "recordID",
+				Name:  "testNewName",
+				TTL:   defaultTTL,
+				Value: "testNewValue",
+				Type:  "CNAME",
+				Zone: &model.Zone{
+					ID:   "testZoneID",
+					Name: "testZoneName",
 				},
 			},
 			expected: log.Fields{
@@ -105,17 +91,14 @@ func Test_GetLogFields(t *testing.T) {
 		{
 			name: "hetznerChangeDelete",
 			object: &hetznerChangeDelete{
-				ZoneID: "testZoneID",
-				Record: hdns.Record{
-					ID: "recordID",
-					Zone: &hdns.Zone{
-						ID:   "testZoneID",
-						Name: "testZoneName",
-					},
-					Type:  "CNAME",
-					Name:  "recordName",
-					Value: "recordValue",
+				ID: "recordID",
+				Zone: &model.Zone{
+					ID:   "testZoneID",
+					Name: "testZoneName",
 				},
+				Type:  "CNAME",
+				Name:  "recordName",
+				Value: "recordValue",
 			},
 			expected: log.Fields{
 				"domain":     "testZoneName",

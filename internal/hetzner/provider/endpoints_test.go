@@ -15,12 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package hetzner
+package provider
 
 import (
+	"external-dns-hetzner-webhook/internal/hetzner/model"
 	"testing"
 
-	hdns "github.com/jobstoit/hetzner-dns-go/dns"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"sigs.k8s.io/external-dns/endpoint"
@@ -247,7 +247,7 @@ func Test_mergeEndpointsByNameType(t *testing.T) {
 func Test_createEndpointFromRecord(t *testing.T) {
 	type testCase struct {
 		name     string
-		input    hdns.Record
+		input    model.Record
 		expected *endpoint.Endpoint
 	}
 
@@ -259,16 +259,16 @@ func Test_createEndpointFromRecord(t *testing.T) {
 	testCases := []testCase{
 		{
 			name: "top domain",
-			input: hdns.Record{
+			input: model.Record{
 				ID:    "id_0",
 				Name:  "@",
-				Type:  hdns.RecordTypeCNAME,
+				Type:  "CNAME",
 				Value: "www.alpha.com.",
-				Zone: &hdns.Zone{
+				Zone: &model.Zone{
 					ID:   "zoneIDBeta",
 					Name: "beta.com",
 				},
-				Ttl: 7200,
+				TTL: 7200,
 			},
 			expected: &endpoint.Endpoint{
 				DNSName:    "beta.com",
@@ -280,16 +280,16 @@ func Test_createEndpointFromRecord(t *testing.T) {
 		},
 		{
 			name: "record",
-			input: hdns.Record{
+			input: model.Record{
 				ID:    "id_1",
 				Name:  "ftp",
-				Type:  hdns.RecordTypeCNAME,
+				Type:  "CNAME",
 				Value: "www.alpha.com.",
-				Zone: &hdns.Zone{
+				Zone: &model.Zone{
 					ID:   "zoneIDBeta",
 					Name: "beta.com",
 				},
-				Ttl: 7200,
+				TTL: 7200,
 			},
 			expected: &endpoint.Endpoint{
 				DNSName:    "ftp.beta.com",
@@ -401,25 +401,25 @@ func Test_getMatchingDomainRecords(t *testing.T) {
 	type testCase struct {
 		name  string
 		input struct {
-			records  []hdns.Record
+			records  []model.Record
 			zoneName string
 			ep       *endpoint.Endpoint
 		}
-		expected []hdns.Record
+		expected []model.Record
 	}
 
 	testCases := []testCase{
 		{
 			name: "no matches",
 			input: struct {
-				records  []hdns.Record
+				records  []model.Record
 				zoneName string
 				ep       *endpoint.Endpoint
 			}{
-				records: []hdns.Record{
+				records: []model.Record{
 					{
 						ID: "id1",
-						Zone: &hdns.Zone{
+						Zone: &model.Zone{
 							ID:   "zoneIDAlpha",
 							Name: "alpha.com",
 						},
@@ -431,19 +431,19 @@ func Test_getMatchingDomainRecords(t *testing.T) {
 					DNSName: "ftp.alpha.com",
 				},
 			},
-			expected: []hdns.Record{},
+			expected: []model.Record{},
 		},
 		{
 			name: "matches",
 			input: struct {
-				records  []hdns.Record
+				records  []model.Record
 				zoneName string
 				ep       *endpoint.Endpoint
 			}{
-				records: []hdns.Record{
+				records: []model.Record{
 					{
 						ID: "id1",
-						Zone: &hdns.Zone{
+						Zone: &model.Zone{
 							ID:   "zoneIDAlpha",
 							Name: "alpha.com",
 						},
@@ -455,10 +455,10 @@ func Test_getMatchingDomainRecords(t *testing.T) {
 					DNSName: "www.alpha.com",
 				},
 			},
-			expected: []hdns.Record{
+			expected: []model.Record{
 				{
 					ID: "id1",
-					Zone: &hdns.Zone{
+					Zone: &model.Zone{
 						ID:   "zoneIDAlpha",
 						Name: "alpha.com",
 					},
@@ -485,9 +485,8 @@ func Test_getEndpointTTL(t *testing.T) {
 	type testCase struct {
 		name     string
 		input    *endpoint.Endpoint
-		expected *int
+		expected int
 	}
-	configuredTTL := 7200
 
 	run := func(t *testing.T, tc testCase) {
 		actualTTL := getEndpointTTL(tc.input)
@@ -500,14 +499,14 @@ func Test_getEndpointTTL(t *testing.T) {
 			input: &endpoint.Endpoint{
 				RecordTTL: 7200,
 			},
-			expected: &configuredTTL,
+			expected: 7200,
 		},
 		{
 			name: "TTL not configured",
 			input: &endpoint.Endpoint{
 				RecordTTL: -1,
 			},
-			expected: nil,
+			expected: -1,
 		},
 	}
 

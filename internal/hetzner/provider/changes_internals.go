@@ -15,65 +15,56 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package hetzner
+package provider
 
 import (
-	hdns "github.com/jobstoit/hetzner-dns-go/dns"
+	"external-dns-hetzner-webhook/internal/hetzner/model"
+
 	log "github.com/sirupsen/logrus"
 )
 
 // hetznerChangeCreate stores the information for a create request.
-type hetznerChangeCreate struct {
-	ZoneID  string
-	Options *hdns.RecordCreateOpts
-}
+type hetznerChangeCreate model.Record
 
 // GetLogFields returns the log fields for this object.
 func (cc hetznerChangeCreate) GetLogFields() log.Fields {
 	return log.Fields{
-		"domain":     cc.Options.Zone.Name,
-		"zoneID":     cc.ZoneID,
-		"dnsName":    cc.Options.Name,
-		"recordType": string(cc.Options.Type),
-		"value":      cc.Options.Value,
-		"ttl":        *cc.Options.Ttl,
+		"domain":     cc.Zone.Name,
+		"zoneID":     cc.Zone.ID,
+		"dnsName":    cc.Name,
+		"recordType": cc.Type,
+		"value":      cc.Value,
+		"ttl":        cc.TTL,
 	}
 }
 
 // hetznerChangeUpdate stores the information for an update request.
-type hetznerChangeUpdate struct {
-	ZoneID  string
-	Record  hdns.Record
-	Options *hdns.RecordUpdateOpts
-}
+type hetznerChangeUpdate model.Record
 
 // GetLogFields returns the log fields for this object. An asterisk indicate
 // that the new value is shown.
 func (cu hetznerChangeUpdate) GetLogFields() log.Fields {
 	return log.Fields{
-		"domain":      cu.Record.Zone.Name,
-		"zoneID":      cu.ZoneID,
-		"recordID":    cu.Record.ID,
-		"*dnsName":    cu.Options.Name,
-		"*recordType": string(cu.Options.Type),
-		"*value":      cu.Options.Value,
-		"*ttl":        *cu.Options.Ttl,
+		"domain":      cu.Zone.Name,
+		"zoneID":      cu.Zone.ID,
+		"recordID":    cu.ID,
+		"*dnsName":    cu.Name,
+		"*recordType": cu.Type,
+		"*value":      cu.Value,
+		"*ttl":        cu.TTL,
 	}
 }
 
 // hetznerChangeDelete stores the information for a delete request.
-type hetznerChangeDelete struct {
-	ZoneID string
-	Record hdns.Record
-}
+type hetznerChangeDelete model.Record
 
 // GetLogFields returns the log fields for this object.
 func (cd hetznerChangeDelete) GetLogFields() log.Fields {
 	return log.Fields{
-		"domain":     cd.Record.Zone.Name,
-		"zoneID":     cd.ZoneID,
-		"dnsName":    cd.Record.Name,
-		"recordType": string(cd.Record.Type),
-		"value":      cd.Record.Value,
+		"domain":     cd.Zone.Name,
+		"zoneID":     cd.Zone.ID,
+		"dnsName":    cd.Name,
+		"recordType": cd.Type,
+		"value":      cd.Value,
 	}
 }

@@ -17,15 +17,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package hetzner
+package provider
 
 import (
+	"external-dns-hetzner-webhook/internal/hetzner/model"
 	"strings"
 
 	"sigs.k8s.io/external-dns/endpoint"
 	"sigs.k8s.io/external-dns/provider"
 
-	hdns "github.com/jobstoit/hetzner-dns-go/dns"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -45,7 +45,7 @@ func adjustCNAMETarget(domain string, target string) string {
 }
 
 // processCreateActionsByZone processes the create actions for one zone.
-func processCreateActionsByZone(zoneID, zoneName string, records []hdns.Record, endpoints []*endpoint.Endpoint, changes *hetznerChanges) {
+func processCreateActionsByZone(zoneID, zoneName string, records []model.Record, endpoints []*endpoint.Endpoint, changes *hetznerChanges) {
 	for _, ep := range endpoints {
 		// Warn if there are existing records since we expect to create only new records.
 		matchingRecords := getMatchingDomainRecords(records, zoneName, ep)
@@ -61,17 +61,17 @@ func processCreateActionsByZone(zoneID, zoneName string, records []hdns.Record, 
 			if ep.RecordType == "CNAME" {
 				target = adjustCNAMETarget(zoneName, target)
 			}
-			opts := &hdns.RecordCreateOpts{
+			cRecord := model.Record{
 				Name:  makeEndpointName(zoneName, ep.DNSName),
-				Ttl:   getEndpointTTL(ep),
-				Type:  hdns.RecordType(ep.RecordType),
+				TTL:   getEndpointTTL(ep),
+				Type:  ep.RecordType,
 				Value: target,
-				Zone: &hdns.Zone{
+				Zone: &model.Zone{
 					ID:   zoneID,
 					Name: zoneName,
 				},
 			}
-			changes.AddChangeCreate(zoneID, opts)
+			changes.AddChangeCreate(cRecord)
 		}
 	}
 }
@@ -79,7 +79,7 @@ func processCreateActionsByZone(zoneID, zoneName string, records []hdns.Record, 
 // processCreateActions processes the create requests.
 func processCreateActions(
 	zoneIDNameMapper provider.ZoneIDName,
-	recordsByZoneID map[string][]hdns.Record,
+	recordsByZoneID map[string][]model.Record,
 	createsByZoneID map[string][]*endpoint.Endpoint,
 	changes *hetznerChanges,
 ) {
@@ -97,55 +97,56 @@ func processCreateActions(
 	}
 }
 
-func processUpdateEndpoint(zoneID, zoneName string, matchingRecordsByTarget map[string]hdns.Record, ep *endpoint.Endpoint, changes *hetznerChanges) {
+func processUpdateEndpoint(zoneID, zoneName string, matchingRecordsByTarget map[string]model.Record, ep *endpoint.Endpoint, changes *hetznerChanges) {
 	// Generate create and delete actions based on existence of a record for each target.
 	for _, target := range ep.Targets {
 		if ep.RecordType == "CNAME" {
 			target = adjustCNAMETarget(zoneName, target)
 		}
 		if record, ok := matchingRecordsByTarget[target]; ok {
-			opts := &hdns.RecordUpdateOpts{
+			uRecord := model.Record{
+				ID:    record.ID,
 				Name:  makeEndpointName(zoneName, ep.DNSName),
-				Ttl:   getEndpointTTL(ep),
-				Type:  hdns.RecordType(ep.RecordType),
+				TTL:   getEndpointTTL(ep),
+				Type:  ep.RecordType,
 				Value: target,
-				Zone: &hdns.Zone{
+				Zone: &model.Zone{
 					ID:   zoneID,
 					Name: zoneName,
 				},
 			}
-			changes.AddChangeUpdate(zoneID, record, opts)
+			changes.AddChangeUpdate(uRecord)
 
 			// Updates are removed from this map.
 			delete(matchingRecordsByTarget, target)
 		} else {
 			// Record did not previously exist, create new 'target'
-			opts := &hdns.RecordCreateOpts{
+			cRecord := model.Record{
 				Name:  makeEndpointName(zoneName, ep.DNSName),
-				Ttl:   getEndpointTTL(ep),
-				Type:  hdns.RecordType(ep.RecordType),
+				TTL:   getEndpointTTL(ep),
+				Type:  ep.RecordType,
 				Value: target,
-				Zone: &hdns.Zone{
+				Zone: &model.Zone{
 					ID:   zoneID,
 					Name: zoneName,
 				},
 			}
-			changes.AddChangeCreate(zoneID, opts)
+			changes.AddChangeCreate(cRecord)
 		}
 	}
 }
 
 // cleanupRemainingTargets deletes the entries for the updates that are queued for creation.
-func cleanupRemainingTargets(zoneID string, matchingRecordsByTarget map[string]hdns.Record, changes *hetznerChanges) {
+func cleanupRemainingTargets(zoneID string, matchingRecordsByTarget map[string]model.Record, changes *hetznerChanges) {
 	for _, record := range matchingRecordsByTarget {
-		changes.AddChangeDelete(zoneID, record)
+		changes.AddChangeDelete(record)
 	}
 }
 
 // getMatchingRecordsByTarget organizes a slice of targets in a map with the
 // target as key.
-func getMatchingRecordsByTarget(records []hdns.Record) map[string]hdns.Record {
-	recordsMap := make(map[string]hdns.Record, 0)
+func getMatchingRecordsByTarget(records []model.Record) map[string]model.Record {
+	recordsMap := make(map[string]model.Record, 0)
 	for _, r := range records {
 		recordsMap[r.Value] = r
 	}
@@ -153,7 +154,7 @@ func getMatchingRecordsByTarget(records []hdns.Record) map[string]hdns.Record {
 }
 
 // processUpdateActionsByZone processes update actions for a single zone.
-func processUpdateActionsByZone(zoneID, zoneName string, records []hdns.Record, endpoints []*endpoint.Endpoint, changes *hetznerChanges) {
+func processUpdateActionsByZone(zoneID, zoneName string, records []model.Record, endpoints []*endpoint.Endpoint, changes *hetznerChanges) {
 	for _, ep := range endpoints {
 		matchingRecords := getMatchingDomainRecords(records, zoneName, ep)
 
@@ -177,7 +178,7 @@ func processUpdateActionsByZone(zoneID, zoneName string, records []hdns.Record, 
 // processUpdateActions processes the update requests.
 func processUpdateActions(
 	zoneIDNameMapper provider.ZoneIDName,
-	recordsByZoneID map[string][]hdns.Record,
+	recordsByZoneID map[string][]model.Record,
 	updatesByZoneID map[string][]*endpoint.Endpoint,
 	changes *hetznerChanges,
 ) {
@@ -198,7 +199,7 @@ func processUpdateActions(
 }
 
 // targetsMatch determines if a record matches one of the endpoint's targets.
-func targetsMatch(record hdns.Record, ep *endpoint.Endpoint) bool {
+func targetsMatch(record model.Record, ep *endpoint.Endpoint) bool {
 	for _, t := range ep.Targets {
 		endpointTarget := t
 		recordTarget := record.Value
@@ -214,16 +215,16 @@ func targetsMatch(record hdns.Record, ep *endpoint.Endpoint) bool {
 }
 
 // processDeleteActionsByEndpoint processes delete actions for an endpoint.
-func processDeleteActionsByEndpoint(zoneID string, matchingRecords []hdns.Record, ep *endpoint.Endpoint, changes *hetznerChanges) {
+func processDeleteActionsByEndpoint(zoneID string, matchingRecords []model.Record, ep *endpoint.Endpoint, changes *hetznerChanges) {
 	for _, record := range matchingRecords {
 		if targetsMatch(record, ep) {
-			changes.AddChangeDelete(zoneID, record)
+			changes.AddChangeDelete(record)
 		}
 	}
 }
 
 // processDeleteActionsByZone processes delete actions for a single zone.
-func processDeleteActionsByZone(zoneID, zoneName string, records []hdns.Record, endpoints []*endpoint.Endpoint, changes *hetznerChanges) {
+func processDeleteActionsByZone(zoneID, zoneName string, records []model.Record, endpoints []*endpoint.Endpoint, changes *hetznerChanges) {
 	for _, ep := range endpoints {
 		matchingRecords := getMatchingDomainRecords(records, zoneName, ep)
 
@@ -241,7 +242,7 @@ func processDeleteActionsByZone(zoneID, zoneName string, records []hdns.Record, 
 // processDeleteActions processes the delete requests.
 func processDeleteActions(
 	zoneIDNameMapper provider.ZoneIDName,
-	recordsByZoneID map[string][]hdns.Record,
+	recordsByZoneID map[string][]model.Record,
 	deletesByZoneID map[string][]*endpoint.Endpoint,
 	changes *hetznerChanges,
 ) {

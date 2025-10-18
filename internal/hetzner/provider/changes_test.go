@@ -15,14 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package hetzner
+package provider
 
 import (
 	"context"
 	"errors"
+	"external-dns-hetzner-webhook/internal/hetzner/model"
 	"testing"
 
-	hdns "github.com/jobstoit/hetzner-dns-go/dns"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -36,7 +36,7 @@ func Test_hetznerChanges_empty(t *testing.T) {
 
 	run := func(t *testing.T, tc testCase) {
 		actual := tc.changes.empty()
-		assert.Equal(t, actual, tc.expected)
+		assert.Equal(t, tc.expected, actual)
 	}
 
 	testCases := []testCase{
@@ -48,58 +48,38 @@ func Test_hetznerChanges_empty(t *testing.T) {
 		{
 			name: "Creations",
 			changes: hetznerChanges{
-				creates: []*hetznerChangeCreate{
-					{
-						ZoneID:  "alphaZoneID",
-						Options: &hdns.RecordCreateOpts{},
-					},
+				creates: []hetznerChangeCreate{
+					{},
 				},
 			},
 		},
 		{
 			name: "Updates",
 			changes: hetznerChanges{
-				updates: []*hetznerChangeUpdate{
-					{
-						ZoneID:  "alphaZoneID",
-						Record:  hdns.Record{},
-						Options: &hdns.RecordUpdateOpts{},
-					},
+				updates: []hetznerChangeUpdate{
+					{},
 				},
 			},
 		},
 		{
 			name: "Deletions",
 			changes: hetznerChanges{
-				deletes: []*hetznerChangeDelete{
-					{
-						ZoneID: "alphaZoneID",
-						Record: hdns.Record{},
-					},
+				deletes: []hetznerChangeDelete{
+					{},
 				},
 			},
 		},
 		{
 			name: "All",
 			changes: hetznerChanges{
-				creates: []*hetznerChangeCreate{
-					{
-						ZoneID:  "alphaZoneID",
-						Options: &hdns.RecordCreateOpts{},
-					},
+				creates: []hetznerChangeCreate{
+					{},
 				},
-				updates: []*hetznerChangeUpdate{
-					{
-						ZoneID:  "alphaZoneID",
-						Record:  hdns.Record{},
-						Options: &hdns.RecordUpdateOpts{},
-					},
+				updates: []hetznerChangeUpdate{
+					{},
 				},
-				deletes: []*hetznerChangeDelete{
-					{
-						ZoneID: "alphaZoneID",
-						Record: hdns.Record{},
-					},
+				deletes: []hetznerChangeDelete{
+					{},
 				},
 			},
 		},
@@ -117,17 +97,13 @@ func Test_hetznerChanges_AddChangeCreate(t *testing.T) {
 	type testCase struct {
 		name     string
 		instance hetznerChanges
-		input    struct {
-			zoneID  string
-			options *hdns.RecordCreateOpts
-		}
+		input    model.Record
 		expected hetznerChanges
 	}
 
 	run := func(t *testing.T, tc testCase) {
-		inp := tc.input
 		actual := tc.instance
-		actual.AddChangeCreate(inp.zoneID, inp.options)
+		actual.AddChangeCreate(tc.input)
 		assert.EqualValues(t, tc.expected, actual)
 	}
 
@@ -135,35 +111,26 @@ func Test_hetznerChanges_AddChangeCreate(t *testing.T) {
 		{
 			name:     "add create",
 			instance: hetznerChanges{},
-			input: struct {
-				zoneID  string
-				options *hdns.RecordCreateOpts
-			}{
-				zoneID: "zoneIDAlpha",
-				options: &hdns.RecordCreateOpts{
-					Name:  "www",
-					Ttl:   &testTTL,
-					Type:  "A",
-					Value: "127.0.0.1",
-					Zone: &hdns.Zone{
-						ID:   "zoneIDAlpha",
-						Name: "alpha.com",
-					},
+			input: model.Record{
+				Name:  "www",
+				TTL:   testTTL,
+				Type:  "A",
+				Value: "127.0.0.1",
+				Zone: &model.Zone{
+					ID:   "zoneIDAlpha",
+					Name: "alpha.com",
 				},
 			},
 			expected: hetznerChanges{
-				creates: []*hetznerChangeCreate{
+				creates: []hetznerChangeCreate{
 					{
-						ZoneID: "zoneIDAlpha",
-						Options: &hdns.RecordCreateOpts{
-							Name:  "www",
-							Ttl:   &testTTL,
-							Type:  "A",
-							Value: "127.0.0.1",
-							Zone: &hdns.Zone{
-								ID:   "zoneIDAlpha",
-								Name: "alpha.com",
-							},
+						Name:  "www",
+						TTL:   testTTL,
+						Type:  "A",
+						Value: "127.0.0.1",
+						Zone: &model.Zone{
+							ID:   "zoneIDAlpha",
+							Name: "alpha.com",
 						},
 					},
 				},
@@ -183,18 +150,13 @@ func Test_hetznerChanges_AddChangeUpdate(t *testing.T) {
 	type testCase struct {
 		name     string
 		instance hetznerChanges
-		input    struct {
-			zoneID  string
-			record  hdns.Record
-			options *hdns.RecordUpdateOpts
-		}
+		input    model.Record
 		expected hetznerChanges
 	}
 
 	run := func(t *testing.T, tc testCase) {
-		inp := tc.input
 		actual := tc.instance
-		actual.AddChangeUpdate(inp.zoneID, inp.record, inp.options)
+		actual.AddChangeUpdate(tc.input)
 		assert.EqualValues(t, tc.expected, actual)
 	}
 
@@ -202,58 +164,28 @@ func Test_hetznerChanges_AddChangeUpdate(t *testing.T) {
 		{
 			name:     "add update",
 			instance: hetznerChanges{},
-			input: struct {
-				zoneID  string
-				record  hdns.Record
-				options *hdns.RecordUpdateOpts
-			}{
-				zoneID: "zoneIDAlpha",
-				record: hdns.Record{
-					ID:    "id_1",
-					Name:  "www",
-					Ttl:   -1,
-					Type:  "A",
-					Value: "127.0.0.1",
-					Zone: &hdns.Zone{
-						ID:   "zoneIDAlpha",
-						Name: "alpha.com",
-					},
-				},
-				options: &hdns.RecordUpdateOpts{
-					Name:  "www",
-					Ttl:   &testTTL,
-					Type:  "A",
-					Value: "127.0.0.1",
-					Zone: &hdns.Zone{
-						ID:   "zoneIDAlpha",
-						Name: "alpha.com",
-					},
+			input: model.Record{
+				ID:    "id_1",
+				Name:  "www",
+				TTL:   testTTL,
+				Type:  "A",
+				Value: "127.0.0.1",
+				Zone: &model.Zone{
+					ID:   "zoneIDAlpha",
+					Name: "alpha.com",
 				},
 			},
 			expected: hetznerChanges{
-				updates: []*hetznerChangeUpdate{
+				updates: []hetznerChangeUpdate{
 					{
-						ZoneID: "zoneIDAlpha",
-						Record: hdns.Record{
-							ID:    "id_1",
-							Name:  "www",
-							Ttl:   -1,
-							Type:  "A",
-							Value: "127.0.0.1",
-							Zone: &hdns.Zone{
-								ID:   "zoneIDAlpha",
-								Name: "alpha.com",
-							},
-						},
-						Options: &hdns.RecordUpdateOpts{
-							Name:  "www",
-							Ttl:   &testTTL,
-							Type:  "A",
-							Value: "127.0.0.1",
-							Zone: &hdns.Zone{
-								ID:   "zoneIDAlpha",
-								Name: "alpha.com",
-							},
+						ID:    "id_1",
+						Name:  "www",
+						TTL:   testTTL,
+						Type:  "A",
+						Value: "127.0.0.1",
+						Zone: &model.Zone{
+							ID:   "zoneIDAlpha",
+							Name: "alpha.com",
 						},
 					},
 				},
@@ -273,17 +205,13 @@ func Test_hetznerChanges_AddChangeDelete(t *testing.T) {
 	type testCase struct {
 		name     string
 		instance hetznerChanges
-		input    struct {
-			zoneID string
-			record hdns.Record
-		}
+		input    model.Record
 		expected hetznerChanges
 	}
 
 	run := func(t *testing.T, tc testCase) {
-		inp := tc.input
 		actual := tc.instance
-		actual.AddChangeDelete(inp.zoneID, inp.record)
+		actual.AddChangeDelete(tc.input)
 		assert.EqualValues(t, tc.expected, actual)
 	}
 
@@ -291,37 +219,28 @@ func Test_hetznerChanges_AddChangeDelete(t *testing.T) {
 		{
 			name:     "add update",
 			instance: hetznerChanges{},
-			input: struct {
-				zoneID string
-				record hdns.Record
-			}{
-				zoneID: "zoneIDAlpha",
-				record: hdns.Record{
-					ID:    "id_1",
-					Name:  "www",
-					Ttl:   -1,
-					Type:  "A",
-					Value: "127.0.0.1",
-					Zone: &hdns.Zone{
-						ID:   "zoneIDAlpha",
-						Name: "alpha.com",
-					},
+			input: model.Record{
+				ID:    "id_1",
+				Name:  "www",
+				TTL:   -1,
+				Type:  "A",
+				Value: "127.0.0.1",
+				Zone: &model.Zone{
+					ID:   "zoneIDAlpha",
+					Name: "alpha.com",
 				},
 			},
 			expected: hetznerChanges{
-				deletes: []*hetznerChangeDelete{
+				deletes: []hetznerChangeDelete{
 					{
-						ZoneID: "zoneIDAlpha",
-						Record: hdns.Record{
-							ID:    "id_1",
-							Name:  "www",
-							Ttl:   -1,
-							Type:  "A",
-							Value: "127.0.0.1",
-							Zone: &hdns.Zone{
-								ID:   "zoneIDAlpha",
-								Name: "alpha.com",
-							},
+						ID:    "id_1",
+						Name:  "www",
+						TTL:   -1,
+						Type:  "A",
+						Value: "127.0.0.1",
+						Zone: &model.Zone{
+							ID:   "zoneIDAlpha",
+							Name: "alpha.com",
 						},
 					},
 				},
@@ -360,20 +279,17 @@ func Test_hetznerChanges_applyDeletes(t *testing.T) {
 		{
 			name: "deletion",
 			changes: &hetznerChanges{
-				deletes: []*hetznerChangeDelete{
+				deletes: []hetznerChangeDelete{
 					{
-						ZoneID: "zoneIDAlpha",
-						Record: hdns.Record{
-							ID:    "id1",
-							Type:  hdns.RecordTypeA,
-							Name:  "www",
-							Value: "1.1.1.1",
-							Zone: &hdns.Zone{
-								ID:   "zoneIDAlpha",
-								Name: "alpha.com",
-							},
-							Ttl: -1,
+						ID:    "id1",
+						Type:  "A",
+						Name:  "www",
+						Value: "1.1.1.1",
+						Zone: &model.Zone{
+							ID:   "zoneIDAlpha",
+							Name: "alpha.com",
 						},
+						TTL: -1,
 					},
 				},
 			},
@@ -388,20 +304,17 @@ func Test_hetznerChanges_applyDeletes(t *testing.T) {
 		{
 			name: "deletion error",
 			changes: &hetznerChanges{
-				deletes: []*hetznerChangeDelete{
+				deletes: []hetznerChangeDelete{
 					{
-						ZoneID: "zoneIDAlpha",
-						Record: hdns.Record{
-							ID:    "id1",
-							Type:  hdns.RecordTypeA,
-							Name:  "www",
-							Value: "1.1.1.1",
-							Zone: &hdns.Zone{
-								ID:   "zoneIDAlpha",
-								Name: "alpha.com",
-							},
-							Ttl: -1,
+						ID:    "id1",
+						Type:  "A",
+						Name:  "www",
+						Value: "1.1.1.1",
+						Zone: &model.Zone{
+							ID:   "zoneIDAlpha",
+							Name: "alpha.com",
 						},
+						TTL: -1,
 					},
 				},
 			},
@@ -421,20 +334,17 @@ func Test_hetznerChanges_applyDeletes(t *testing.T) {
 		{
 			name: "deletion dry run",
 			changes: &hetznerChanges{
-				deletes: []*hetznerChangeDelete{
+				deletes: []hetznerChangeDelete{
 					{
-						ZoneID: "zoneIDAlpha",
-						Record: hdns.Record{
-							ID:    "id1",
-							Type:  hdns.RecordTypeA,
-							Name:  "www",
-							Value: "1.1.1.1",
-							Zone: &hdns.Zone{
-								ID:   "zoneIDAlpha",
-								Name: "alpha.com",
-							},
-							Ttl: -1,
+						ID:    "id1",
+						Type:  "A",
+						Name:  "www",
+						Value: "1.1.1.1",
+						Zone: &model.Zone{
+							ID:   "zoneIDAlpha",
+							Name: "alpha.com",
 						},
+						TTL: -1,
 					},
 				},
 				dryRun: true,
@@ -480,19 +390,16 @@ func Test_hetznerChanges_applyCreates(t *testing.T) {
 		{
 			name: "creation",
 			changes: &hetznerChanges{
-				creates: []*hetznerChangeCreate{
+				creates: []hetznerChangeCreate{
 					{
-						ZoneID: "zoneIDAlpha",
-						Options: &hdns.RecordCreateOpts{
-							Name: "www",
-							Type: hdns.RecordTypeA,
-							Zone: &hdns.Zone{
-								ID:   "zoneIDAlpha",
-								Name: "alpha.com",
-							},
-							Value: "127.0.0.1",
-							Ttl:   &testTTL,
+						Name: "www",
+						Type: "A",
+						Zone: &model.Zone{
+							ID:   "zoneIDAlpha",
+							Name: "alpha.com",
 						},
+						Value: "127.0.0.1",
+						TTL:   testTTL,
 					},
 				},
 			},
@@ -507,19 +414,16 @@ func Test_hetznerChanges_applyCreates(t *testing.T) {
 		{
 			name: "creation error",
 			changes: &hetznerChanges{
-				creates: []*hetznerChangeCreate{
+				creates: []hetznerChangeCreate{
 					{
-						ZoneID: "zoneIDAlpha",
-						Options: &hdns.RecordCreateOpts{
-							Name: "www",
-							Type: hdns.RecordTypeA,
-							Zone: &hdns.Zone{
-								ID:   "zoneIDAlpha",
-								Name: "alpha.com",
-							},
-							Value: "127.0.0.1",
-							Ttl:   &testTTL,
+						Name: "www",
+						Type: "A",
+						Zone: &model.Zone{
+							ID:   "zoneIDAlpha",
+							Name: "alpha.com",
 						},
+						Value: "127.0.0.1",
+						TTL:   testTTL,
 					},
 				},
 			},
@@ -544,19 +448,16 @@ func Test_hetznerChanges_applyCreates(t *testing.T) {
 				},
 			},
 			changes: &hetznerChanges{
-				creates: []*hetznerChangeCreate{
+				creates: []hetznerChangeCreate{
 					{
-						ZoneID: "zoneIDAlpha",
-						Options: &hdns.RecordCreateOpts{
-							Name: "www",
-							Zone: &hdns.Zone{
-								ID:   "zoneIDAlpha",
-								Name: "alpha.com",
-							},
-							Type:  "A",
-							Value: "127.0.0.1",
-							Ttl:   &testTTL,
+						Name: "www",
+						Zone: &model.Zone{
+							ID:   "zoneIDAlpha",
+							Name: "alpha.com",
 						},
+						Type:  "A",
+						Value: "127.0.0.1",
+						TTL:   testTTL,
 					},
 				},
 				dryRun: true,
@@ -602,29 +503,17 @@ func Test_hetznerChanges_applyUpdates(t *testing.T) {
 			name:  "update",
 			input: &mockClient{},
 			changes: &hetznerChanges{
-				updates: []*hetznerChangeUpdate{
+				updates: []hetznerChangeUpdate{
 					{
-						ZoneID: "zoneIDAlpha",
-						Record: hdns.Record{
-							Zone: &hdns.Zone{
-								ID:   "zoneIDAlpha",
-								Name: "alpha.com",
-							},
-							Name:  "www",
-							Type:  "A",
-							Value: "127.0.0.1",
-							Ttl:   testTTL,
+						ID: "recordAlpha1",
+						Zone: &model.Zone{
+							ID:   "zoneIDAlpha",
+							Name: "alpha.com",
 						},
-						Options: &hdns.RecordUpdateOpts{
-							Zone: &hdns.Zone{
-								ID:   "zoneIDAlpha",
-								Name: "alpha.com",
-							},
-							Name:  "ftp",
-							Type:  "A",
-							Value: "127.0.0.1",
-							Ttl:   &testTTL,
-						},
+						Name:  "ftp",
+						Type:  "A",
+						Value: "127.0.0.1",
+						TTL:   testTTL,
 					},
 				},
 			},
@@ -643,29 +532,17 @@ func Test_hetznerChanges_applyUpdates(t *testing.T) {
 				},
 			},
 			changes: &hetznerChanges{
-				updates: []*hetznerChangeUpdate{
+				updates: []hetznerChangeUpdate{
 					{
-						ZoneID: "zoneIDAlpha",
-						Record: hdns.Record{
-							Zone: &hdns.Zone{
-								ID:   "zoneIDAlpha",
-								Name: "alpha.com",
-							},
-							Name:  "www",
-							Type:  "A",
-							Value: "127.0.0.1",
-							Ttl:   testTTL,
+						ID: "recordIDAlpha1",
+						Zone: &model.Zone{
+							ID:   "zoneIDAlpha",
+							Name: "alpha.com",
 						},
-						Options: &hdns.RecordUpdateOpts{
-							Zone: &hdns.Zone{
-								ID:   "zoneIDAlpha",
-								Name: "alpha.com",
-							},
-							Name:  "ftp",
-							Type:  "A",
-							Value: "127.0.0.1",
-							Ttl:   &testTTL,
-						},
+						Name:  "ftp",
+						Type:  "A",
+						Value: "127.0.0.1",
+						TTL:   testTTL,
 					},
 				},
 			},
@@ -681,29 +558,17 @@ func Test_hetznerChanges_applyUpdates(t *testing.T) {
 			name:  "update dry run",
 			input: &mockClient{},
 			changes: &hetznerChanges{
-				updates: []*hetznerChangeUpdate{
+				updates: []hetznerChangeUpdate{
 					{
-						ZoneID: "zoneIDAlpha",
-						Record: hdns.Record{
-							Zone: &hdns.Zone{
-								ID:   "zoneIDAlpha",
-								Name: "alpha.com",
-							},
-							Name:  "www",
-							Type:  "A",
-							Value: "127.0.0.1",
-							Ttl:   testTTL,
+						ID: "recordIDAlpha1",
+						Zone: &model.Zone{
+							ID:   "zoneIDAlpha",
+							Name: "alpha.com",
 						},
-						Options: &hdns.RecordUpdateOpts{
-							Zone: &hdns.Zone{
-								ID:   "zoneIDAlpha",
-								Name: "alpha.com",
-							},
-							Name:  "ftp",
-							Type:  "A",
-							Value: "127.0.0.1",
-							Ttl:   &testTTL,
-						},
+						Name:  "ftp",
+						Type:  "A",
+						Value: "127.0.0.1",
+						TTL:   testTTL,
 					},
 				},
 				dryRun: true,
@@ -759,60 +624,42 @@ func Test_hetznerChanges_ApplyChanges(t *testing.T) {
 		{
 			name: "all changes",
 			changes: &hetznerChanges{
-				deletes: []*hetznerChangeDelete{
+				deletes: []hetznerChangeDelete{
 					{
-						ZoneID: "zoneIDAlpha",
-						Record: hdns.Record{
-							ID:    "id1",
-							Type:  hdns.RecordTypeA,
-							Name:  "www",
-							Value: "1.1.1.1",
-							Zone: &hdns.Zone{
-								ID:   "zoneIDAlpha",
-								Name: "alpha.com",
-							},
-							Ttl: -1,
+						ID:    "id1",
+						Type:  "A",
+						Name:  "www",
+						Value: "1.1.1.1",
+						Zone: &model.Zone{
+							ID:   "zoneIDAlpha",
+							Name: "alpha.com",
 						},
+						TTL: -1,
 					},
 				},
-				creates: []*hetznerChangeCreate{
+				creates: []hetznerChangeCreate{
 					{
-						ZoneID: "zoneIDAlpha",
-						Options: &hdns.RecordCreateOpts{
-							Name: "www",
-							Zone: &hdns.Zone{
-								ID:   "zoneIDAlpha",
-								Name: "alpha.com",
-							},
-							Type:  "A",
-							Value: "127.0.0.1",
-							Ttl:   &testTTL,
+						Name: "www",
+						Zone: &model.Zone{
+							ID:   "zoneIDAlpha",
+							Name: "alpha.com",
 						},
+						Type:  "A",
+						Value: "127.0.0.1",
+						TTL:   testTTL,
 					},
 				},
-				updates: []*hetznerChangeUpdate{
+				updates: []hetznerChangeUpdate{
 					{
-						ZoneID: "zoneIDAlpha",
-						Record: hdns.Record{
-							Zone: &hdns.Zone{
-								ID:   "zoneIDAlpha",
-								Name: "alpha.com",
-							},
-							Name:  "www",
-							Type:  "A",
-							Value: "127.0.0.1",
-							Ttl:   testTTL,
+						ID: "recordIDAlpha1",
+						Zone: &model.Zone{
+							ID:   "zoneIDAlpha",
+							Name: "alpha.com",
 						},
-						Options: &hdns.RecordUpdateOpts{
-							Zone: &hdns.Zone{
-								ID:   "zoneIDAlpha",
-								Name: "alpha.com",
-							},
-							Name:  "ftp",
-							Type:  "A",
-							Value: "127.0.0.1",
-							Ttl:   &testTTL,
-						},
+						Name:  "ftp",
+						Type:  "A",
+						Value: "127.0.0.1",
+						TTL:   testTTL,
 					},
 				},
 			},
@@ -831,20 +678,17 @@ func Test_hetznerChanges_ApplyChanges(t *testing.T) {
 		{
 			name: "deletion error",
 			changes: &hetznerChanges{
-				deletes: []*hetznerChangeDelete{
+				deletes: []hetznerChangeDelete{
 					{
-						ZoneID: "zoneIDAlpha",
-						Record: hdns.Record{
-							ID:    "id1",
-							Type:  hdns.RecordTypeA,
-							Name:  "www",
-							Value: "1.1.1.1",
-							Zone: &hdns.Zone{
-								ID:   "zoneIDAlpha",
-								Name: "alpha.com",
-							},
-							Ttl: -1,
+						ID:    "id1",
+						Type:  "A",
+						Name:  "www",
+						Value: "1.1.1.1",
+						Zone: &model.Zone{
+							ID:   "zoneIDAlpha",
+							Name: "alpha.com",
 						},
+						TTL: -1,
 					},
 				},
 			},
@@ -866,19 +710,16 @@ func Test_hetznerChanges_ApplyChanges(t *testing.T) {
 		{
 			name: "creation error",
 			changes: &hetznerChanges{
-				creates: []*hetznerChangeCreate{
+				creates: []hetznerChangeCreate{
 					{
-						ZoneID: "zoneIDAlpha",
-						Options: &hdns.RecordCreateOpts{
-							Name: "www",
-							Zone: &hdns.Zone{
-								ID:   "zoneIDAlpha",
-								Name: "alpha.com",
-							},
-							Type:  "A",
-							Value: "127.0.0.1",
-							Ttl:   &testTTL,
+						Name: "www",
+						Zone: &model.Zone{
+							ID:   "zoneIDAlpha",
+							Name: "alpha.com",
 						},
+						Type:  "A",
+						Value: "127.0.0.1",
+						TTL:   testTTL,
 					},
 				},
 			},
@@ -905,29 +746,17 @@ func Test_hetznerChanges_ApplyChanges(t *testing.T) {
 				},
 			},
 			changes: &hetznerChanges{
-				updates: []*hetznerChangeUpdate{
+				updates: []hetznerChangeUpdate{
 					{
-						ZoneID: "zoneIDAlpha",
-						Record: hdns.Record{
-							Zone: &hdns.Zone{
-								ID:   "zoneIDAlpha",
-								Name: "alpha.com",
-							},
-							Name:  "www",
-							Type:  "A",
-							Value: "127.0.0.1",
-							Ttl:   testTTL,
+						ID: "recordIDAlpha1",
+						Zone: &model.Zone{
+							ID:   "zoneIDAlpha",
+							Name: "alpha.com",
 						},
-						Options: &hdns.RecordUpdateOpts{
-							Zone: &hdns.Zone{
-								ID:   "zoneIDAlpha",
-								Name: "alpha.com",
-							},
-							Name:  "ftp",
-							Type:  "A",
-							Value: "127.0.0.1",
-							Ttl:   &testTTL,
-						},
+						Name:  "ftp",
+						Type:  "A",
+						Value: "127.0.0.1",
+						TTL:   testTTL,
 					},
 				},
 			},

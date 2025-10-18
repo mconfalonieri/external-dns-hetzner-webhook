@@ -15,15 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package hetzner
+package provider
 
 import (
 	"context"
 	"time"
 
+	"external-dns-hetzner-webhook/internal/hetzner/model"
 	"external-dns-hetzner-webhook/internal/metrics"
 
-	hdns "github.com/jobstoit/hetzner-dns-go/dns"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -32,9 +32,9 @@ type hetznerChanges struct {
 	dryRun     bool
 	defaultTTL int
 
-	creates []*hetznerChangeCreate
-	updates []*hetznerChangeUpdate
-	deletes []*hetznerChangeDelete
+	creates []hetznerChangeCreate
+	updates []hetznerChangeUpdate
+	deletes []hetznerChangeDelete
 }
 
 // empty returns true if there are no changes left.
@@ -43,30 +43,20 @@ func (c *hetznerChanges) empty() bool {
 }
 
 // AddChangeCreate adds a new creation entry to the current object.
-func (c *hetznerChanges) AddChangeCreate(zoneID string, options *hdns.RecordCreateOpts) {
-	changeCreate := &hetznerChangeCreate{
-		ZoneID:  zoneID,
-		Options: options,
-	}
+func (c *hetznerChanges) AddChangeCreate(record model.Record) {
+	changeCreate := hetznerChangeCreate(record)
 	c.creates = append(c.creates, changeCreate)
 }
 
 // AddChangeUpdate adds a new update entry to the current object.
-func (c *hetznerChanges) AddChangeUpdate(zoneID string, record hdns.Record, options *hdns.RecordUpdateOpts) {
-	changeUpdate := &hetznerChangeUpdate{
-		ZoneID:  zoneID,
-		Record:  record,
-		Options: options,
-	}
+func (c *hetznerChanges) AddChangeUpdate(record model.Record) {
+	changeUpdate := hetznerChangeUpdate(record)
 	c.updates = append(c.updates, changeUpdate)
 }
 
 // AddChangeDelete adds a new delete entry to the current object.
-func (c *hetznerChanges) AddChangeDelete(zoneID string, record hdns.Record) {
-	changeDelete := &hetznerChangeDelete{
-		ZoneID: zoneID,
-		Record: record,
-	}
+func (c *hetznerChanges) AddChangeDelete(record model.Record) {
+	changeDelete := hetznerChangeDelete(record)
 	c.deletes = append(c.deletes, changeDelete)
 }
 
@@ -75,12 +65,12 @@ func (c hetznerChanges) applyDeletes(ctx context.Context, dnsClient apiClient) e
 	metrics := metrics.GetOpenMetricsInstance()
 	for _, e := range c.deletes {
 		log.WithFields(e.GetLogFields()).Debug("Deleting domain record")
-		log.Infof("Deleting record [%s] from zone [%s]", e.Record.Name, e.Record.Zone.Name)
+		log.Infof("Deleting record [%s] from zone [%s]", e.Name, e.Zone.Name)
 		if c.dryRun {
 			continue
 		}
 		start := time.Now()
-		if _, err := dnsClient.DeleteRecord(ctx, &e.Record); err != nil {
+		if _, err := dnsClient.DeleteRecord(ctx, e.ID); err != nil {
 			metrics.IncFailedApiCallsTotal(actDeleteRecord)
 			return err
 		}
@@ -95,19 +85,17 @@ func (c hetznerChanges) applyDeletes(ctx context.Context, dnsClient apiClient) e
 func (c hetznerChanges) applyCreates(ctx context.Context, dnsClient apiClient) error {
 	metrics := metrics.GetOpenMetricsInstance()
 	for _, e := range c.creates {
-		opt := e.Options
-		if opt.Ttl == nil {
-			ttl := c.defaultTTL
-			opt.Ttl = &ttl
+		if e.TTL < 0 {
+			e.TTL = c.defaultTTL
 		}
 		log.WithFields(e.GetLogFields()).Debug("Creating domain record")
 		log.Infof("Creating record [%s] of type [%s] with value [%s] in zone [%s]",
-			opt.Name, opt.Type, opt.Value, opt.Zone.Name)
+			e.Name, e.Type, e.Value, e.Zone.Name)
 		if c.dryRun {
 			continue
 		}
 		start := time.Now()
-		if _, _, err := dnsClient.CreateRecord(ctx, *opt); err != nil {
+		if _, _, err := dnsClient.CreateRecord(ctx, model.Record(e)); err != nil {
 			metrics.IncFailedApiCallsTotal(actCreateRecord)
 			return err
 		}
@@ -122,19 +110,17 @@ func (c hetznerChanges) applyCreates(ctx context.Context, dnsClient apiClient) e
 func (c hetznerChanges) applyUpdates(ctx context.Context, dnsClient apiClient) error {
 	metrics := metrics.GetOpenMetricsInstance()
 	for _, e := range c.updates {
-		opt := e.Options
-		if opt.Ttl == nil {
-			ttl := c.defaultTTL
-			opt.Ttl = &ttl
+		if e.TTL < 0 {
+			e.TTL = c.defaultTTL
 		}
 		log.WithFields(e.GetLogFields()).Debug("Updating domain record")
 		log.Infof("Updating record ID [%s] with name [%s], type [%s], value [%s] and TTL [%d] in zone [%s]",
-			e.Record.ID, opt.Name, opt.Type, opt.Value, *opt.Ttl, opt.Zone.Name)
+			e.ID, e.Name, e.Type, e.Value, e.TTL, e.Zone.Name)
 		if c.dryRun {
 			continue
 		}
 		start := time.Now()
-		if _, _, err := dnsClient.UpdateRecord(ctx, &e.Record, *opt); err != nil {
+		if _, _, err := dnsClient.UpdateRecord(ctx, e.ID, model.Record(e)); err != nil {
 			metrics.IncFailedApiCallsTotal(actUpdateRecord)
 			return err
 		}

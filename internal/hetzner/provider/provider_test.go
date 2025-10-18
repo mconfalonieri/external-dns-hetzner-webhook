@@ -15,20 +15,33 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package hetzner
+package provider
 
 import (
 	"context"
 	"errors"
+	"external-dns-hetzner-webhook/internal/hetzner/model"
 	"net/http"
 	"testing"
 
-	hdns "github.com/jobstoit/hetzner-dns-go/dns"
 	"github.com/stretchr/testify/assert"
 
 	"sigs.k8s.io/external-dns/endpoint"
 	"sigs.k8s.io/external-dns/provider"
 )
+
+// assertError checks if an error is thrown when expected.
+func assertError(t *testing.T, expected, actual error) bool {
+	var expError bool
+	if expected == nil {
+		assert.Nil(t, actual)
+		expError = false
+	} else {
+		assert.EqualError(t, actual, expected.Error())
+		expError = true
+	}
+	return expError
+}
 
 // Test_NewHetznerProvider tests NewHetznerProvider().
 func Test_NewHetznerProvider(t *testing.T) {
@@ -58,7 +71,7 @@ func Test_Zones(t *testing.T) {
 		name     string
 		provider HetznerProvider
 		expected struct {
-			zones []hdns.Zone
+			zones []model.Zone
 			err   error
 		}
 	}
@@ -78,7 +91,7 @@ func Test_Zones(t *testing.T) {
 			provider: HetznerProvider{
 				client: &mockClient{
 					getZones: zonesResponse{
-						zones: []*hdns.Zone{
+						zones: []model.Zone{
 							{
 								ID:   "zoneIDAlpha",
 								Name: "alpha.com",
@@ -88,15 +101,12 @@ func Test_Zones(t *testing.T) {
 								Name: "beta.com",
 							},
 						},
-						resp: &hdns.Response{
-							Meta: hdns.Meta{
-								Pagination: &hdns.Pagination{
-									Page:         1,
-									PerPage:      100,
-									LastPage:     1,
-									TotalEntries: 2,
-								},
-							},
+						resp: &http.Response{},
+						pagination: &model.Pagination{
+							PageIdx:      1,
+							ItemsPerPage: 100,
+							LastPage:     1,
+							TotalCount:   2,
 						},
 					},
 				},
@@ -107,10 +117,10 @@ func Test_Zones(t *testing.T) {
 				domainFilter: endpoint.DomainFilter{},
 			},
 			expected: struct {
-				zones []hdns.Zone
+				zones []model.Zone
 				err   error
 			}{
-				zones: []hdns.Zone{
+				zones: []model.Zone{
 					{
 						ID:   "zoneIDAlpha",
 						Name: "alpha.com",
@@ -127,7 +137,7 @@ func Test_Zones(t *testing.T) {
 			provider: HetznerProvider{
 				client: &mockClient{
 					getZones: zonesResponse{
-						zones: []*hdns.Zone{
+						zones: []model.Zone{
 							{
 								ID:   "zoneIDAlpha",
 								Name: "alpha.com",
@@ -141,15 +151,12 @@ func Test_Zones(t *testing.T) {
 								Name: "gamma.com",
 							},
 						},
-						resp: &hdns.Response{
-							Meta: hdns.Meta{
-								Pagination: &hdns.Pagination{
-									Page:         1,
-									PerPage:      100,
-									LastPage:     1,
-									TotalEntries: 2,
-								},
-							},
+						resp: &http.Response{StatusCode: http.StatusOK},
+						pagination: &model.Pagination{
+							PageIdx:      1,
+							ItemsPerPage: 100,
+							LastPage:     1,
+							TotalCount:   3,
 						},
 					},
 				},
@@ -160,10 +167,10 @@ func Test_Zones(t *testing.T) {
 				domainFilter: endpoint.NewDomainFilter([]string{"alpha.com", "gamma.com"}),
 			},
 			expected: struct {
-				zones []hdns.Zone
+				zones []model.Zone
 				err   error
 			}{
-				zones: []hdns.Zone{
+				zones: []model.Zone{
 					{
 						ID:   "zoneIDAlpha",
 						Name: "alpha.com",
@@ -190,7 +197,7 @@ func Test_Zones(t *testing.T) {
 				domainFilter: endpoint.DomainFilter{},
 			},
 			expected: struct {
-				zones []hdns.Zone
+				zones []model.Zone
 				err   error
 			}{
 				err: errors.New("test zones error"),
@@ -322,36 +329,28 @@ func Test_Records(t *testing.T) {
 			provider: HetznerProvider{
 				client: &mockClient{
 					getZones: zonesResponse{
-						zones: []*hdns.Zone{
+						zones: []model.Zone{
 							{
 								ID:   "zoneIDAlpha",
 								Name: "alpha.com",
 							},
 						},
-						resp: &hdns.Response{
-							Response: &http.Response{StatusCode: http.StatusOK},
-							Meta: hdns.Meta{
-								Pagination: &hdns.Pagination{
-									Page:         1,
-									PerPage:      100,
-									LastPage:     1,
-									TotalEntries: 2,
-								},
-							},
+						resp: &http.Response{StatusCode: http.StatusOK},
+						pagination: &model.Pagination{
+							PageIdx:      1,
+							ItemsPerPage: 100,
+							LastPage:     1,
+							TotalCount:   1,
 						},
 					},
 					getRecords: recordsResponse{
-						records: []*hdns.Record{},
-						resp: &hdns.Response{
-							Response: &http.Response{StatusCode: http.StatusOK},
-							Meta: hdns.Meta{
-								Pagination: &hdns.Pagination{
-									Page:         1,
-									PerPage:      100,
-									LastPage:     1,
-									TotalEntries: 0,
-								},
-							},
+						records: []model.Record{},
+						resp:    &http.Response{StatusCode: http.StatusOK},
+						pagination: &model.Pagination{
+							PageIdx:      1,
+							ItemsPerPage: 100,
+							LastPage:     1,
+							TotalCount:   0,
 						},
 					},
 					filterRecordsByZone: true, // we want the records by zone
@@ -374,7 +373,7 @@ func Test_Records(t *testing.T) {
 			provider: HetznerProvider{
 				client: &mockClient{
 					getZones: zonesResponse{
-						zones: []*hdns.Zone{
+						zones: []model.Zone{
 							{
 								ID:   "zoneIDAlpha",
 								Name: "alpha.com",
@@ -384,75 +383,67 @@ func Test_Records(t *testing.T) {
 								Name: "beta.com",
 							},
 						},
-						resp: &hdns.Response{
-							Response: &http.Response{StatusCode: http.StatusOK},
-							Meta: hdns.Meta{
-								Pagination: &hdns.Pagination{
-									Page:         1,
-									PerPage:      100,
-									LastPage:     1,
-									TotalEntries: 2,
-								},
-							},
+						resp: &http.Response{StatusCode: http.StatusOK},
+						pagination: &model.Pagination{
+							PageIdx:      1,
+							ItemsPerPage: 100,
+							LastPage:     1,
+							TotalCount:   2,
 						},
 					},
 					getRecords: recordsResponse{
-						records: []*hdns.Record{
+						records: []model.Record{
 							{
 								ID:   "id_1",
 								Name: "www",
-								Type: hdns.RecordTypeA,
-								Zone: &hdns.Zone{
+								Type: "A",
+								Zone: &model.Zone{
 									ID:   "zoneIDAlpha",
 									Name: "alpha.com",
 								},
 								Value: "1.1.1.1",
-								Ttl:   -1,
+								TTL:   -1,
 							},
 							{
 								ID:   "id_2",
 								Name: "ftp",
-								Type: hdns.RecordTypeCNAME,
-								Zone: &hdns.Zone{
+								Type: "CNAME",
+								Zone: &model.Zone{
 									ID:   "zoneIDAlpha",
 									Name: "alpha.com",
 								},
 								Value: "www",
-								Ttl:   -1,
+								TTL:   -1,
 							},
 							{
 								ID:   "id_3",
 								Name: "www",
-								Type: hdns.RecordTypeA,
-								Zone: &hdns.Zone{
+								Type: "A",
+								Zone: &model.Zone{
 									ID:   "zoneIDBeta",
 									Name: "beta.com",
 								},
 								Value: "2.2.2.2",
-								Ttl:   -1,
+								TTL:   -1,
 							},
 							{
 								ID:   "id_4",
 								Name: "ftp",
-								Type: hdns.RecordTypeA,
-								Zone: &hdns.Zone{
+								Type: "A",
+								Zone: &model.Zone{
 									ID:   "zoneIDBeta",
 									Name: "beta.com",
 								},
 								Value: "3.3.3.3",
-								Ttl:   -1,
+								TTL:   -1,
 							},
 						},
-						resp: &hdns.Response{
-							Response: &http.Response{StatusCode: http.StatusOK},
-							Meta: hdns.Meta{
-								Pagination: &hdns.Pagination{
-									Page:         1,
-									PerPage:      100,
-									LastPage:     1,
-									TotalEntries: 0, // This value will be adjusted
-								},
-							},
+						resp: &http.Response{StatusCode: http.StatusOK},
+						pagination: &model.Pagination{
+							PageIdx:      1,
+							ItemsPerPage: 100,
+							LastPage:     1,
+							TotalCount:   0, // This value will be adjusted
 						},
 					},
 					filterRecordsByZone: true,
@@ -525,22 +516,18 @@ func Test_Records(t *testing.T) {
 			provider: HetznerProvider{
 				client: &mockClient{
 					getZones: zonesResponse{
-						zones: []*hdns.Zone{
+						zones: []model.Zone{
 							{
 								ID:   "zoneIDAlpha",
 								Name: "alpha.com",
 							},
 						},
-						resp: &hdns.Response{
-							Response: &http.Response{StatusCode: http.StatusOK},
-							Meta: hdns.Meta{
-								Pagination: &hdns.Pagination{
-									Page:         1,
-									PerPage:      100,
-									LastPage:     1,
-									TotalEntries: 2,
-								},
-							},
+						resp: &http.Response{StatusCode: http.StatusOK},
+						pagination: &model.Pagination{
+							PageIdx:      1,
+							ItemsPerPage: 100,
+							LastPage:     1,
+							TotalCount:   1,
 						},
 					},
 					getRecords: recordsResponse{
@@ -575,7 +562,7 @@ func Test_ensureZoneIDMappingPresent(t *testing.T) {
 	type testCase struct {
 		name     string
 		provider HetznerProvider
-		input    []hdns.Zone
+		input    []model.Zone
 		expected map[string]string
 	}
 
@@ -589,13 +576,13 @@ func Test_ensureZoneIDMappingPresent(t *testing.T) {
 		{
 			name:     "empty list",
 			provider: HetznerProvider{},
-			input:    []hdns.Zone{},
+			input:    []model.Zone{},
 			expected: map[string]string{},
 		},
 		{
 			name:     "zones present",
 			provider: HetznerProvider{},
-			input: []hdns.Zone{
+			input: []model.Zone{
 				{
 					ID:   "zoneIDAlpha",
 					Name: "alpha.com",
@@ -625,7 +612,7 @@ func Test_getRecordsByZoneID(t *testing.T) {
 		name     string
 		provider HetznerProvider
 		expected struct {
-			recordsByZoneID map[string][]hdns.Record
+			recordsByZoneID map[string][]model.Record
 			err             error
 		}
 	}
@@ -645,36 +632,28 @@ func Test_getRecordsByZoneID(t *testing.T) {
 			provider: HetznerProvider{
 				client: &mockClient{
 					getZones: zonesResponse{
-						zones: []*hdns.Zone{
+						zones: []model.Zone{
 							{
 								ID:   "zoneIDAlpha",
 								Name: "alpha.com",
 							},
 						},
-						resp: &hdns.Response{
-							Response: &http.Response{StatusCode: http.StatusOK},
-							Meta: hdns.Meta{
-								Pagination: &hdns.Pagination{
-									Page:         1,
-									PerPage:      100,
-									LastPage:     1,
-									TotalEntries: 2,
-								},
-							},
+						resp: &http.Response{StatusCode: http.StatusOK},
+						pagination: &model.Pagination{
+							PageIdx:      1,
+							ItemsPerPage: 100,
+							LastPage:     1,
+							TotalCount:   2,
 						},
 					},
 					getRecords: recordsResponse{
-						records: []*hdns.Record{},
-						resp: &hdns.Response{
-							Response: &http.Response{StatusCode: http.StatusOK},
-							Meta: hdns.Meta{
-								Pagination: &hdns.Pagination{
-									Page:         1,
-									PerPage:      100,
-									LastPage:     1,
-									TotalEntries: 0,
-								},
-							},
+						records: []model.Record{},
+						resp:    &http.Response{StatusCode: http.StatusOK},
+						pagination: &model.Pagination{
+							PageIdx:      1,
+							ItemsPerPage: 100,
+							LastPage:     1,
+							TotalCount:   0,
 						},
 					},
 					filterRecordsByZone: true, // we want the records by zone
@@ -686,10 +665,10 @@ func Test_getRecordsByZoneID(t *testing.T) {
 				domainFilter: endpoint.DomainFilter{},
 			},
 			expected: struct {
-				recordsByZoneID map[string][]hdns.Record
+				recordsByZoneID map[string][]model.Record
 				err             error
 			}{
-				recordsByZoneID: map[string][]hdns.Record{},
+				recordsByZoneID: map[string][]model.Record{},
 			},
 		},
 		{
@@ -697,7 +676,7 @@ func Test_getRecordsByZoneID(t *testing.T) {
 			provider: HetznerProvider{
 				client: &mockClient{
 					getZones: zonesResponse{
-						zones: []*hdns.Zone{
+						zones: []model.Zone{
 							{
 								ID:   "zoneIDAlpha",
 								Name: "alpha.com",
@@ -707,75 +686,67 @@ func Test_getRecordsByZoneID(t *testing.T) {
 								Name: "beta.com",
 							},
 						},
-						resp: &hdns.Response{
-							Response: &http.Response{StatusCode: http.StatusOK},
-							Meta: hdns.Meta{
-								Pagination: &hdns.Pagination{
-									Page:         1,
-									PerPage:      100,
-									LastPage:     1,
-									TotalEntries: 2,
-								},
-							},
+						resp: &http.Response{StatusCode: http.StatusOK},
+						pagination: &model.Pagination{
+							PageIdx:      1,
+							ItemsPerPage: 100,
+							LastPage:     1,
+							TotalCount:   2,
 						},
 					},
 					getRecords: recordsResponse{
-						records: []*hdns.Record{
+						records: []model.Record{
 							{
 								ID:   "id_1",
 								Name: "www",
-								Type: hdns.RecordTypeA,
-								Zone: &hdns.Zone{
+								Type: "A",
+								Zone: &model.Zone{
 									ID:   "zoneIDAlpha",
 									Name: "alpha.com",
 								},
 								Value: "1.1.1.1",
-								Ttl:   -1,
+								TTL:   -1,
 							},
 							{
 								ID:   "id_2",
 								Name: "ftp",
-								Type: hdns.RecordTypeCNAME,
-								Zone: &hdns.Zone{
+								Type: "CNAME",
+								Zone: &model.Zone{
 									ID:   "zoneIDAlpha",
 									Name: "alpha.com",
 								},
 								Value: "www",
-								Ttl:   -1,
+								TTL:   -1,
 							},
 							{
 								ID:   "id_3",
 								Name: "www",
-								Type: hdns.RecordTypeA,
-								Zone: &hdns.Zone{
+								Type: "A",
+								Zone: &model.Zone{
 									ID:   "zoneIDBeta",
 									Name: "beta.com",
 								},
 								Value: "2.2.2.2",
-								Ttl:   -1,
+								TTL:   -1,
 							},
 							{
 								ID:   "id_4",
 								Name: "ftp",
-								Type: hdns.RecordTypeA,
-								Zone: &hdns.Zone{
+								Type: "A",
+								Zone: &model.Zone{
 									ID:   "zoneIDBeta",
 									Name: "beta.com",
 								},
 								Value: "3.3.3.3",
-								Ttl:   -1,
+								TTL:   -1,
 							},
 						},
-						resp: &hdns.Response{
-							Response: &http.Response{StatusCode: http.StatusOK},
-							Meta: hdns.Meta{
-								Pagination: &hdns.Pagination{
-									Page:         1,
-									PerPage:      100,
-									LastPage:     1,
-									TotalEntries: 0, // This value will be adjusted
-								},
-							},
+						resp: &http.Response{StatusCode: http.StatusOK},
+						pagination: &model.Pagination{
+							PageIdx:      1,
+							ItemsPerPage: 100,
+							LastPage:     1,
+							TotalCount:   0, // This value will be adjusted
 						},
 					},
 					filterRecordsByZone: true,
@@ -787,56 +758,56 @@ func Test_getRecordsByZoneID(t *testing.T) {
 				domainFilter: endpoint.DomainFilter{},
 			},
 			expected: struct {
-				recordsByZoneID map[string][]hdns.Record
+				recordsByZoneID map[string][]model.Record
 				err             error
 			}{
-				recordsByZoneID: map[string][]hdns.Record{
+				recordsByZoneID: map[string][]model.Record{
 					"zoneIDAlpha": {
 						{
 							ID:   "id_1",
 							Name: "www",
-							Type: hdns.RecordTypeA,
-							Zone: &hdns.Zone{
+							Type: "A",
+							Zone: &model.Zone{
 								ID:   "zoneIDAlpha",
 								Name: "alpha.com",
 							},
 							Value: "1.1.1.1",
-							Ttl:   -1,
+							TTL:   -1,
 						},
 						{
 							ID:   "id_2",
 							Name: "ftp",
-							Type: hdns.RecordTypeCNAME,
-							Zone: &hdns.Zone{
+							Type: "CNAME",
+							Zone: &model.Zone{
 								ID:   "zoneIDAlpha",
 								Name: "alpha.com",
 							},
 							Value: "www",
-							Ttl:   -1,
+							TTL:   -1,
 						},
 					},
 					"zoneIDBeta": {
 						{
 							ID:   "id_3",
 							Name: "www",
-							Type: hdns.RecordTypeA,
-							Zone: &hdns.Zone{
+							Type: "A",
+							Zone: &model.Zone{
 								ID:   "zoneIDBeta",
 								Name: "beta.com",
 							},
 							Value: "2.2.2.2",
-							Ttl:   -1,
+							TTL:   -1,
 						},
 						{
 							ID:   "id_4",
 							Name: "ftp",
-							Type: hdns.RecordTypeA,
-							Zone: &hdns.Zone{
+							Type: "A",
+							Zone: &model.Zone{
 								ID:   "zoneIDBeta",
 								Name: "beta.com",
 							},
 							Value: "3.3.3.3",
-							Ttl:   -1,
+							TTL:   -1,
 						},
 					},
 				},
@@ -857,7 +828,7 @@ func Test_getRecordsByZoneID(t *testing.T) {
 				domainFilter: endpoint.DomainFilter{},
 			},
 			expected: struct {
-				recordsByZoneID map[string][]hdns.Record
+				recordsByZoneID map[string][]model.Record
 				err             error
 			}{
 				err: errors.New("test zones error"),
@@ -868,22 +839,18 @@ func Test_getRecordsByZoneID(t *testing.T) {
 			provider: HetznerProvider{
 				client: &mockClient{
 					getZones: zonesResponse{
-						zones: []*hdns.Zone{
+						zones: []model.Zone{
 							{
 								ID:   "zoneIDAlpha",
 								Name: "alpha.com",
 							},
 						},
-						resp: &hdns.Response{
-							Response: &http.Response{StatusCode: http.StatusOK},
-							Meta: hdns.Meta{
-								Pagination: &hdns.Pagination{
-									Page:         1,
-									PerPage:      100,
-									LastPage:     1,
-									TotalEntries: 2,
-								},
-							},
+						resp: &http.Response{StatusCode: http.StatusOK},
+						pagination: &model.Pagination{
+							PageIdx:      1,
+							ItemsPerPage: 100,
+							LastPage:     1,
+							TotalCount:   2,
 						},
 					},
 					getRecords: recordsResponse{
@@ -897,7 +864,7 @@ func Test_getRecordsByZoneID(t *testing.T) {
 				domainFilter: endpoint.DomainFilter{},
 			},
 			expected: struct {
-				recordsByZoneID map[string][]hdns.Record
+				recordsByZoneID map[string][]model.Record
 				err             error
 			}{
 				err: errors.New("test records error"),
