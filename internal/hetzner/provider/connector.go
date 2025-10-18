@@ -51,9 +51,7 @@ func fetchRecords(ctx context.Context, zoneID string, dnsClient apiClient, batch
 		delay := time.Since(start)
 		metrics.IncSuccessfulApiCallsTotal(actGetRecords)
 		metrics.AddApiDelayHist(actGetRecords, delay.Milliseconds())
-		for _, r := range pagedRecords {
-			records = append(records, r)
-		}
+		records = append(records, pagedRecords...)
 
 		if resp == nil || pagination == nil || pagination.LastPage <= pagination.PageIdx {
 			break
