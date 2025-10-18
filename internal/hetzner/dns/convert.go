@@ -92,14 +92,6 @@ func getDNSTtl(ttl int) *int {
 	return &libTTL
 }
 
-// getTTL converts a pointer TTL value to an int.
-func getTTL(ttl *int) int {
-	if ttl == nil {
-		return -1
-	}
-	return *ttl
-}
-
 // getRecord converts a library record to a common model record.
 func getRecord(record hdns.Record) model.Record {
 	z := getZone(*record.Zone)
