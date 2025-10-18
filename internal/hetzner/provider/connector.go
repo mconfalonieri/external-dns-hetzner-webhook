@@ -81,9 +81,7 @@ func fetchZones(ctx context.Context, dnsClient apiClient, batchSize int) ([]mode
 		delay := time.Since(start)
 		metrics.IncSuccessfulApiCallsTotal(actGetZones)
 		metrics.AddApiDelayHist(actGetZones, delay.Milliseconds())
-		for _, z := range pagedZones {
-			zones = append(zones, z)
-		}
+		zones = append(zones, pagedZones...)
 
 		if resp == nil || pagination == nil || pagination.LastPage <= pagination.PageIdx {
 			break
