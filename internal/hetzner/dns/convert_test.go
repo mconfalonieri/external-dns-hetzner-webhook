@@ -290,7 +290,8 @@ func Test_getPRecordArray(t *testing.T) {
 			Type:  "A",
 			Value: "2.2.2.2",
 			TTL:   7200,
-		}}
+		},
+	}
 	input := []*hdns.Record{
 		{
 			ID:       "id_1",
