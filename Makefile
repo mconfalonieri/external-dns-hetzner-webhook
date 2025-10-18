@@ -56,12 +56,6 @@ lint: ## Run golangci-lint against code.
 .PHONY: static-analysis
 static-analysis: lint vet ## Run static analysis against code.
 
-##@ Code generation
-
-.PHONY: cloud-api
-cloud-api: ## Generate the cloud API
-	oapi-codegen --config=config/oapi-codegen.yaml ./api/cloud.spec.json
-
 ##@ GO
 
 .PHONY: clean
