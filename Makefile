@@ -101,7 +101,7 @@ docker-all: docker-build docker-push ## Build and push the local image and tag
 .PHONY: docker-build-arm64
 docker-build-arm64: build-arm64
 	docker build . \
-		-f docker/localbuild.arm64.Dockerfile
+		-f docker/localbuild.arm64.Dockerfile \
 		-t $(IMAGE)-arm64
 
 .PHONY: docker-build-amd64
@@ -130,7 +130,7 @@ docker-multiarch-push: docker-push-arm64 docker-push-amd64 ## Push the docker mu
 	docker manifest push $(IMAGE)
 
 .PHONY: docker-multiarch-all
-docker-multiarch-all: docker-build-multiarch docker-push-multiarch ## Build and push multiarch images and tag
+docker-multiarch-all: docker-multiarch-build docker-multiarch-push ## Build and push multiarch images and tag
 
 ##@ Test
 
