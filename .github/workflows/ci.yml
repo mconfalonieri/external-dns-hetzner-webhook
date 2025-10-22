@@ -17,6 +17,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          # This checks out the source branch of the PR
+          ref: ${{ github.event.pull_request.head.ref }}
       - name: Git Fetch
         run: git fetch --force --tags
       - name: Setup go

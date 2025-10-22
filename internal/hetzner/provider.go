@@ -44,7 +44,7 @@ type HetznerProvider struct {
 	dryRun           bool
 	defaultTTL       int
 	zoneIDNameMapper provider.ZoneIDName
-	domainFilter     endpoint.DomainFilter
+	domainFilter     *endpoint.DomainFilter
 }
 
 // NewHetznerProvider creates a new HetznerProvider instance.

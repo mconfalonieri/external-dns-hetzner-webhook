@@ -104,7 +104,7 @@ func Test_Zones(t *testing.T) {
 				debug:        true,
 				dryRun:       false,
 				defaultTTL:   7200,
-				domainFilter: endpoint.DomainFilter{},
+				domainFilter: &endpoint.DomainFilter{},
 			},
 			expected: struct {
 				zones []hdns.Zone
@@ -187,7 +187,7 @@ func Test_Zones(t *testing.T) {
 				debug:        true,
 				dryRun:       false,
 				defaultTTL:   7200,
-				domainFilter: endpoint.DomainFilter{},
+				domainFilter: &endpoint.DomainFilter{},
 			},
 			expected: struct {
 				zones []hdns.Zone
@@ -360,7 +360,7 @@ func Test_Records(t *testing.T) {
 				debug:        true,
 				dryRun:       false,
 				defaultTTL:   7200,
-				domainFilter: endpoint.DomainFilter{},
+				domainFilter: &endpoint.DomainFilter{},
 			},
 			expected: struct {
 				endpoints []*endpoint.Endpoint
@@ -461,7 +461,7 @@ func Test_Records(t *testing.T) {
 				debug:        true,
 				dryRun:       false,
 				defaultTTL:   7200,
-				domainFilter: endpoint.DomainFilter{},
+				domainFilter: &endpoint.DomainFilter{},
 			},
 			expected: struct {
 				endpoints []*endpoint.Endpoint
@@ -511,7 +511,7 @@ func Test_Records(t *testing.T) {
 				debug:        true,
 				dryRun:       false,
 				defaultTTL:   7200,
-				domainFilter: endpoint.DomainFilter{},
+				domainFilter: &endpoint.DomainFilter{},
 			},
 			expected: struct {
 				endpoints []*endpoint.Endpoint
@@ -551,7 +551,7 @@ func Test_Records(t *testing.T) {
 				debug:        true,
 				dryRun:       false,
 				defaultTTL:   7200,
-				domainFilter: endpoint.DomainFilter{},
+				domainFilter: &endpoint.DomainFilter{},
 			},
 			expected: struct {
 				endpoints []*endpoint.Endpoint
@@ -683,7 +683,7 @@ func Test_getRecordsByZoneID(t *testing.T) {
 				debug:        true,
 				dryRun:       false,
 				defaultTTL:   7200,
-				domainFilter: endpoint.DomainFilter{},
+				domainFilter: &endpoint.DomainFilter{},
 			},
 			expected: struct {
 				recordsByZoneID map[string][]hdns.Record
@@ -784,7 +784,7 @@ func Test_getRecordsByZoneID(t *testing.T) {
 				debug:        true,
 				dryRun:       false,
 				defaultTTL:   7200,
-				domainFilter: endpoint.DomainFilter{},
+				domainFilter: &endpoint.DomainFilter{},
 			},
 			expected: struct {
 				recordsByZoneID map[string][]hdns.Record
@@ -854,7 +854,7 @@ func Test_getRecordsByZoneID(t *testing.T) {
 				debug:        true,
 				dryRun:       false,
 				defaultTTL:   7200,
-				domainFilter: endpoint.DomainFilter{},
+				domainFilter: &endpoint.DomainFilter{},
 			},
 			expected: struct {
 				recordsByZoneID map[string][]hdns.Record
@@ -894,7 +894,7 @@ func Test_getRecordsByZoneID(t *testing.T) {
 				debug:        true,
 				dryRun:       false,
 				defaultTTL:   7200,
-				domainFilter: endpoint.DomainFilter{},
+				domainFilter: &endpoint.DomainFilter{},
 			},
 			expected: struct {
 				recordsByZoneID map[string][]hdns.Record
