@@ -25,7 +25,7 @@ jobs:
     - name: Run Unit Tests
       run: make unit-test
     - name: Test Report
-      uses: dorny/test-reporter@v1
+      uses: dorny/test-reporter@v2
       if: success() || failure()
       with:
         name: Unit Test Results
