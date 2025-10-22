@@ -13,12 +13,8 @@ else
 fi
 }
 
-if [[ -z "$GITHUB_REF" ]]
-then
-  echo "Running locally"
-else
-  echo "Branch: $GITHUB_REF"
-fi
+GIT_BRANCH=$(git branch --show-current)
+echo "Branch: $GIT_BRANCH"
 exit 1
 check_git_status
 go mod tidy
