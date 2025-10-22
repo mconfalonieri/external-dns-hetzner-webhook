@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 
-if [[ "$GITHUB_HEAD_REF" == "renovate/"* ]]; then
+if [[ "$GITHUB_HEAD_REF" == "refs/heads/renovate/"* ]]; then
   go mod tidy
 else
   echo "Not on a renovate branch." >&2
