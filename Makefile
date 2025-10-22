@@ -154,7 +154,7 @@ release-check: ## Check if the release will work
 
 .PHONY: renovate-fix
 renovate-fix:
-	script/renovate_fix.sh
+	scripts/renovate_fix.sh
 
 ##@ License
 
