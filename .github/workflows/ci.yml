@@ -28,10 +28,10 @@ jobs:
       - name: Set Up Docker Buildx
         uses: docker/setup-buildx-action@v3
       - name: Cleanup for renovate
-        if: startsWith(github.head_ref, 'refs/heads/renovate/')
+        if: startsWith(github.head_ref, 'renovate/')
         run: make renovate-fix
       - name: Save changes
-        if: startsWith(github.head_ref, 'refs/heads/renovate/')
+        if: startsWith(github.head_ref, 'renovate/')
         uses: stefanzweifel/git-auto-commit-action@v7
         with:
           commit_message: "Saving results of scripts/renovate_fix.sh"
