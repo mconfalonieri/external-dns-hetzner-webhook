@@ -52,8 +52,8 @@ func NewConfiguration() (*Configuration, error) {
 }
 
 // GetDomainFilter returns the domain filter from the configuration.
-func GetDomainFilter(config Configuration) endpoint.DomainFilter {
-	var domainFilter endpoint.DomainFilter
+func GetDomainFilter(config Configuration) *endpoint.DomainFilter {
+	var domainFilter *endpoint.DomainFilter
 	createMsg := "Creating Hetzner provider with "
 
 	if config.RegexDomainFilter != "" {
