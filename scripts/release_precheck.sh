@@ -13,6 +13,12 @@ else
 fi
 }
 
+if [[ -z "$GITHUB_REF_NAME" ]]
+then
+  echo "Running locally"
+else
+  echo "Branch: $GITHUB_REF_NAME"
+fi
 check_git_status
 go mod tidy
 make fmt
