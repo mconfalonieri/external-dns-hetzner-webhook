@@ -1,6 +1,6 @@
 module external-dns-hetzner-webhook
 
-go 1.23
+go 1.25
 
 toolchain go1.25.3
 
