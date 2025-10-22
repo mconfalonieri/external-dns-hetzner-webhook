@@ -27,6 +27,14 @@ jobs:
         run: make unit-test
       - name: Set Up Docker Buildx
         uses: docker/setup-buildx-action@v3
+      - name: Cleanup for renovate
+        if: startsWith(github.head_ref, 'refs/heads/renovate/')
+        run: make renovate-fix
+      - name: Save changes
+        if: startsWith(github.head_ref, 'refs/heads/renovate/')
+        uses: stefanzweifel/git-auto-commit-action@v7
+        with:
+          commit_message: "Saving results of scripts/renovate_fix.sh"
       - name: Go Snapshot Release
         uses: goreleaser/goreleaser-action@v6
         with:
