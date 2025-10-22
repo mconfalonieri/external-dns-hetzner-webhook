@@ -10,6 +10,7 @@ else
   git status --porcelain
   exit 1
 fi
+}
 
 check_git_status
 go mod tidy
