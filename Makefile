@@ -152,6 +152,10 @@ release-check: ## Check if the release will work
 	IMAGE_NAME=$(IMAGE_NAME) \
 	  goreleaser release --snapshot --clean --skip=publish
 
+.PHONY: renovate-fix
+renovate-fix:
+	script/renovate_fix.sh
+
 ##@ License
 
 .PHONY: license-check
