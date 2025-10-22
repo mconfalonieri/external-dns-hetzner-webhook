@@ -2,7 +2,7 @@ module external-dns-hetzner-webhook
 
 go 1.23
 
-toolchain go1.23.1
+toolchain go1.25.3
 
 require (
 	github.com/codingconcepts/env v0.0.0-20240618133406-5b0845441187
