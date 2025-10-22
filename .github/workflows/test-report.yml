@@ -21,7 +21,7 @@ jobs:
     - name: Setup go
       uses: actions/setup-go@v5
       with:
-        go-version: '1.23'
+        go-version: '1.25'
     - name: Run Unit Tests
       run: make unit-test
     - name: Test Report
