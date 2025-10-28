@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package hetzner
+package hetznercloud
 
 import (
 	"fmt"
@@ -25,7 +25,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/idna"
 	"sigs.k8s.io/external-dns/endpoint"
-	"sigs.k8s.io/external-dns/provider"
 )
 
 // makeEndpointName makes a endpoint name that conforms to Hetzner DNS
@@ -89,12 +88,12 @@ func createEndpointFromRecord(rrset *hcloud.ZoneRRSet) *endpoint.Endpoint {
 }
 
 // endpointsByZoneID arranges the endpoints in a map by zone ID.
-func endpointsByZoneID(zoneIDNameMapper provider.ZoneIDName, endpoints []*endpoint.Endpoint) map[string][]*endpoint.Endpoint {
-	endpointsByZoneID := make(map[string][]*endpoint.Endpoint)
+func endpointsByZoneID(zoneIDNameMapper zoneIDName, endpoints []*endpoint.Endpoint) map[int64][]*endpoint.Endpoint {
+	endpointsByZoneID := make(map[int64][]*endpoint.Endpoint)
 
 	for idx, ep := range endpoints {
 		zoneID, _ := zoneIDNameMapper.FindZone(ep.DNSName)
-		if zoneID == "" {
+		if zoneID == -1 {
 			log.Debugf("Skipping record %d (%s) because no hosted zone matching record DNS Name was detected", idx, ep.DNSName)
 			continue
 		} else {

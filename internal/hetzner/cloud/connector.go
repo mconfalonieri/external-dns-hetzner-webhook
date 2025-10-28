@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package hetzner
+package hetznercloud
 
 import (
 	"context"
@@ -27,11 +27,12 @@ import (
 )
 
 const (
-	actGetZones     = "get_zones"
-	actGetRecords   = "get_records"
-	actCreateRecord = "create_record"
-	actUpdateRecord = "update_record"
-	actDeleteRecord = "delete_record"
+	actGetZones           = "get_zones"
+	actGetRRSets          = "get_rrsets"
+	actCreateRRSet        = "create_rrset"
+	actUpdateRRSetTTL     = "update_rrset_ttl"
+	actUpdateRRSetRecords = "update_rrset_records"
+	actDeleteRRSet        = "delete_rrset"
 )
 
 // apiClient is an abstraction of the REST API client.
@@ -62,12 +63,12 @@ func fetchRecords(ctx context.Context, zone *hcloud.Zone, client apiClient, batc
 		start := time.Now()
 		pagedRecords, resp, err := client.GetRRSets(ctx, zone, opts)
 		if err != nil {
-			metrics.IncFailedApiCallsTotal(actGetRecords)
+			metrics.IncFailedApiCallsTotal(actGetRRSets)
 			return nil, err
 		}
 		delay := time.Since(start)
-		metrics.IncSuccessfulApiCallsTotal(actGetRecords)
-		metrics.AddApiDelayHist(actGetRecords, delay.Milliseconds())
+		metrics.IncSuccessfulApiCallsTotal(actGetRRSets)
+		metrics.AddApiDelayHist(actGetRRSets, delay.Milliseconds())
 		records = append(records, pagedRecords...)
 
 		if resp == nil || resp.Meta.Pagination == nil || resp.Meta.Pagination.LastPage <= resp.Meta.Pagination.Page {

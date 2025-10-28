@@ -15,24 +15,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package hetzner
+package hetznercloud
 
 import (
 	"context"
 	"errors"
+	"external-dns-hetzner-webhook/internal/hetzner"
 	"net/http"
 	"testing"
 
-	hdns "github.com/jobstoit/hetzner-dns-go/dns"
+	"github.com/hetznercloud/hcloud-go/v2/hcloud"
 	"github.com/stretchr/testify/assert"
 
 	"sigs.k8s.io/external-dns/endpoint"
-	"sigs.k8s.io/external-dns/provider"
 )
 
 // Test_NewHetznerProvider tests NewHetznerProvider().
 func Test_NewHetznerProvider(t *testing.T) {
-	cfg := Configuration{
+	cfg := hetzner.Configuration{
 		APIKey:       "testKey",
 		DryRun:       true,
 		Debug:        true,
@@ -48,7 +48,7 @@ func Test_NewHetznerProvider(t *testing.T) {
 	assert.Equal(t, cfg.BatchSize, p.batchSize)
 	assert.Equal(t, cfg.DefaultTTL, p.defaultTTL)
 	actualJSON, _ := p.domainFilter.MarshalJSON()
-	expectedJSON, _ := GetDomainFilter(cfg).MarshalJSON()
+	expectedJSON, _ := hetzner.GetDomainFilter(cfg).MarshalJSON()
 	assert.Equal(t, actualJSON, expectedJSON)
 }
 
@@ -58,7 +58,7 @@ func Test_Zones(t *testing.T) {
 		name     string
 		provider HetznerProvider
 		expected struct {
-			zones []hdns.Zone
+			zones []*hcloud.Zone
 			err   error
 		}
 	}
@@ -78,19 +78,20 @@ func Test_Zones(t *testing.T) {
 			provider: HetznerProvider{
 				client: &mockClient{
 					getZones: zonesResponse{
-						zones: []*hdns.Zone{
+						zones: []*hcloud.Zone{
 							{
-								ID:   "zoneIDAlpha",
+								ID:   1,
 								Name: "alpha.com",
 							},
 							{
-								ID:   "zoneIDBeta",
+								ID:   2,
 								Name: "beta.com",
 							},
 						},
-						resp: &hdns.Response{
-							Meta: hdns.Meta{
-								Pagination: &hdns.Pagination{
+						resp: &hcloud.Response{
+							Response: &http.Response{StatusCode: http.StatusOK},
+							Meta: hcloud.Meta{
+								Pagination: &hcloud.Pagination{
 									Page:         1,
 									PerPage:      100,
 									LastPage:     1,
@@ -107,16 +108,16 @@ func Test_Zones(t *testing.T) {
 				domainFilter: &endpoint.DomainFilter{},
 			},
 			expected: struct {
-				zones []hdns.Zone
+				zones []*hcloud.Zone
 				err   error
 			}{
-				zones: []hdns.Zone{
+				zones: []*hcloud.Zone{
 					{
-						ID:   "zoneIDAlpha",
+						ID:   1,
 						Name: "alpha.com",
 					},
 					{
-						ID:   "zoneIDBeta",
+						ID:   2,
 						Name: "beta.com",
 					},
 				},
@@ -127,23 +128,23 @@ func Test_Zones(t *testing.T) {
 			provider: HetznerProvider{
 				client: &mockClient{
 					getZones: zonesResponse{
-						zones: []*hdns.Zone{
+						zones: []*hcloud.Zone{
 							{
-								ID:   "zoneIDAlpha",
+								ID:   1,
 								Name: "alpha.com",
 							},
 							{
-								ID:   "zoneIDBeta",
+								ID:   2,
 								Name: "beta.com",
 							},
 							{
-								ID:   "zoneIDGamma",
+								ID:   3,
 								Name: "gamma.com",
 							},
 						},
-						resp: &hdns.Response{
-							Meta: hdns.Meta{
-								Pagination: &hdns.Pagination{
+						resp: &hcloud.Response{
+							Meta: hcloud.Meta{
+								Pagination: &hcloud.Pagination{
 									Page:         1,
 									PerPage:      100,
 									LastPage:     1,
@@ -160,16 +161,16 @@ func Test_Zones(t *testing.T) {
 				domainFilter: endpoint.NewDomainFilter([]string{"alpha.com", "gamma.com"}),
 			},
 			expected: struct {
-				zones []hdns.Zone
+				zones []*hcloud.Zone
 				err   error
 			}{
-				zones: []hdns.Zone{
+				zones: []*hcloud.Zone{
 					{
-						ID:   "zoneIDAlpha",
+						ID:   1,
 						Name: "alpha.com",
 					},
 					{
-						ID:   "zoneIDGamma",
+						ID:   3,
 						Name: "gamma.com",
 					},
 				},
@@ -190,7 +191,7 @@ func Test_Zones(t *testing.T) {
 				domainFilter: &endpoint.DomainFilter{},
 			},
 			expected: struct {
-				zones []hdns.Zone
+				zones []*hcloud.Zone
 				err   error
 			}{
 				err: errors.New("test zones error"),
@@ -227,9 +228,9 @@ func Test_AdjustEndpoints(t *testing.T) {
 		{
 			name: "empty list",
 			provider: HetznerProvider{
-				zoneIDNameMapper: provider.ZoneIDName{
-					"zoneIDAlpha": "alpha.com",
-					"zoneIDBeta":  "beta.com",
+				zoneIDNameMapper: zoneIDName{
+					1: "alpha.com",
+					2: "beta.com",
 				},
 			},
 			input:    []*endpoint.Endpoint{},
@@ -238,9 +239,9 @@ func Test_AdjustEndpoints(t *testing.T) {
 		{
 			name: "adjusted elements",
 			provider: HetznerProvider{
-				zoneIDNameMapper: provider.ZoneIDName{
-					"zoneIDAlpha": "alpha.com",
-					"zoneIDBeta":  "beta.com",
+				zoneIDNameMapper: zoneIDName{
+					1: "alpha.com",
+					2: "beta.com",
 				},
 			},
 			input: []*endpoint.Endpoint{
@@ -322,16 +323,16 @@ func Test_Records(t *testing.T) {
 			provider: HetznerProvider{
 				client: &mockClient{
 					getZones: zonesResponse{
-						zones: []*hdns.Zone{
+						zones: []*hcloud.Zone{
 							{
-								ID:   "zoneIDAlpha",
+								ID:   1,
 								Name: "alpha.com",
 							},
 						},
-						resp: &hdns.Response{
+						resp: &hcloud.Response{
 							Response: &http.Response{StatusCode: http.StatusOK},
-							Meta: hdns.Meta{
-								Pagination: &hdns.Pagination{
+							Meta: hcloud.Meta{
+								Pagination: &hcloud.Pagination{
 									Page:         1,
 									PerPage:      100,
 									LastPage:     1,
@@ -340,12 +341,12 @@ func Test_Records(t *testing.T) {
 							},
 						},
 					},
-					getRecords: recordsResponse{
-						records: []*hdns.Record{},
-						resp: &hdns.Response{
+					getRRSets: rrSetsResponse{
+						rrsets: []*hcloud.ZoneRRSet{},
+						resp: &hcloud.Response{
 							Response: &http.Response{StatusCode: http.StatusOK},
-							Meta: hdns.Meta{
-								Pagination: &hdns.Pagination{
+							Meta: hcloud.Meta{
+								Pagination: &hcloud.Pagination{
 									Page:         1,
 									PerPage:      100,
 									LastPage:     1,
@@ -354,7 +355,7 @@ func Test_Records(t *testing.T) {
 							},
 						},
 					},
-					filterRecordsByZone: true, // we want the records by zone
+					filterRRSetsByZone: true, // we want the records by zone
 				},
 				batchSize:    100,
 				debug:        true,
@@ -374,20 +375,20 @@ func Test_Records(t *testing.T) {
 			provider: HetznerProvider{
 				client: &mockClient{
 					getZones: zonesResponse{
-						zones: []*hdns.Zone{
+						zones: []*hcloud.Zone{
 							{
-								ID:   "zoneIDAlpha",
+								ID:   1,
 								Name: "alpha.com",
 							},
 							{
-								ID:   "zoneIDBeta",
+								ID:   2,
 								Name: "beta.com",
 							},
 						},
-						resp: &hdns.Response{
+						resp: &hcloud.Response{
 							Response: &http.Response{StatusCode: http.StatusOK},
-							Meta: hdns.Meta{
-								Pagination: &hdns.Pagination{
+							Meta: hcloud.Meta{
+								Pagination: &hcloud.Pagination{
 									Page:         1,
 									PerPage:      100,
 									LastPage:     1,
@@ -396,57 +397,73 @@ func Test_Records(t *testing.T) {
 							},
 						},
 					},
-					getRecords: recordsResponse{
-						records: []*hdns.Record{
+					getRRSets: rrSetsResponse{
+						rrsets: []*hcloud.ZoneRRSet{
 							{
+								Zone: &hcloud.Zone{
+									ID:   1,
+									Name: "alpha.com",
+								},
 								ID:   "id_1",
 								Name: "www",
-								Type: hdns.RecordTypeA,
-								Zone: &hdns.Zone{
-									ID:   "zoneIDAlpha",
-									Name: "alpha.com",
+								Type: hcloud.ZoneRRSetTypeA,
+								TTL:  &defaultTTL,
+								Records: []hcloud.ZoneRRSetRecord{
+									{
+										Value: "1.1.1.1",
+									},
 								},
-								Value: "1.1.1.1",
-								Ttl:   -1,
 							},
 							{
+								Zone: &hcloud.Zone{
+									ID:   1,
+									Name: "alpha.com",
+								},
 								ID:   "id_2",
 								Name: "ftp",
-								Type: hdns.RecordTypeCNAME,
-								Zone: &hdns.Zone{
-									ID:   "zoneIDAlpha",
-									Name: "alpha.com",
+								Type: hcloud.ZoneRRSetTypeA,
+								TTL:  &defaultTTL,
+								Records: []hcloud.ZoneRRSetRecord{
+									{
+										Value: "2.2.2.2",
+									},
 								},
-								Value: "www",
-								Ttl:   -1,
 							},
 							{
+								Zone: &hcloud.Zone{
+									ID:   2,
+									Name: "beta.com",
+								},
 								ID:   "id_3",
 								Name: "www",
-								Type: hdns.RecordTypeA,
-								Zone: &hdns.Zone{
-									ID:   "zoneIDBeta",
-									Name: "beta.com",
+								Type: hcloud.ZoneRRSetTypeA,
+								TTL:  &defaultTTL,
+								Records: []hcloud.ZoneRRSetRecord{
+									{
+										Value: "3.3.3.3",
+									},
 								},
-								Value: "2.2.2.2",
-								Ttl:   -1,
 							},
 							{
-								ID:   "id_4",
-								Name: "ftp",
-								Type: hdns.RecordTypeA,
-								Zone: &hdns.Zone{
-									ID:   "zoneIDBeta",
+								Zone: &hcloud.Zone{
+									ID:   2,
 									Name: "beta.com",
 								},
-								Value: "3.3.3.3",
-								Ttl:   -1,
+								ID:   "id_4",
+								Name: "ftp",
+								Type: hcloud.ZoneRRSetTypeA,
+								TTL:  &defaultTTL,
+								Records: []hcloud.ZoneRRSetRecord{
+									{
+										Value: "4.4.4.4",
+									},
+								},
 							},
 						},
-						resp: &hdns.Response{
+						resp: &hcloud.Response{
 							Response: &http.Response{StatusCode: http.StatusOK},
-							Meta: hdns.Meta{
-								Pagination: &hdns.Pagination{
+							Meta: hcloud.Meta{
+								Pagination: &hcloud.Pagination{
 									Page:         1,
 									PerPage:      100,
 									LastPage:     1,
@@ -455,7 +472,7 @@ func Test_Records(t *testing.T) {
 							},
 						},
 					},
-					filterRecordsByZone: true,
+					filterRRSetsByZone: true,
 				},
 				batchSize:    100,
 				debug:        true,
@@ -525,16 +542,16 @@ func Test_Records(t *testing.T) {
 			provider: HetznerProvider{
 				client: &mockClient{
 					getZones: zonesResponse{
-						zones: []*hdns.Zone{
+						zones: []*hcloud.Zone{
 							{
-								ID:   "zoneIDAlpha",
+								ID:   1,
 								Name: "alpha.com",
 							},
 						},
-						resp: &hdns.Response{
+						resp: &hcloud.Response{
 							Response: &http.Response{StatusCode: http.StatusOK},
-							Meta: hdns.Meta{
-								Pagination: &hdns.Pagination{
+							Meta: hcloud.Meta{
+								Pagination: &hcloud.Pagination{
 									Page:         1,
 									PerPage:      100,
 									LastPage:     1,
@@ -543,7 +560,7 @@ func Test_Records(t *testing.T) {
 							},
 						},
 					},
-					getRecords: recordsResponse{
+					getRRSets: rrSetsResponse{
 						err: errors.New("test records error"),
 					},
 				},
@@ -575,8 +592,8 @@ func Test_ensureZoneIDMappingPresent(t *testing.T) {
 	type testCase struct {
 		name     string
 		provider HetznerProvider
-		input    []hdns.Zone
-		expected map[string]string
+		input    []*hcloud.Zone
+		expected map[int64]string
 	}
 
 	run := func(t *testing.T, tc testCase) {
@@ -589,25 +606,25 @@ func Test_ensureZoneIDMappingPresent(t *testing.T) {
 		{
 			name:     "empty list",
 			provider: HetznerProvider{},
-			input:    []hdns.Zone{},
-			expected: map[string]string{},
+			input:    []*hcloud.Zone{},
+			expected: map[int64]string{},
 		},
 		{
 			name:     "zones present",
 			provider: HetznerProvider{},
-			input: []hdns.Zone{
+			input: []*hcloud.Zone{
 				{
-					ID:   "zoneIDAlpha",
+					ID:   1,
 					Name: "alpha.com",
 				},
 				{
-					ID:   "zoneIDBeta",
+					ID:   2,
 					Name: "beta.com",
 				},
 			},
-			expected: map[string]string{
-				"zoneIDAlpha": "alpha.com",
-				"zoneIDBeta":  "beta.com",
+			expected: map[int64]string{
+				1: "alpha.com",
+				2: "beta.com",
 			},
 		},
 	}
@@ -625,7 +642,7 @@ func Test_getRecordsByZoneID(t *testing.T) {
 		name     string
 		provider HetznerProvider
 		expected struct {
-			recordsByZoneID map[string][]hdns.Record
+			recordsByZoneID map[int64][]*hcloud.ZoneRRSet
 			err             error
 		}
 	}
@@ -633,7 +650,7 @@ func Test_getRecordsByZoneID(t *testing.T) {
 	run := func(t *testing.T, tc testCase) {
 		obj := tc.provider
 		exp := tc.expected
-		actual, err := obj.getRecordsByZoneID(context.Background())
+		actual, err := obj.getRRSetsByZoneID(context.Background())
 		if assertError(t, exp.err, err) {
 			assert.ElementsMatch(t, exp.recordsByZoneID, actual)
 		}
@@ -645,16 +662,16 @@ func Test_getRecordsByZoneID(t *testing.T) {
 			provider: HetznerProvider{
 				client: &mockClient{
 					getZones: zonesResponse{
-						zones: []*hdns.Zone{
+						zones: []*hcloud.Zone{
 							{
-								ID:   "zoneIDAlpha",
+								ID:   1,
 								Name: "alpha.com",
 							},
 						},
-						resp: &hdns.Response{
+						resp: &hcloud.Response{
 							Response: &http.Response{StatusCode: http.StatusOK},
-							Meta: hdns.Meta{
-								Pagination: &hdns.Pagination{
+							Meta: hcloud.Meta{
+								Pagination: &hcloud.Pagination{
 									Page:         1,
 									PerPage:      100,
 									LastPage:     1,
@@ -663,12 +680,12 @@ func Test_getRecordsByZoneID(t *testing.T) {
 							},
 						},
 					},
-					getRecords: recordsResponse{
-						records: []*hdns.Record{},
-						resp: &hdns.Response{
+					getRRSets: rrSetsResponse{
+						rrsets: []*hcloud.ZoneRRSet{},
+						resp: &hcloud.Response{
 							Response: &http.Response{StatusCode: http.StatusOK},
-							Meta: hdns.Meta{
-								Pagination: &hdns.Pagination{
+							Meta: hcloud.Meta{
+								Pagination: &hcloud.Pagination{
 									Page:         1,
 									PerPage:      100,
 									LastPage:     1,
@@ -677,7 +694,7 @@ func Test_getRecordsByZoneID(t *testing.T) {
 							},
 						},
 					},
-					filterRecordsByZone: true, // we want the records by zone
+					filterRRSetsByZone: true, // we want the records by zone
 				},
 				batchSize:    100,
 				debug:        true,
@@ -686,10 +703,10 @@ func Test_getRecordsByZoneID(t *testing.T) {
 				domainFilter: &endpoint.DomainFilter{},
 			},
 			expected: struct {
-				recordsByZoneID map[string][]hdns.Record
+				recordsByZoneID map[int64][]*hcloud.ZoneRRSet
 				err             error
 			}{
-				recordsByZoneID: map[string][]hdns.Record{},
+				recordsByZoneID: map[int64][]*hcloud.ZoneRRSet{},
 			},
 		},
 		{
@@ -697,20 +714,20 @@ func Test_getRecordsByZoneID(t *testing.T) {
 			provider: HetznerProvider{
 				client: &mockClient{
 					getZones: zonesResponse{
-						zones: []*hdns.Zone{
+						zones: []*hcloud.Zone{
 							{
-								ID:   "zoneIDAlpha",
+								ID:   1,
 								Name: "alpha.com",
 							},
 							{
-								ID:   "zoneIDBeta",
+								ID:   2,
 								Name: "beta.com",
 							},
 						},
-						resp: &hdns.Response{
+						resp: &hcloud.Response{
 							Response: &http.Response{StatusCode: http.StatusOK},
-							Meta: hdns.Meta{
-								Pagination: &hdns.Pagination{
+							Meta: hcloud.Meta{
+								Pagination: &hcloud.Pagination{
 									Page:         1,
 									PerPage:      100,
 									LastPage:     1,
@@ -719,57 +736,73 @@ func Test_getRecordsByZoneID(t *testing.T) {
 							},
 						},
 					},
-					getRecords: recordsResponse{
-						records: []*hdns.Record{
+					getRRSets: rrSetsResponse{
+						rrsets: []*hcloud.ZoneRRSet{
 							{
+								Zone: &hcloud.Zone{
+									ID:   1,
+									Name: "alpha.com",
+								},
 								ID:   "id_1",
 								Name: "www",
-								Type: hdns.RecordTypeA,
-								Zone: &hdns.Zone{
-									ID:   "zoneIDAlpha",
-									Name: "alpha.com",
+								Type: hcloud.ZoneRRSetTypeA,
+								TTL:  &defaultTTL,
+								Records: []hcloud.ZoneRRSetRecord{
+									{
+										Value: "1.1.1.1",
+									},
 								},
-								Value: "1.1.1.1",
-								Ttl:   -1,
 							},
 							{
+								Zone: &hcloud.Zone{
+									ID:   1,
+									Name: "alpha.com",
+								},
 								ID:   "id_2",
 								Name: "ftp",
-								Type: hdns.RecordTypeCNAME,
-								Zone: &hdns.Zone{
-									ID:   "zoneIDAlpha",
-									Name: "alpha.com",
+								Type: hcloud.ZoneRRSetTypeCNAME,
+								TTL:  &defaultTTL,
+								Records: []hcloud.ZoneRRSetRecord{
+									{
+										Value: "www",
+									},
 								},
-								Value: "www",
-								Ttl:   -1,
 							},
 							{
+								Zone: &hcloud.Zone{
+									ID:   2,
+									Name: "beta.com",
+								},
 								ID:   "id_3",
 								Name: "www",
-								Type: hdns.RecordTypeA,
-								Zone: &hdns.Zone{
-									ID:   "zoneIDBeta",
-									Name: "beta.com",
+								Type: hcloud.ZoneRRSetTypeA,
+								TTL:  &defaultTTL,
+								Records: []hcloud.ZoneRRSetRecord{
+									{
+										Value: "3.3.3.3",
+									},
 								},
-								Value: "2.2.2.2",
-								Ttl:   -1,
 							},
 							{
-								ID:   "id_4",
-								Name: "ftp",
-								Type: hdns.RecordTypeA,
-								Zone: &hdns.Zone{
-									ID:   "zoneIDBeta",
+								Zone: &hcloud.Zone{
+									ID:   2,
 									Name: "beta.com",
 								},
-								Value: "3.3.3.3",
-								Ttl:   -1,
+								ID:   "id_4",
+								Name: "ftp",
+								Type: hcloud.ZoneRRSetTypeA,
+								TTL:  &defaultTTL,
+								Records: []hcloud.ZoneRRSetRecord{
+									{
+										Value: "4.4.4.4",
+									},
+								},
 							},
 						},
-						resp: &hdns.Response{
+						resp: &hcloud.Response{
 							Response: &http.Response{StatusCode: http.StatusOK},
-							Meta: hdns.Meta{
-								Pagination: &hdns.Pagination{
+							Meta: hcloud.Meta{
+								Pagination: &hcloud.Pagination{
 									Page:         1,
 									PerPage:      100,
 									LastPage:     1,
@@ -778,7 +811,7 @@ func Test_getRecordsByZoneID(t *testing.T) {
 							},
 						},
 					},
-					filterRecordsByZone: true,
+					filterRRSetsByZone: true,
 				},
 				batchSize:    100,
 				debug:        true,
@@ -787,56 +820,72 @@ func Test_getRecordsByZoneID(t *testing.T) {
 				domainFilter: &endpoint.DomainFilter{},
 			},
 			expected: struct {
-				recordsByZoneID map[string][]hdns.Record
+				recordsByZoneID map[int64][]*hcloud.ZoneRRSet
 				err             error
 			}{
-				recordsByZoneID: map[string][]hdns.Record{
-					"zoneIDAlpha": {
+				recordsByZoneID: map[int64][]*hcloud.ZoneRRSet{
+					1: {
 						{
+							Zone: &hcloud.Zone{
+								ID:   1,
+								Name: "alpha.com",
+							},
 							ID:   "id_1",
 							Name: "www",
-							Type: hdns.RecordTypeA,
-							Zone: &hdns.Zone{
-								ID:   "zoneIDAlpha",
-								Name: "alpha.com",
+							Type: hcloud.ZoneRRSetTypeA,
+							TTL:  &defaultTTL,
+							Records: []hcloud.ZoneRRSetRecord{
+								{
+									Value: "1.1.1.1",
+								},
 							},
-							Value: "1.1.1.1",
-							Ttl:   -1,
 						},
 						{
+							Zone: &hcloud.Zone{
+								ID:   1,
+								Name: "alpha.com",
+							},
 							ID:   "id_2",
 							Name: "ftp",
-							Type: hdns.RecordTypeCNAME,
-							Zone: &hdns.Zone{
-								ID:   "zoneIDAlpha",
-								Name: "alpha.com",
+							Type: hcloud.ZoneRRSetTypeCNAME,
+							TTL:  &defaultTTL,
+							Records: []hcloud.ZoneRRSetRecord{
+								{
+									Value: "www",
+								},
 							},
-							Value: "www",
-							Ttl:   -1,
 						},
 					},
-					"zoneIDBeta": {
+					2: {
 						{
+							Zone: &hcloud.Zone{
+								ID:   2,
+								Name: "beta.com",
+							},
 							ID:   "id_3",
 							Name: "www",
-							Type: hdns.RecordTypeA,
-							Zone: &hdns.Zone{
-								ID:   "zoneIDBeta",
-								Name: "beta.com",
+							Type: hcloud.ZoneRRSetTypeA,
+							TTL:  &defaultTTL,
+							Records: []hcloud.ZoneRRSetRecord{
+								{
+									Value: "3.3.3.3",
+								},
 							},
-							Value: "2.2.2.2",
-							Ttl:   -1,
 						},
 						{
-							ID:   "id_4",
-							Name: "ftp",
-							Type: hdns.RecordTypeA,
-							Zone: &hdns.Zone{
-								ID:   "zoneIDBeta",
+							Zone: &hcloud.Zone{
+								ID:   2,
 								Name: "beta.com",
 							},
-							Value: "3.3.3.3",
-							Ttl:   -1,
+							ID:   "id_4",
+							Name: "ftp",
+							Type: hcloud.ZoneRRSetTypeA,
+							TTL:  &defaultTTL,
+							Records: []hcloud.ZoneRRSetRecord{
+								{
+									Value: "4.4.4.4",
+								},
+							},
 						},
 					},
 				},
@@ -857,7 +906,7 @@ func Test_getRecordsByZoneID(t *testing.T) {
 				domainFilter: &endpoint.DomainFilter{},
 			},
 			expected: struct {
-				recordsByZoneID map[string][]hdns.Record
+				recordsByZoneID map[int64][]*hcloud.ZoneRRSet
 				err             error
 			}{
 				err: errors.New("test zones error"),
@@ -868,25 +917,17 @@ func Test_getRecordsByZoneID(t *testing.T) {
 			provider: HetznerProvider{
 				client: &mockClient{
 					getZones: zonesResponse{
-						zones: []*hdns.Zone{
+						zones: []*hcloud.Zone{
 							{
-								ID:   "zoneIDAlpha",
+								ID:   1,
 								Name: "alpha.com",
 							},
 						},
-						resp: &hdns.Response{
-							Response: &http.Response{StatusCode: http.StatusOK},
-							Meta: hdns.Meta{
-								Pagination: &hdns.Pagination{
-									Page:         1,
-									PerPage:      100,
-									LastPage:     1,
-									TotalEntries: 2,
-								},
-							},
+						resp: &hcloud.Response{
+							Response: &http.Response{StatusCode: http.StatusInternalServerError},
 						},
 					},
-					getRecords: recordsResponse{
+					getRRSets: rrSetsResponse{
 						err: errors.New("test records error"),
 					},
 				},
@@ -897,7 +938,7 @@ func Test_getRecordsByZoneID(t *testing.T) {
 				domainFilter: &endpoint.DomainFilter{},
 			},
 			expected: struct {
-				recordsByZoneID map[string][]hdns.Record
+				recordsByZoneID map[int64][]*hcloud.ZoneRRSet
 				err             error
 			}{
 				err: errors.New("test records error"),

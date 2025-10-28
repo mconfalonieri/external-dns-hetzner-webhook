@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package hetzner
+package hetznercloud
 
 import (
 	"context"
@@ -23,7 +23,7 @@ import (
 
 	"external-dns-hetzner-webhook/internal/metrics"
 
-	hdns "github.com/jobstoit/hetzner-dns-go/dns"
+	"github.com/hetznercloud/hcloud-go/v2/hcloud"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -43,104 +43,124 @@ func (c *hetznerChanges) empty() bool {
 }
 
 // AddChangeCreate adds a new creation entry to the current object.
-func (c *hetznerChanges) AddChangeCreate(zoneID string, options *hdns.RecordCreateOpts) {
+func (c *hetznerChanges) AddChangeCreate(rrset *hcloud.ZoneRRSet, opts hcloud.ZoneRRSetAddRecordsOpts) {
 	changeCreate := &hetznerChangeCreate{
-		ZoneID:  zoneID,
-		Options: options,
+		rrset: rrset,
+		opts:  opts,
 	}
 	c.creates = append(c.creates, changeCreate)
 }
 
 // AddChangeUpdate adds a new update entry to the current object.
-func (c *hetznerChanges) AddChangeUpdate(zoneID string, record hdns.Record, options *hdns.RecordUpdateOpts) {
+func (c *hetznerChanges) AddChangeUpdate(rrset *hcloud.ZoneRRSet, ttlOpts *hcloud.ZoneRRSetChangeTTLOpts, recordsOpts *hcloud.ZoneRRSetSetRecordsOpts, labels map[string]string) {
 	changeUpdate := &hetznerChangeUpdate{
-		ZoneID:  zoneID,
-		Record:  record,
-		Options: options,
+		rrset:       rrset,
+		ttlOpts:     ttlOpts,
+		recordsOpts: recordsOpts,
+		labels:      labels,
 	}
 	c.updates = append(c.updates, changeUpdate)
 }
 
 // AddChangeDelete adds a new delete entry to the current object.
-func (c *hetznerChanges) AddChangeDelete(zoneID string, record hdns.Record) {
+func (c *hetznerChanges) AddChangeDelete(rrset *hcloud.ZoneRRSet) {
 	changeDelete := &hetznerChangeDelete{
-		ZoneID: zoneID,
-		Record: record,
+		rrset: rrset,
 	}
 	c.deletes = append(c.deletes, changeDelete)
 }
 
 // applyDeletes processes the records to be deleted.
-func (c hetznerChanges) applyDeletes(ctx context.Context, dnsClient apiClient) error {
+func (c hetznerChanges) applyDeletes(ctx context.Context, client apiClient) error {
 	metrics := metrics.GetOpenMetricsInstance()
 	for _, e := range c.deletes {
 		log.WithFields(e.GetLogFields()).Debug("Deleting domain record")
-		log.Infof("Deleting record [%s] from zone [%s]", e.Record.Name, e.Record.Zone.Name)
+		log.Infof("Deleting record [%s] from zone [%s]", e.rrset.Name, e.rrset.Zone.Name)
 		if c.dryRun {
 			continue
 		}
 		start := time.Now()
-		if _, err := dnsClient.DeleteRecord(ctx, &e.Record); err != nil {
-			metrics.IncFailedApiCallsTotal(actDeleteRecord)
+		if _, _, err := client.DeleteRRSet(ctx, e.rrset); err != nil {
+			metrics.IncFailedApiCallsTotal(actDeleteRRSet)
 			return err
 		}
 		delay := time.Since(start)
-		metrics.IncSuccessfulApiCallsTotal(actDeleteRecord)
-		metrics.AddApiDelayHist(actDeleteRecord, delay.Milliseconds())
+		metrics.IncSuccessfulApiCallsTotal(actDeleteRRSet)
+		metrics.AddApiDelayHist(actDeleteRRSet, delay.Milliseconds())
 	}
 	return nil
 }
 
 // applyCreates processes the records to be created.
-func (c hetznerChanges) applyCreates(ctx context.Context, dnsClient apiClient) error {
+func (c hetznerChanges) applyCreates(ctx context.Context, client apiClient) error {
 	metrics := metrics.GetOpenMetricsInstance()
 	for _, e := range c.creates {
-		opt := e.Options
-		if opt.Ttl == nil {
+		rrset := e.rrset
+		opts := e.opts
+		if opts.TTL == nil {
 			ttl := c.defaultTTL
-			opt.Ttl = &ttl
+			opts.TTL = &ttl
 		}
 		log.WithFields(e.GetLogFields()).Debug("Creating domain record")
-		log.Infof("Creating record [%s] of type [%s] with value [%s] in zone [%s]",
-			opt.Name, opt.Type, opt.Value, opt.Zone.Name)
+		log.Infof("Creating record [%s] of type [%s] with records(%s) in zone [%s]",
+			rrset.Name, rrset.Type, getRRSetRecordsString(rrset.Records), rrset.Zone.Name)
 		if c.dryRun {
 			continue
 		}
 		start := time.Now()
-		if _, _, err := dnsClient.CreateRecord(ctx, *opt); err != nil {
-			metrics.IncFailedApiCallsTotal(actCreateRecord)
+		if _, _, err := client.CreateRRSet(ctx, rrset, opts); err != nil {
+			metrics.IncFailedApiCallsTotal(actCreateRRSet)
 			return err
 		}
 		delay := time.Since(start)
-		metrics.IncSuccessfulApiCallsTotal(actCreateRecord)
-		metrics.AddApiDelayHist(actCreateRecord, delay.Milliseconds())
+		metrics.IncSuccessfulApiCallsTotal(actCreateRRSet)
+		metrics.AddApiDelayHist(actCreateRRSet, delay.Milliseconds())
 	}
 	return nil
 }
 
 // applyUpdates processes the records to be updated.
-func (c hetznerChanges) applyUpdates(ctx context.Context, dnsClient apiClient) error {
+func (c hetznerChanges) applyUpdates(ctx context.Context, client apiClient) error {
 	metrics := metrics.GetOpenMetricsInstance()
 	for _, e := range c.updates {
-		opt := e.Options
-		if opt.Ttl == nil {
-			ttl := c.defaultTTL
-			opt.Ttl = &ttl
-		}
+		rrset := e.rrset
+		recordOpts := e.recordsOpts
+		ttlOpts := e.ttlOpts
 		log.WithFields(e.GetLogFields()).Debug("Updating domain record")
-		log.Infof("Updating record ID [%s] with name [%s], type [%s], value [%s] and TTL [%d] in zone [%s]",
-			e.Record.ID, opt.Name, opt.Type, opt.Value, *opt.Ttl, opt.Zone.Name)
-		if c.dryRun {
-			continue
+		if recordOpts != nil {
+			log.Infof("Updating recordset for ID [%s], Name [%s], Type [%s] in zone [%s]: %s",
+				rrset.ID, rrset.Name, rrset.Type, rrset.Zone.Name, getRRSetRecordsString(recordOpts.Records))
+			if c.dryRun {
+				continue
+			}
+			start := time.Now()
+			if _, _, err := client.UpdateRRSetRecords(ctx, rrset, *recordOpts); err != nil {
+				metrics.IncFailedApiCallsTotal(actUpdateRRSetRecords)
+				return err
+			}
+			delay := time.Since(start)
+			metrics.IncSuccessfulApiCallsTotal(actUpdateRRSetRecords)
+			metrics.AddApiDelayHist(actUpdateRRSetRecords, delay.Milliseconds())
 		}
-		start := time.Now()
-		if _, _, err := dnsClient.UpdateRecord(ctx, &e.Record, *opt); err != nil {
-			metrics.IncFailedApiCallsTotal(actUpdateRecord)
-			return err
+		if ttlOpts != nil {
+			if ttlOpts.TTL == nil {
+				ttl := c.defaultTTL
+				ttlOpts.TTL = &ttl
+			}
+			log.Infof("Updating TTL for ID [%s], Name [%s], Type [%s] in zone [%s]: %d",
+				rrset.ID, rrset.Name, rrset.Type, rrset.Zone.Name, *ttlOpts.TTL)
+			if c.dryRun {
+				continue
+			}
+			start := time.Now()
+			if _, _, err := client.UpdateRRSetTTL(ctx, rrset, *ttlOpts); err != nil {
+				metrics.IncFailedApiCallsTotal(actUpdateRRSetTTL)
+				return err
+			}
+			delay := time.Since(start)
+			metrics.IncSuccessfulApiCallsTotal(actUpdateRRSetTTL)
+			metrics.AddApiDelayHist(actUpdateRRSetTTL, delay.Milliseconds())
 		}
-		delay := time.Since(start)
-		metrics.IncSuccessfulApiCallsTotal(actUpdateRecord)
-		metrics.AddApiDelayHist(actUpdateRecord, delay.Milliseconds())
 	}
 	return nil
 }

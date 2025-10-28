@@ -19,11 +19,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package hetzner
+package hetznerdns
 
 import (
 	"context"
 
+	"external-dns-hetzner-webhook/internal/hetzner"
 	"external-dns-hetzner-webhook/internal/metrics"
 
 	"sigs.k8s.io/external-dns/endpoint"
@@ -48,7 +49,7 @@ type HetznerProvider struct {
 }
 
 // NewHetznerProvider creates a new HetznerProvider instance.
-func NewHetznerProvider(config *Configuration) (*HetznerProvider, error) {
+func NewHetznerProvider(config *hetzner.Configuration) (*HetznerProvider, error) {
 	var logLevel log.Level
 	if config.Debug {
 		logLevel = log.DebugLevel
@@ -63,7 +64,7 @@ func NewHetznerProvider(config *Configuration) (*HetznerProvider, error) {
 		debug:        config.Debug,
 		dryRun:       config.DryRun,
 		defaultTTL:   config.DefaultTTL,
-		domainFilter: GetDomainFilter(*config),
+		domainFilter: hetzner.GetDomainFilter(*config),
 	}, nil
 }
 
