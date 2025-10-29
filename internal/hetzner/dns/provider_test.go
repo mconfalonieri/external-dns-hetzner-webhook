@@ -15,11 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package hetzner
+package hetznerdns
 
 import (
 	"context"
 	"errors"
+	"external-dns-hetzner-webhook/internal/hetzner"
 	"net/http"
 	"testing"
 
@@ -32,7 +33,7 @@ import (
 
 // Test_NewHetznerProvider tests NewHetznerProvider().
 func Test_NewHetznerProvider(t *testing.T) {
-	cfg := Configuration{
+	cfg := hetzner.Configuration{
 		APIKey:       "testKey",
 		DryRun:       true,
 		Debug:        true,
@@ -48,7 +49,7 @@ func Test_NewHetznerProvider(t *testing.T) {
 	assert.Equal(t, cfg.BatchSize, p.batchSize)
 	assert.Equal(t, cfg.DefaultTTL, p.defaultTTL)
 	actualJSON, _ := p.domainFilter.MarshalJSON()
-	expectedJSON, _ := GetDomainFilter(cfg).MarshalJSON()
+	expectedJSON, _ := hetzner.GetDomainFilter(cfg).MarshalJSON()
 	assert.Equal(t, actualJSON, expectedJSON)
 }
 

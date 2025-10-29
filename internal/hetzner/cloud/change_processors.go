@@ -17,14 +17,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package hetzner
+package hetznercloud
 
 import (
 	"strings"
 
 	"sigs.k8s.io/external-dns/endpoint"
-	"sigs.k8s.io/external-dns/provider"
 
+	"github.com/hetznercloud/hcloud-go/v2/hcloud"
 	hdns "github.com/jobstoit/hetzner-dns-go/dns"
 	log "github.com/sirupsen/logrus"
 )
@@ -45,11 +45,10 @@ func adjustCNAMETarget(domain string, target string) string {
 }
 
 // processCreateActionsByZone processes the create actions for one zone.
-func processCreateActionsByZone(zoneID, zoneName string, records []hdns.Record, endpoints []*endpoint.Endpoint, changes *hetznerChanges) {
+func processCreateActionsByZone(zoneID int64, zoneName string, rrsets []*hcloud.ZoneRRSet, endpoints []*endpoint.Endpoint, changes *hetznerChanges) {
 	for _, ep := range endpoints {
 		// Warn if there are existing records since we expect to create only new records.
-		matchingRecords := getMatchingDomainRecords(records, zoneName, ep)
-		if len(matchingRecords) > 0 {
+		if matchingRRSet, _ := getMatchingDomainRRSet(rrsets, zoneName, ep); matchingRRSet != nil {
 			log.WithFields(log.Fields{
 				"zoneName":   zoneName,
 				"dnsName":    ep.DNSName,
@@ -61,12 +60,12 @@ func processCreateActionsByZone(zoneID, zoneName string, records []hdns.Record, 
 			if ep.RecordType == "CNAME" {
 				target = adjustCNAMETarget(zoneName, target)
 			}
-			opts := &hdns.RecordCreateOpts{
+			opts := &hcloud.RecordCreateOpts{
 				Name:  makeEndpointName(zoneName, ep.DNSName),
 				Ttl:   getEndpointTTL(ep),
 				Type:  hdns.RecordType(ep.RecordType),
 				Value: target,
-				Zone: &hdns.Zone{
+				Zone: &hcloud.Zone{
 					ID:   zoneID,
 					Name: zoneName,
 				},
@@ -78,9 +77,9 @@ func processCreateActionsByZone(zoneID, zoneName string, records []hdns.Record, 
 
 // processCreateActions processes the create requests.
 func processCreateActions(
-	zoneIDNameMapper provider.ZoneIDName,
-	recordsByZoneID map[string][]hdns.Record,
-	createsByZoneID map[string][]*endpoint.Endpoint,
+	zoneIDNameMapper zoneIDName,
+	rrSetsByZoneID map[int64][]*hcloud.ZoneRRSet,
+	createsByZoneID map[int64][]*endpoint.Endpoint,
 	changes *hetznerChanges,
 ) {
 	// Process endpoints that need to be created.
@@ -92,13 +91,13 @@ func processCreateActions(
 			}).Debug("Skipping domain, no creates found.")
 			continue
 		}
-		records := recordsByZoneID[zoneID]
-		processCreateActionsByZone(zoneID, zoneName, records, endpoints, changes)
+		rrsets := rrSetsByZoneID[zoneID]
+		processCreateActionsByZone(zoneID, zoneName, rrsets, endpoints, changes)
 	}
 }
 
-func processUpdateEndpoint(zoneID, zoneName string, matchingRecordsByTarget map[string]hdns.Record, ep *endpoint.Endpoint, changes *hetznerChanges) {
-	// Generate create and delete actions based on existence of a record for each target.
+func processUpdateEndpoint(mRRSet *hcloud.ZoneRRSet, ep *endpoint.Endpoint, changes *hetznerChanges) {
+	// Generate
 	for _, target := range ep.Targets {
 		if ep.RecordType == "CNAME" {
 			target = adjustCNAMETarget(zoneName, target)
@@ -153,11 +152,11 @@ func getMatchingRecordsByTarget(records []hdns.Record) map[string]hdns.Record {
 }
 
 // processUpdateActionsByZone processes update actions for a single zone.
-func processUpdateActionsByZone(zoneID, zoneName string, records []hdns.Record, endpoints []*endpoint.Endpoint, changes *hetznerChanges) {
+func processUpdateActionsByZone(zoneName string, rrsets []*hcloud.ZoneRRSet, endpoints []*endpoint.Endpoint, changes *hetznerChanges) {
 	for _, ep := range endpoints {
-		matchingRecords := getMatchingDomainRecords(records, zoneName, ep)
-
-		if len(matchingRecords) == 0 {
+		if mRRSet, _ := getMatchingDomainRRSet(rrsets, zoneName, ep); mRRSet != nil {
+			processUpdateEndpoint(mRRSet, ep, changes)
+		} else {
 			log.WithFields(log.Fields{
 				"zoneName":   zoneName,
 				"dnsName":    ep.DNSName,
@@ -165,20 +164,14 @@ func processUpdateActionsByZone(zoneID, zoneName string, records []hdns.Record, 
 			}).Warn("Planning an update but no existing records found.")
 		}
 
-		matchingRecordsByTarget := getMatchingRecordsByTarget(matchingRecords)
-
-		processUpdateEndpoint(zoneID, zoneName, matchingRecordsByTarget, ep, changes)
-
-		// Any remaining records have been removed, delete them
-		cleanupRemainingTargets(zoneID, matchingRecordsByTarget, changes)
 	}
 }
 
 // processUpdateActions processes the update requests.
 func processUpdateActions(
-	zoneIDNameMapper provider.ZoneIDName,
-	recordsByZoneID map[string][]hdns.Record,
-	updatesByZoneID map[string][]*endpoint.Endpoint,
+	zoneIDNameMapper zoneIDName,
+	recordsByZoneID map[int64][]*hcloud.ZoneRRSet,
+	updatesByZoneID map[int64][]*endpoint.Endpoint,
 	changes *hetznerChanges,
 ) {
 	// Generate creates and updates based on existing
@@ -240,9 +233,9 @@ func processDeleteActionsByZone(zoneID, zoneName string, records []hdns.Record, 
 
 // processDeleteActions processes the delete requests.
 func processDeleteActions(
-	zoneIDNameMapper provider.ZoneIDName,
-	recordsByZoneID map[string][]hdns.Record,
-	deletesByZoneID map[string][]*endpoint.Endpoint,
+	zoneIDNameMapper zoneIDName,
+	recordsByZoneID map[int64][]*hcloud.ZoneRRSet,
+	deletesByZoneID map[int64][]*endpoint.Endpoint,
 	changes *hetznerChanges,
 ) {
 	for zoneID, endpoints := range deletesByZoneID {

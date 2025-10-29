@@ -15,65 +15,86 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package hetzner
+package hetznercloud
 
 import (
-	hdns "github.com/jobstoit/hetzner-dns-go/dns"
+	"strings"
+
+	"github.com/hetznercloud/hcloud-go/v2/hcloud"
 	log "github.com/sirupsen/logrus"
 )
 
+func getRRSetRecordsString(records []hcloud.ZoneRRSetRecord) string {
+	stringRecords := make([]string, len(records))
+	for idx, record := range records {
+		stringRecords[idx] = record.Value
+	}
+	return strings.Join(stringRecords, ";")
+}
+
+func getLabelMapString(labels map[string]string) string {
+	arr := make([]string, 0)
+	for k, v := range labels {
+		arr = append(arr, k+"="+v)
+	}
+	return strings.Join(arr, ";")
+}
+
 // hetznerChangeCreate stores the information for a create request.
 type hetznerChangeCreate struct {
-	ZoneID  string
-	Options *hdns.RecordCreateOpts
+	rrset *hcloud.ZoneRRSet
+	opts  hcloud.ZoneRRSetAddRecordsOpts
 }
 
 // GetLogFields returns the log fields for this object.
 func (cc hetznerChangeCreate) GetLogFields() log.Fields {
 	return log.Fields{
-		"domain":     cc.Options.Zone.Name,
-		"zoneID":     cc.ZoneID,
-		"dnsName":    cc.Options.Name,
-		"recordType": string(cc.Options.Type),
-		"value":      cc.Options.Value,
-		"ttl":        *cc.Options.Ttl,
+		"zone":       cc.rrset.Zone.Name,
+		"dnsName":    cc.rrset.Name,
+		"recordType": string(cc.rrset.Type),
+		"targets":    getRRSetRecordsString(cc.opts.Records),
+		"ttl":        *cc.opts.TTL,
 	}
 }
 
 // hetznerChangeUpdate stores the information for an update request.
 type hetznerChangeUpdate struct {
-	ZoneID  string
-	Record  hdns.Record
-	Options *hdns.RecordUpdateOpts
+	rrset       *hcloud.ZoneRRSet
+	ttlOpts     *hcloud.ZoneRRSetChangeTTLOpts
+	recordsOpts *hcloud.ZoneRRSetSetRecordsOpts
+	labels      map[string]string
 }
 
 // GetLogFields returns the log fields for this object. An asterisk indicate
 // that the new value is shown.
 func (cu hetznerChangeUpdate) GetLogFields() log.Fields {
-	return log.Fields{
-		"domain":      cu.Record.Zone.Name,
-		"zoneID":      cu.ZoneID,
-		"recordID":    cu.Record.ID,
-		"*dnsName":    cu.Options.Name,
-		"*recordType": string(cu.Options.Type),
-		"*value":      cu.Options.Value,
-		"*ttl":        *cu.Options.Ttl,
+	fields := log.Fields{
+		"zone":       cu.rrset.Zone.Name,
+		"dnsName":    cu.rrset.Name,
+		"recordType": string(cu.rrset.Type),
 	}
+	if cu.ttlOpts != nil {
+		fields["*ttl"] = cu.ttlOpts.TTL
+	}
+	if cu.recordsOpts != nil {
+		fields["*targets"] = getRRSetRecordsString(cu.recordsOpts.Records)
+	}
+	if cu.labels != nil {
+		fields["*labels"] = cu.labels
+	}
+	return fields
 }
 
 // hetznerChangeDelete stores the information for a delete request.
 type hetznerChangeDelete struct {
-	ZoneID string
-	Record hdns.Record
+	rrset *hcloud.ZoneRRSet
 }
 
 // GetLogFields returns the log fields for this object.
 func (cd hetznerChangeDelete) GetLogFields() log.Fields {
 	return log.Fields{
-		"domain":     cd.Record.Zone.Name,
-		"zoneID":     cd.ZoneID,
-		"dnsName":    cd.Record.Name,
-		"recordType": string(cd.Record.Type),
-		"value":      cd.Record.Value,
+		"zone":       cd.rrset.Zone.Name,
+		"dnsName":    cd.rrset.Name,
+		"recordType": string(cd.rrset.Type),
 	}
 }

@@ -15,16 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package hetzner
+package hetznercloud
 
 import (
 	"fmt"
 	"strings"
 
-	hdns "github.com/jobstoit/hetzner-dns-go/dns"
+	"github.com/hetznercloud/hcloud-go/v2/hcloud"
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/net/idna"
 	"sigs.k8s.io/external-dns/endpoint"
-	"sigs.k8s.io/external-dns/provider"
 )
 
 // makeEndpointName makes a endpoint name that conforms to Hetzner DNS
@@ -44,81 +44,56 @@ func makeEndpointName(domain, entryName string) string {
 }
 
 // makeEndpointTarget makes a endpoint target that conforms to Hetzner DNS
-// requirements:
-//   - A-Records should respect ignored networks and should only contain IPv4
-//     entries.
-func makeEndpointTarget(domain, entryTarget string, _ string) string {
-	if domain == "" {
-		return entryTarget
+// requirements.
+func makeEndpointTarget(entryTarget string) (string, error) {
+	// Trim the trailing dot
+	trimmedTarget := strings.TrimSuffix(entryTarget, ".")
+	// non-ASCII records are now supported?
+	adjustedTarget, err := idna.ToASCII(trimmedTarget)
+	if err != nil {
+		return "", err
 	}
 
-	// Trim the trailing dot
-	adjustedTarget := strings.TrimSuffix(entryTarget, ".")
-
-	return adjustedTarget
+	return adjustedTarget, nil
 }
 
-// mergeEndpointsByNameType merges Endpoints with the same Name and Type into a
-// single endpoint with multiple Targets.
-func mergeEndpointsByNameType(endpoints []*endpoint.Endpoint) []*endpoint.Endpoint {
-	endpointsByNameType := map[string][]*endpoint.Endpoint{}
-
-	for _, e := range endpoints {
-		key := fmt.Sprintf("%s-%s", e.DNSName, e.RecordType)
-		endpointsByNameType[key] = append(endpointsByNameType[key], e)
-	}
-
-	// If no merge occurred, just return the existing endpoints.
-	if len(endpointsByNameType) == len(endpoints) {
-		return endpoints
-	}
-
-	// Otherwise, construct a new list of endpoints with the endpoints merged.
-	var result []*endpoint.Endpoint
-	for _, endpoints := range endpointsByNameType {
-		dnsName := endpoints[0].DNSName
-		recordType := endpoints[0].RecordType
-
-		targets := make([]string, len(endpoints))
-		for i, e := range endpoints {
-			targets[i] = e.Targets[0]
+// extractEndpointTargets extracts the target list from the RRSet and prepares
+// the targets for the Endpoint objects, if needed.
+func extractEndpointTargets(rrset *hcloud.ZoneRRSet) []string {
+	targets := make([]string, len(rrset.Records))
+	for _, record := range rrset.Records {
+		target := record.Value
+		if rrset.Type == hcloud.ZoneRRSetTypeCNAME && !strings.HasSuffix(target, ".") {
+			target = fmt.Sprintf("%s.%s.", target, rrset.Zone.Name)
 		}
-
-		e := endpoint.NewEndpoint(dnsName, recordType, targets...)
-		e.RecordTTL = endpoints[0].RecordTTL
-		result = append(result, e)
 	}
-
-	return result
+	return targets
 }
 
 // createEndpointFromRecord creates an endpoint from a record.
-func createEndpointFromRecord(r hdns.Record) *endpoint.Endpoint {
-	name := fmt.Sprintf("%s.%s", r.Name, r.Zone.Name)
+func createEndpointFromRecord(rrset *hcloud.ZoneRRSet) *endpoint.Endpoint {
+	name := fmt.Sprintf("%s.%s", rrset.Name, rrset.Zone.Name)
 
 	// root name is identified by @ and should be
 	// translated to zone name for the endpoint entry.
-	if r.Name == "@" {
-		name = r.Zone.Name
+	if rrset.Name == "@" {
+		name = rrset.Zone.Name
 	}
 
 	// Handle local CNAMEs
-	target := r.Value
-	if r.Type == hdns.RecordTypeCNAME && !strings.HasSuffix(r.Value, ".") {
-		target = fmt.Sprintf("%s.%s.", r.Value, r.Zone.Name)
-	}
-	ep := endpoint.NewEndpoint(name, string(r.Type), target)
-	ep.RecordTTL = endpoint.TTL(r.Ttl)
+	targets := extractEndpointTargets(rrset)
+	ep := endpoint.NewEndpoint(name, string(rrset.Type), targets...)
+	ep.RecordTTL = endpoint.TTL(*rrset.TTL)
 	return ep
 }
 
 // endpointsByZoneID arranges the endpoints in a map by zone ID.
-func endpointsByZoneID(zoneIDNameMapper provider.ZoneIDName, endpoints []*endpoint.Endpoint) map[string][]*endpoint.Endpoint {
-	endpointsByZoneID := make(map[string][]*endpoint.Endpoint)
+func endpointsByZoneID(zoneIDNameMapper zoneIDName, endpoints []*endpoint.Endpoint) map[int64][]*endpoint.Endpoint {
+	endpointsByZoneID := make(map[int64][]*endpoint.Endpoint)
 
 	for idx, ep := range endpoints {
 		zoneID, _ := zoneIDNameMapper.FindZone(ep.DNSName)
-		if zoneID == "" {
+		if zoneID == -1 {
 			log.Debugf("Skipping record %d (%s) because no hosted zone matching record DNS Name was detected", idx, ep.DNSName)
 			continue
 		} else {
@@ -130,8 +105,8 @@ func endpointsByZoneID(zoneIDNameMapper provider.ZoneIDName, endpoints []*endpoi
 	return endpointsByZoneID
 }
 
-// getMatchingDomainRecords returns the records that match an endpoint.
-func getMatchingDomainRecords(records []hdns.Record, zoneName string, ep *endpoint.Endpoint) []hdns.Record {
+// getMatchingRRSet returns the RRSet that matches an endpoint.
+func getMatchingDomainRRSet(rrsets []*hcloud.ZoneRRSet, zoneName string, ep *endpoint.Endpoint) (*hcloud.ZoneRRSet, error) {
 	var name string
 	if ep.DNSName != zoneName {
 		name = strings.TrimSuffix(ep.DNSName, "."+zoneName)
@@ -139,13 +114,12 @@ func getMatchingDomainRecords(records []hdns.Record, zoneName string, ep *endpoi
 		name = "@"
 	}
 
-	var result []hdns.Record
-	for _, r := range records {
-		if r.Name == name && string(r.Type) == ep.RecordType {
-			result = append(result, r)
+	for _, rrset := range rrsets {
+		if rrset.Name == name && string(rrset.Type) == ep.RecordType {
+			return rrset, nil
 		}
 	}
-	return result
+	return nil, fmt.Errorf("cannot find an RRSet matching name=%s and type=%s", ep.DNSName, ep.RecordType)
 }
 
 // getEndpointTTL returns a pointer to a value representing the endpoint TTL or
@@ -166,4 +140,16 @@ func getEndpointLogFields(ep *endpoint.Endpoint) log.Fields {
 		"Targets":    ep.Targets.String(),
 		"TTL":        int(ep.RecordTTL),
 	}
+}
+
+func adjustEndpointTargets(targets endpoint.Targets) (endpoint.Targets, error) {
+	adjustedTargets := endpoint.Targets{}
+	for _, target := range targets {
+		adjustedTarget, err := makeEndpointTarget(target)
+		if err != nil {
+			return endpoint.Targets{}, err
+		}
+		adjustedTargets = append(adjustedTargets, adjustedTarget)
+	}
+	return adjustedTargets, nil
 }

@@ -19,18 +19,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package hetzner
+package hetznercloud
 
 import (
 	"context"
 
+	"external-dns-hetzner-webhook/internal/hetzner"
 	"external-dns-hetzner-webhook/internal/metrics"
 
 	"sigs.k8s.io/external-dns/endpoint"
 	"sigs.k8s.io/external-dns/plan"
 	"sigs.k8s.io/external-dns/provider"
 
-	hdns "github.com/jobstoit/hetzner-dns-go/dns"
+	"github.com/hetznercloud/hcloud-go/v2/hcloud"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -43,12 +44,12 @@ type HetznerProvider struct {
 	debug            bool
 	dryRun           bool
 	defaultTTL       int
-	zoneIDNameMapper provider.ZoneIDName
+	zoneIDNameMapper zoneIDName
 	domainFilter     *endpoint.DomainFilter
 }
 
 // NewHetznerProvider creates a new HetznerProvider instance.
-func NewHetznerProvider(config *Configuration) (*HetznerProvider, error) {
+func NewHetznerProvider(config *hetzner.Configuration) (*HetznerProvider, error) {
 	var logLevel log.Level
 	if config.Debug {
 		logLevel = log.DebugLevel
@@ -58,20 +59,20 @@ func NewHetznerProvider(config *Configuration) (*HetznerProvider, error) {
 	log.SetLevel(logLevel)
 
 	return &HetznerProvider{
-		client:       NewHetznerDNS(config.APIKey),
+		client:       NewHetznerCloud(config.APIKey),
 		batchSize:    config.BatchSize,
 		debug:        config.Debug,
 		dryRun:       config.DryRun,
 		defaultTTL:   config.DefaultTTL,
-		domainFilter: GetDomainFilter(*config),
+		domainFilter: hetzner.GetDomainFilter(*config),
 	}, nil
 }
 
 // Zones returns the list of the hosted DNS zones.
 // If a domain filter is set, it only returns the zones that match it.
-func (p *HetznerProvider) Zones(ctx context.Context) ([]hdns.Zone, error) {
+func (p *HetznerProvider) Zones(ctx context.Context) ([]*hcloud.Zone, error) {
 	metrics := metrics.GetOpenMetricsInstance()
-	result := []hdns.Zone{}
+	result := []*hcloud.Zone{}
 
 	zones, err := fetchZones(ctx, p.client, p.batchSize)
 	if err != nil {
@@ -100,16 +101,18 @@ func (p HetznerProvider) AdjustEndpoints(endpoints []*endpoint.Endpoint) ([]*end
 
 	for _, ep := range endpoints {
 		_, zoneName := p.zoneIDNameMapper.FindZone(ep.DNSName)
-		adjustedTargets := endpoint.Targets{}
-		for _, t := range ep.Targets {
-			adjustedTarget := makeEndpointTarget(zoneName, t, ep.RecordType)
-			adjustedTargets = append(adjustedTargets, adjustedTarget)
+		var adjustedTargets endpoint.Targets
+		if zoneName == "" {
+			adjustedTargets = ep.Targets
+		} else {
+			var err error = nil
+			if adjustedTargets, err = adjustEndpointTargets(ep.Targets); err != nil {
+				return nil, err
+			}
 		}
-
 		ep.Targets = adjustedTargets
 		adjustedEndpoints = append(adjustedEndpoints, ep)
 	}
-
 	return adjustedEndpoints, nil
 }
 
@@ -129,18 +132,18 @@ func (p *HetznerProvider) Records(ctx context.Context) ([]*endpoint.Endpoint, er
 
 	endpoints := []*endpoint.Endpoint{}
 	for _, zone := range zones {
-		records, err := fetchRecords(ctx, zone.ID, p.client, p.batchSize)
+		rrsets, err := fetchRecords(ctx, zone, p.client, p.batchSize)
 		if err != nil {
 			return nil, err
 		}
 
 		skippedRecords := 0
 		// Add only endpoints from supported types.
-		for _, r := range records {
+		for _, rrset := range rrsets {
 			// Ensure the record has all the required zone information
-			r.Zone = &zone
-			if provider.SupportedRecordType(string(r.Type)) {
-				ep := createEndpointFromRecord(r)
+			rrset.Zone = zone
+			if provider.SupportedRecordType(string(rrset.Type)) {
+				ep := createEndpointFromRecord(rrset)
 				endpoints = append(endpoints, ep)
 			} else {
 				skippedRecords++
@@ -149,10 +152,6 @@ func (p *HetznerProvider) Records(ctx context.Context) ([]*endpoint.Endpoint, er
 		m := metrics.GetOpenMetricsInstance()
 		m.SetSkippedRecords(zone.Name, skippedRecords)
 	}
-
-	// Merge endpoints with the same name and type (e.g., multiple A records for a single
-	// DNS name) into one endpoint with multiple targets.
-	endpoints = mergeEndpointsByNameType(endpoints)
 
 	// Log the endpoints that were found.
 	if p.debug {
@@ -165,18 +164,19 @@ func (p *HetznerProvider) Records(ctx context.Context) ([]*endpoint.Endpoint, er
 
 // ensureZoneIDMappingPresent prepares the zoneIDNameMapper, that associates
 // each ZoneID woth the zone name.
-func (p *HetznerProvider) ensureZoneIDMappingPresent(zones []hdns.Zone) {
-	zoneIDNameMapper := provider.ZoneIDName{}
+func (p *HetznerProvider) ensureZoneIDMappingPresent(zones []*hcloud.Zone) {
+	zoneIDNameMapper := zoneIDName{}
 	for _, z := range zones {
-		zoneIDNameMapper.Add(z.ID, z.Name)
+		zoneID := z.ID
+		zoneIDNameMapper.Add(zoneID, z.Name)
 	}
 	p.zoneIDNameMapper = zoneIDNameMapper
 }
 
-// getRecordsByZoneID returns a map that associates each ZoneID with the
-// records contained in that zone.
-func (p *HetznerProvider) getRecordsByZoneID(ctx context.Context) (map[string][]hdns.Record, error) {
-	recordsByZoneID := map[string][]hdns.Record{}
+// getRRSetsByZoneID returns a map that associates each ZoneID with the
+// RRSets contained in that zone.
+func (p *HetznerProvider) getRRSetsByZoneID(ctx context.Context) (map[int64][]*hcloud.ZoneRRSet, error) {
+	rrSetsByZoneID := make(map[int64][]*hcloud.ZoneRRSet, 0)
 
 	zones, err := p.Zones(ctx)
 	if err != nil {
@@ -185,20 +185,14 @@ func (p *HetznerProvider) getRecordsByZoneID(ctx context.Context) (map[string][]
 
 	// Fetch records for each zone
 	for _, zone := range zones {
-		records, err := fetchRecords(ctx, zone.ID, p.client, p.batchSize)
+		rrsets, err := fetchRecords(ctx, zone, p.client, p.batchSize)
 		if err != nil {
 			return nil, err
 		}
-		// Add full zone information
-		zonedRecords := []hdns.Record{}
-		for _, r := range records {
-			r.Zone = &zone
-			zonedRecords = append(zonedRecords, r)
-		}
-		recordsByZoneID[zone.ID] = append(recordsByZoneID[zone.ID], zonedRecords...)
+		rrSetsByZoneID[zone.ID] = rrsets
 	}
 
-	return recordsByZoneID, nil
+	return rrSetsByZoneID, nil
 }
 
 // ApplyChanges applies the given set of generic changes to the provider.
@@ -207,7 +201,7 @@ func (p *HetznerProvider) ApplyChanges(ctx context.Context, planChanges *plan.Ch
 		return nil
 	}
 
-	recordsByZoneID, err := p.getRecordsByZoneID(ctx)
+	rrSetsByZoneID, err := p.getRRSetsByZoneID(ctx)
 	if err != nil {
 		return err
 	}
@@ -224,9 +218,9 @@ func (p *HetznerProvider) ApplyChanges(ctx context.Context, planChanges *plan.Ch
 		defaultTTL: p.defaultTTL,
 	}
 
-	processCreateActions(p.zoneIDNameMapper, recordsByZoneID, createsByZoneID, &changes)
-	processUpdateActions(p.zoneIDNameMapper, recordsByZoneID, updatesByZoneID, &changes)
-	processDeleteActions(p.zoneIDNameMapper, recordsByZoneID, deletesByZoneID, &changes)
+	processCreateActions(p.zoneIDNameMapper, rrSetsByZoneID, createsByZoneID, &changes)
+	processUpdateActions(p.zoneIDNameMapper, rrSetsByZoneID, updatesByZoneID, &changes)
+	processDeleteActions(p.zoneIDNameMapper, rrSetsByZoneID, deletesByZoneID, &changes)
 
 	return changes.ApplyChanges(ctx, p.client)
 }
