@@ -111,7 +111,7 @@ func (p HetznerProvider) AdjustEndpoints(endpoints []*endpoint.Endpoint) ([]*end
 		if zone == nil {
 			adjustedTargets = ep.Targets
 		} else {
-			var err error = nil
+			var err error
 			if adjustedTargets, err = adjustEndpointTargets(ep.Targets); err != nil {
 				return nil, err
 			}
