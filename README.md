@@ -9,19 +9,28 @@ ExternalDNS takes this functionality a step further by delegating the management
 of DNS records to an external DNS provider such as this one. This webhook allows
 you to manage your Hetzner domains inside your kubernetes cluster.
 
-ℹ️ If you are upgrading to 0.7.x from 0.6.x read the
+This webhook supports both the old DNS API and the new Cloud DNS interface.
+
+ℹ️ If you are upgrading to **0.8.x** from previous versions read the
 [Upgrading from previous versions](#upgrading-from-previous-versions) section.
 
 ## Requirements
 
-An
-[API token](https://docs.hetzner.com/dns-console/dns/general/api-access-token/)
-for the account managing your domains is required for this webhook to work
-properly.
-
 This webhook can be used in conjunction with **ExternalDNS v0.14.0 or higher**,
 configured for using the webhook interface. Some examples for a working
 configuration are shown in the next section.
+
+### Legacy DNS API
+A [DNS API token](https://docs.hetzner.com/dns-console/dns/general/api-access-token/)
+for the account managing your domains is required for this webhook to work
+properly when the **USE_CLOUD_API** environment variable is set to `false` or
+not set.
+
+### New Cloud API
+
+A [Cloud API token](https://docs.hetzner.com/cloud/api/getting-started/generating-api-token/)
+is required when the new Cloud API is in use (the **USE_CLOUD_API** environment
+variable is set to `true`).
 
 ## Kubernetes Deployment
 
@@ -155,7 +164,24 @@ And then:
 helm install external-dns-hetzner bitnami/external-dns -f external-dns-hetzner-values.yaml -n external-dns
 ```
 
+## Custom annotations
+
+From version **0.8.0** some custom provider annotations were introduced.
+
+
 ## Upgrading from previous versions
+
+### 0.7.x to 0.8.x
+
+The configuration is still compatible, however some changes were introduced that
+might be worth to check out:
+
+- the new Cloud API is now supported through the **USE_CLOUD_API** environment
+  variable;
+- some provider-specific annotations are now processed.
+
+Please notice that the Cloud API requires migrating the DNS zones to the new
+console.
 
 ### 0.6.x to 0.7.x
 
@@ -190,6 +216,7 @@ Hetzner DNS API.
 | HETZNER_API_KEY | Hetzner API token        | Mandatory                  |
 | BATCH_SIZE      | Number of zones per call | Default: `100`, max: `100` |
 | DEFAULT_TTL     | Default record TTL       | Default: `7200`            |
+| USE_CLOUD_API   | Use the new cloud API    | Default: `false`           |
 
 ### Test and debug
 
@@ -328,7 +355,9 @@ for scraping.
 | `api_delay_hist`             | Histogram | `action` | Histogram of the delay (ms) when calling the Hetzner API |
 
 The label `action` can assume one of the following values, depending on the
-Hetzner API endpoint called:
+Hetzner API endpoint called.
+
+The actions supported by the legacy DNS provider are:
 
 - `get_zones`
 - `get_records`
@@ -336,12 +365,16 @@ Hetzner API endpoint called:
 - `delete_record`
 - `update_record`
 
+The actions supported by the Cloud API provider are:
+
+- `get_zones`
+- `get_rrsets`
+- `create_rrset`
+- `update_rrset_ttl`
+- `update_rrset_records`
+- `delete_rrset`
+
 The label `zone` can assume one of the zone names as its value.
-
-Please notice that in some cases an _update_ request from ExternalDNS will be
-transformed into a `delete_record` and subsequent `create_record` calls by this
-webhook.
-
 
 ## Development
 

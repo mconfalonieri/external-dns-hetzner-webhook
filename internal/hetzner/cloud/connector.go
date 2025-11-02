@@ -42,11 +42,13 @@ type apiClient interface {
 	// GetRRSets returns the RRSets for a given zone.
 	GetRRSets(ctx context.Context, zone *hcloud.Zone, opts hcloud.ZoneRRSetListOpts) ([]*hcloud.ZoneRRSet, *hcloud.Response, error)
 	// CreateRRSet creates a new RRSet.
-	CreateRRSet(ctx context.Context, rrset *hcloud.ZoneRRSet, opts hcloud.ZoneRRSetAddRecordsOpts) (*hcloud.Action, *hcloud.Response, error)
+	CreateRRSet(ctx context.Context, zone *hcloud.Zone, opts hcloud.ZoneRRSetCreateOpts) (hcloud.ZoneRRSetCreateResult, *hcloud.Response, error)
 	// UpdateRRSetTTL updates an RRSet's TTL.
 	UpdateRRSetTTL(ctx context.Context, rrset *hcloud.ZoneRRSet, opts hcloud.ZoneRRSetChangeTTLOpts) (*hcloud.Action, *hcloud.Response, error)
 	// UpdateRRSetRecords updates the records of an RRSet.
 	UpdateRRSetRecords(ctx context.Context, rrset *hcloud.ZoneRRSet, opts hcloud.ZoneRRSetSetRecordsOpts) (*hcloud.Action, *hcloud.Response, error)
+	// UpdateRRSetLabels update the labels of an RRSet.
+	UpdateRRSetLabels(ctx context.Context, rrset *hcloud.ZoneRRSet, opts hcloud.ZoneRRSetUpdateOpts) (*hcloud.ZoneRRSet, *hcloud.Response, error)
 	// DeleteRRSet deletes an RRSet.
 	DeleteRRSet(ctx context.Context, rrset *hcloud.ZoneRRSet) (hcloud.ZoneRRSetDeleteResult, *hcloud.Response, error)
 }

@@ -23,6 +23,7 @@ package hetznerdns
 
 import (
 	"context"
+	"fmt"
 
 	"external-dns-hetzner-webhook/internal/hetzner"
 	"external-dns-hetzner-webhook/internal/metrics"
@@ -58,8 +59,13 @@ func NewHetznerProvider(config *hetzner.Configuration) (*HetznerProvider, error)
 	}
 	log.SetLevel(logLevel)
 
+	client, err := NewHetznerDNS(config.APIKey)
+	if err != nil {
+		return nil, fmt.Errorf("cannot instantiate provider: %s", err.Error())
+	}
+
 	return &HetznerProvider{
-		client:       NewHetznerDNS(config.APIKey),
+		client:       client,
 		batchSize:    config.BatchSize,
 		debug:        config.Debug,
 		dryRun:       config.DryRun,

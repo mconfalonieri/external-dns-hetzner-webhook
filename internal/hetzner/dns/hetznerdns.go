@@ -19,6 +19,7 @@ package hetznerdns
 
 import (
 	"context"
+	"errors"
 
 	hdns "github.com/jobstoit/hetzner-dns-go/dns"
 )
@@ -29,10 +30,13 @@ type hetznerDNS struct {
 }
 
 // NewHetznerDNS returns a new client.
-func NewHetznerDNS(apiKey string) *hetznerDNS {
+func NewHetznerDNS(apiKey string) (*hetznerDNS, error) {
+	if apiKey == "" {
+		return nil, errors.New("nil API key provided")
+	}
 	return &hetznerDNS{
 		client: hdns.NewClient(hdns.WithToken(apiKey)),
-	}
+	}, nil
 }
 
 // GetZones returns the available zones.

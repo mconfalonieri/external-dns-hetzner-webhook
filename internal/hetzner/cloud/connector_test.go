@@ -63,7 +63,7 @@ func Test_fetchRecords(t *testing.T) {
 				client: &mockClient{
 					getRRSets: rrSetsResponse{
 						rrsets: []*hcloud.ZoneRRSet{
-							&hcloud.ZoneRRSet{
+							{
 								Zone: &hcloud.Zone{
 									ID:   1,
 									Name: "alpha.com",
@@ -129,7 +129,7 @@ func Test_fetchRecords(t *testing.T) {
 				err    error
 			}{
 				rrsets: []*hcloud.ZoneRRSet{
-					&hcloud.ZoneRRSet{
+					{
 						Zone: &hcloud.Zone{
 							ID:   1,
 							Name: "alpha.com",
@@ -270,11 +270,11 @@ func Test_fetchZones(t *testing.T) {
 				err   error
 			}{
 				zones: []*hcloud.Zone{
-					&hcloud.Zone{
+					{
 						ID:   1,
 						Name: "alpha.com",
 					},
-					&hcloud.Zone{
+					{
 						ID:   2,
 						Name: "beta.com",
 					},

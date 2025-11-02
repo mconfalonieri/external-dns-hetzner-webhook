@@ -32,26 +32,18 @@ func getRRSetRecordsString(records []hcloud.ZoneRRSetRecord) string {
 	return strings.Join(stringRecords, ";")
 }
 
-func getLabelMapString(labels map[string]string) string {
-	arr := make([]string, 0)
-	for k, v := range labels {
-		arr = append(arr, k+"="+v)
-	}
-	return strings.Join(arr, ";")
-}
-
 // hetznerChangeCreate stores the information for a create request.
 type hetznerChangeCreate struct {
-	rrset *hcloud.ZoneRRSet
-	opts  hcloud.ZoneRRSetAddRecordsOpts
+	zone *hcloud.Zone
+	opts hcloud.ZoneRRSetCreateOpts
 }
 
 // GetLogFields returns the log fields for this object.
 func (cc hetznerChangeCreate) GetLogFields() log.Fields {
 	return log.Fields{
-		"zone":       cc.rrset.Zone.Name,
-		"dnsName":    cc.rrset.Name,
-		"recordType": string(cc.rrset.Type),
+		"zone":       cc.zone.Name,
+		"dnsName":    cc.opts.Name,
+		"recordType": string(cc.opts.Type),
 		"targets":    getRRSetRecordsString(cc.opts.Records),
 		"ttl":        *cc.opts.TTL,
 	}
@@ -62,7 +54,7 @@ type hetznerChangeUpdate struct {
 	rrset       *hcloud.ZoneRRSet
 	ttlOpts     *hcloud.ZoneRRSetChangeTTLOpts
 	recordsOpts *hcloud.ZoneRRSetSetRecordsOpts
-	labels      map[string]string
+	updateOpts  *hcloud.ZoneRRSetUpdateOpts
 }
 
 // GetLogFields returns the log fields for this object. An asterisk indicate
@@ -74,13 +66,13 @@ func (cu hetznerChangeUpdate) GetLogFields() log.Fields {
 		"recordType": string(cu.rrset.Type),
 	}
 	if cu.ttlOpts != nil {
-		fields["*ttl"] = cu.ttlOpts.TTL
+		fields["*ttl"] = *cu.ttlOpts.TTL
 	}
 	if cu.recordsOpts != nil {
 		fields["*targets"] = getRRSetRecordsString(cu.recordsOpts.Records)
 	}
-	if cu.labels != nil {
-		fields["*labels"] = cu.labels
+	if cu.updateOpts != nil {
+		fields["*labels"] = cu.updateOpts.Labels
 	}
 	return fields
 }

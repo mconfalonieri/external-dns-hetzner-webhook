@@ -23,6 +23,7 @@ package hetznercloud
 
 import (
 	"context"
+	"fmt"
 
 	"external-dns-hetzner-webhook/internal/hetzner"
 	"external-dns-hetzner-webhook/internal/metrics"
@@ -58,8 +59,13 @@ func NewHetznerProvider(config *hetzner.Configuration) (*HetznerProvider, error)
 	}
 	log.SetLevel(logLevel)
 
+	client, err := NewHetznerCloud(config.APIKey)
+	if err != nil {
+		return nil, fmt.Errorf("cannot instantiate provider: %s", err.Error())
+	}
+
 	return &HetznerProvider{
-		client:       NewHetznerCloud(config.APIKey),
+		client:       client,
 		batchSize:    config.BatchSize,
 		debug:        config.Debug,
 		dryRun:       config.DryRun,
@@ -100,9 +106,9 @@ func (p HetznerProvider) AdjustEndpoints(endpoints []*endpoint.Endpoint) ([]*end
 	adjustedEndpoints := []*endpoint.Endpoint{}
 
 	for _, ep := range endpoints {
-		_, zoneName := p.zoneIDNameMapper.FindZone(ep.DNSName)
+		_, zone := p.zoneIDNameMapper.FindZone(ep.DNSName)
 		var adjustedTargets endpoint.Targets
-		if zoneName == "" {
+		if zone == nil {
 			adjustedTargets = ep.Targets
 		} else {
 			var err error = nil
@@ -168,7 +174,7 @@ func (p *HetznerProvider) ensureZoneIDMappingPresent(zones []*hcloud.Zone) {
 	zoneIDNameMapper := zoneIDName{}
 	for _, z := range zones {
 		zoneID := z.ID
-		zoneIDNameMapper.Add(zoneID, z.Name)
+		zoneIDNameMapper.Add(zoneID, z)
 	}
 	p.zoneIDNameMapper = zoneIDNameMapper
 }

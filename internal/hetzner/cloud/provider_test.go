@@ -32,24 +32,79 @@ import (
 
 // Test_NewHetznerProvider tests NewHetznerProvider().
 func Test_NewHetznerProvider(t *testing.T) {
-	cfg := hetzner.Configuration{
-		APIKey:       "testKey",
-		DryRun:       true,
-		Debug:        true,
-		BatchSize:    50,
-		DefaultTTL:   3600,
-		DomainFilter: []string{"alpha.com, beta.com"},
+	type testCase struct {
+		name     string
+		input    *hetzner.Configuration
+		expected struct {
+			provider HetznerProvider
+			err      error
+		}
 	}
 
-	p, _ := NewHetznerProvider(&cfg)
+	run := func(t *testing.T, tc testCase) {
+		exp := tc.expected
+		p, err := NewHetznerProvider(tc.input)
+		if !assertError(t, exp.err, err) {
+			assert.NotNil(t, p.client)
+			assert.Equal(t, exp.provider.dryRun, p.dryRun)
+			assert.Equal(t, exp.provider.debug, p.debug)
+			assert.Equal(t, exp.provider.batchSize, p.batchSize)
+			assert.Equal(t, exp.provider.defaultTTL, p.defaultTTL)
+			actualJSON, _ := p.domainFilter.MarshalJSON()
+			expectedJSON, _ := exp.provider.domainFilter.MarshalJSON()
+			assert.Equal(t, actualJSON, expectedJSON)
+		}
+	}
 
-	assert.Equal(t, cfg.DryRun, p.dryRun)
-	assert.Equal(t, cfg.Debug, p.debug)
-	assert.Equal(t, cfg.BatchSize, p.batchSize)
-	assert.Equal(t, cfg.DefaultTTL, p.defaultTTL)
-	actualJSON, _ := p.domainFilter.MarshalJSON()
-	expectedJSON, _ := hetzner.GetDomainFilter(cfg).MarshalJSON()
-	assert.Equal(t, actualJSON, expectedJSON)
+	testCases := []testCase{
+		{
+			name: "empty api key",
+			input: &hetzner.Configuration{
+				APIKey:       "",
+				DryRun:       true,
+				Debug:        true,
+				BatchSize:    50,
+				DefaultTTL:   3600,
+				DomainFilter: []string{"alpha.com, beta.com"},
+			},
+			expected: struct {
+				provider HetznerProvider
+				err      error
+			}{
+				err: errors.New("cannot instantiate provider: nil API key provided"),
+			},
+		},
+		{
+			name: "some api key",
+			input: &hetzner.Configuration{
+				APIKey:       "TEST_API_KEY",
+				DryRun:       true,
+				Debug:        true,
+				BatchSize:    50,
+				DefaultTTL:   3600,
+				DomainFilter: []string{"alpha.com, beta.com"},
+			},
+			expected: struct {
+				provider HetznerProvider
+				err      error
+			}{
+				provider: HetznerProvider{
+					client:       nil, // This will be ignored
+					batchSize:    50,
+					debug:        true,
+					dryRun:       true,
+					defaultTTL:   3600,
+					domainFilter: endpoint.NewDomainFilter([]string{"alpha.com, beta.com"}),
+				},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			run(t, tc)
+		})
+	}
 }
 
 // Test_Zones tests HetznerProvider.Zones().
@@ -229,8 +284,14 @@ func Test_AdjustEndpoints(t *testing.T) {
 			name: "empty list",
 			provider: HetznerProvider{
 				zoneIDNameMapper: zoneIDName{
-					1: "alpha.com",
-					2: "beta.com",
+					1: &hcloud.Zone{
+						ID:   1,
+						Name: "alpha.com",
+					},
+					2: &hcloud.Zone{
+						ID:   2,
+						Name: "beta.com",
+					},
 				},
 			},
 			input:    []*endpoint.Endpoint{},
@@ -240,8 +301,14 @@ func Test_AdjustEndpoints(t *testing.T) {
 			name: "adjusted elements",
 			provider: HetznerProvider{
 				zoneIDNameMapper: zoneIDName{
-					1: "alpha.com",
-					2: "beta.com",
+					1: &hcloud.Zone{
+						ID:   1,
+						Name: "alpha.com",
+					},
+					2: &hcloud.Zone{
+						ID:   2,
+						Name: "beta.com",
+					},
 				},
 			},
 			input: []*endpoint.Endpoint{
@@ -313,7 +380,7 @@ func Test_Records(t *testing.T) {
 		exp := tc.expected
 		actual, err := obj.Records(context.Background())
 		if !assertError(t, exp.err, err) {
-			assert.EqualValues(t, exp.endpoints, actual)
+			assert.ElementsMatch(t, exp.endpoints, actual)
 		}
 	}
 
@@ -421,11 +488,11 @@ func Test_Records(t *testing.T) {
 								},
 								ID:   "id_2",
 								Name: "ftp",
-								Type: hcloud.ZoneRRSetTypeA,
+								Type: hcloud.ZoneRRSetTypeCNAME,
 								TTL:  &defaultTTL,
 								Records: []hcloud.ZoneRRSetRecord{
 									{
-										Value: "2.2.2.2",
+										Value: "www",
 									},
 								},
 							},
@@ -487,31 +554,31 @@ func Test_Records(t *testing.T) {
 				endpoints: []*endpoint.Endpoint{
 					{
 						DNSName:    "www.alpha.com",
-						RecordType: "A",
+						RecordType: endpoint.RecordTypeA,
 						Targets:    endpoint.Targets{"1.1.1.1"},
 						Labels:     endpoint.Labels{},
-						RecordTTL:  -1,
+						RecordTTL:  endpoint.TTL(defaultTTL),
 					},
 					{
 						DNSName:    "ftp.alpha.com",
-						RecordType: "CNAME",
+						RecordType: endpoint.RecordTypeCNAME,
 						Targets:    endpoint.Targets{"www.alpha.com"},
 						Labels:     endpoint.Labels{},
-						RecordTTL:  -1,
+						RecordTTL:  endpoint.TTL(defaultTTL),
 					},
 					{
 						DNSName:    "www.beta.com",
-						RecordType: "A",
-						Targets:    endpoint.Targets{"2.2.2.2"},
+						RecordType: endpoint.RecordTypeA,
+						Targets:    endpoint.Targets{"3.3.3.3"},
 						Labels:     endpoint.Labels{},
-						RecordTTL:  -1,
+						RecordTTL:  endpoint.TTL(defaultTTL),
 					},
 					{
 						DNSName:    "ftp.beta.com",
-						RecordType: "A",
-						Targets:    endpoint.Targets{"3.3.3.3"},
+						RecordType: endpoint.RecordTypeA,
+						Targets:    endpoint.Targets{"4.4.4.4"},
 						Labels:     endpoint.Labels{},
-						RecordTTL:  -1,
+						RecordTTL:  endpoint.TTL(defaultTTL),
 					},
 				},
 			},
@@ -593,7 +660,7 @@ func Test_ensureZoneIDMappingPresent(t *testing.T) {
 		name     string
 		provider HetznerProvider
 		input    []*hcloud.Zone
-		expected map[int64]string
+		expected zoneIDName
 	}
 
 	run := func(t *testing.T, tc testCase) {
@@ -607,7 +674,7 @@ func Test_ensureZoneIDMappingPresent(t *testing.T) {
 			name:     "empty list",
 			provider: HetznerProvider{},
 			input:    []*hcloud.Zone{},
-			expected: map[int64]string{},
+			expected: zoneIDName(map[int64]*hcloud.Zone{}),
 		},
 		{
 			name:     "zones present",
@@ -622,10 +689,16 @@ func Test_ensureZoneIDMappingPresent(t *testing.T) {
 					Name: "beta.com",
 				},
 			},
-			expected: map[int64]string{
-				1: "alpha.com",
-				2: "beta.com",
-			},
+			expected: zoneIDName(map[int64]*hcloud.Zone{
+				1: {
+					ID:   1,
+					Name: "alpha.com",
+				},
+				2: {
+					ID:   2,
+					Name: "beta.com",
+				},
+			}),
 		},
 	}
 

@@ -24,15 +24,16 @@ package hetznercloud
 import (
 	"strings"
 
+	"github.com/hetznercloud/hcloud-go/v2/hcloud"
 	log "github.com/sirupsen/logrus"
 
 	"golang.org/x/net/idna"
 )
 
-type zoneIDName map[int64]string
+type zoneIDName map[int64]*hcloud.Zone
 
-func (z zoneIDName) Add(zoneID int64, zoneName string) {
-	z[zoneID] = zoneName
+func (z zoneIDName) Add(zoneID int64, zone *hcloud.Zone) {
+	z[zoneID] = zone
 }
 
 // FindZone identifies the most suitable DNS zone for a given hostname.
@@ -47,7 +48,7 @@ func (z zoneIDName) Add(zoneID int64, zoneName string) {
 // SRV records as per RFC 2782, or TXT record for services) that are not
 // IDNA-aware and cannot represent non-ASCII labels. Skipping these labels
 // ensures compatibility with such use cases.
-func (z zoneIDName) FindZone(hostname string) (int64, string) {
+func (z zoneIDName) FindZone(hostname string) (int64, *hcloud.Zone) {
 	var name string
 	domainLabels := strings.Split(hostname, ".")
 	for i, label := range domainLabels {
@@ -65,14 +66,17 @@ func (z zoneIDName) FindZone(hostname string) (int64, string) {
 
 	suitableZoneID := int64(-1)
 	suitableZoneName := ""
+	var suitableZone *hcloud.Zone = nil
 
-	for zoneID, zoneName := range z {
+	for zoneID, zone := range z {
+		zoneName := zone.Name
 		if name == zoneName || strings.HasSuffix(name, "."+zoneName) {
-			if suitableZoneName == "" || len(zoneName) > len(suitableZoneName) {
+			if suitableZone == nil || len(zoneName) > len(suitableZoneName) {
 				suitableZoneID = zoneID
 				suitableZoneName = zoneName
+				suitableZone = zone
 			}
 		}
 	}
-	return suitableZoneID, suitableZoneName
+	return suitableZoneID, suitableZone
 }

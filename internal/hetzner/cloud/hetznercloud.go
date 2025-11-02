@@ -19,6 +19,7 @@ package hetznercloud
 
 import (
 	"context"
+	"errors"
 
 	"github.com/hetznercloud/hcloud-go/v2/hcloud"
 )
@@ -29,10 +30,13 @@ type hetznerCloud struct {
 }
 
 // NewHetznerCloud returns a new client.
-func NewHetznerCloud(apiKey string) *hetznerCloud {
+func NewHetznerCloud(apiKey string) (*hetznerCloud, error) {
+	if apiKey == "" {
+		return nil, errors.New("nil API key provided")
+	}
 	return &hetznerCloud{
 		client: hcloud.NewClient(hcloud.WithToken(apiKey)),
-	}
+	}, nil
 }
 
 // GetZones returns the available zones.
@@ -48,9 +52,9 @@ func (h hetznerCloud) GetRRSets(ctx context.Context, zone *hcloud.Zone, opts hcl
 }
 
 // CreateRRSet creates a new RRSet.
-func (h hetznerCloud) CreateRRSet(ctx context.Context, rrset *hcloud.ZoneRRSet, opts hcloud.ZoneRRSetAddRecordsOpts) (*hcloud.Action, *hcloud.Response, error) {
+func (h hetznerCloud) CreateRRSet(ctx context.Context, zone *hcloud.Zone, opts hcloud.ZoneRRSetCreateOpts) (hcloud.ZoneRRSetCreateResult, *hcloud.Response, error) {
 	zoneClient := h.client.Zone
-	return zoneClient.AddRRSetRecords(ctx, rrset, opts)
+	return zoneClient.CreateRRSet(ctx, zone, opts)
 }
 
 // UpdateRRSetTTL updates an RRSet's TTL.

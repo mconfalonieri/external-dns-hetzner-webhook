@@ -108,23 +108,23 @@ func Test_makeEndpointTarget(t *testing.T) {
 		inp := tc.input
 		exp := tc.expected
 		actual, err := makeEndpointTarget(inp)
-		assert.Equal(t, exp, actual)
+		assert.Equal(t, exp.adjustedTarget, actual)
 		assertError(t, exp.err, err)
 	}
 
 	testCases := []testCase{
 		{
-			name:  "IPv4 address",
-			input: "0.0.0.0",
+			name:  "ipv4 address",
+			input: "1.1.1.1",
 			expected: struct {
 				adjustedTarget string
 				err            error
 			}{
-				adjustedTarget: "0.0.0.0",
+				adjustedTarget: "1.1.1.1",
 			},
 		},
 		{
-			name:  "FQDN provided",
+			name:  "fqdn provided",
 			input: "www.alpha.com",
 			expected: struct {
 				adjustedTarget string
@@ -134,7 +134,7 @@ func Test_makeEndpointTarget(t *testing.T) {
 			},
 		},
 		{
-			name:  "Entry with trailing dot",
+			name:  "hostname with trailing dot",
 			input: "www.",
 			expected: struct {
 				adjustedTarget string
@@ -184,7 +184,7 @@ func Test_createEndpointFromRecord(t *testing.T) {
 			},
 			expected: &endpoint.Endpoint{
 				DNSName:    "beta.com",
-				RecordType: "CNAME",
+				RecordType: endpoint.RecordTypeCNAME,
 				Targets:    endpoint.Targets{"www.alpha.com"},
 				RecordTTL:  endpoint.TTL(defaultTTL),
 				Labels:     endpoint.Labels{},
@@ -193,6 +193,10 @@ func Test_createEndpointFromRecord(t *testing.T) {
 		{
 			name: "single record",
 			input: &hcloud.ZoneRRSet{
+				Zone: &hcloud.Zone{
+					ID:   2,
+					Name: "beta.com",
+				},
 				ID:   "id_1",
 				Name: "ftp",
 				Type: hcloud.ZoneRRSetTypeCNAME,
@@ -214,6 +218,10 @@ func Test_createEndpointFromRecord(t *testing.T) {
 		{
 			name: "multiple records",
 			input: &hcloud.ZoneRRSet{
+				Zone: &hcloud.Zone{
+					ID:   2,
+					Name: "beta.com",
+				},
 				ID:   "id_1",
 				Name: "ftp",
 				Type: hcloud.ZoneRRSetTypeCNAME,
@@ -267,8 +275,14 @@ func Test_endpointsByZoneID(t *testing.T) {
 				endpoints        []*endpoint.Endpoint
 			}{
 				zoneIDNameMapper: zoneIDName{
-					1: "alpha.com",
-					2: "beta.com",
+					1: &hcloud.Zone{
+						ID:   1,
+						Name: "alpha.com",
+					},
+					2: &hcloud.Zone{
+						ID:   2,
+						Name: "beta.com",
+					},
 				},
 				endpoints: []*endpoint.Endpoint{},
 			},
@@ -281,8 +295,14 @@ func Test_endpointsByZoneID(t *testing.T) {
 				endpoints        []*endpoint.Endpoint
 			}{
 				zoneIDNameMapper: zoneIDName{
-					1: "alpha.com",
-					2: "beta.com",
+					1: &hcloud.Zone{
+						ID:   1,
+						Name: "alpha.com",
+					},
+					2: &hcloud.Zone{
+						ID:   2,
+						Name: "beta.com",
+					},
 				},
 				endpoints: []*endpoint.Endpoint{
 					{
@@ -340,7 +360,10 @@ func Test_getMatchingDomainRRSet(t *testing.T) {
 			zoneName string
 			ep       *endpoint.Endpoint
 		}
-		expected *hcloud.ZoneRRSet
+		expected struct {
+			rrset *hcloud.ZoneRRSet
+			ok    bool
+		}
 	}
 
 	testCases := []testCase{
@@ -366,7 +389,13 @@ func Test_getMatchingDomainRRSet(t *testing.T) {
 					DNSName: "ftp.alpha.com",
 				},
 			},
-			expected: nil,
+			expected: struct {
+				rrset *hcloud.ZoneRRSet
+				ok    bool
+			}{
+				rrset: nil,
+				ok:    false,
+			},
 		},
 		{
 			name: "matches",
@@ -390,20 +419,28 @@ func Test_getMatchingDomainRRSet(t *testing.T) {
 					DNSName: "www.alpha.com",
 				},
 			},
-			expected: &hcloud.ZoneRRSet{
-				Zone: &hcloud.Zone{
-					ID:   1,
-					Name: "alpha.com",
+			expected: struct {
+				rrset *hcloud.ZoneRRSet
+				ok    bool
+			}{
+				rrset: &hcloud.ZoneRRSet{
+					Zone: &hcloud.Zone{
+						ID:   1,
+						Name: "alpha.com",
+					},
+					ID:   "id1",
+					Name: "www",
 				},
-				ID:   "id1",
-				Name: "www",
+				ok: true,
 			},
 		},
 	}
 
 	run := func(t *testing.T, tc testCase) {
-		actual, _ := getMatchingDomainRRSet(tc.input.rrsets, tc.input.zoneName, tc.input.ep)
-		assert.ElementsMatch(t, actual, tc.expected)
+		exp := tc.expected
+		rrset, ok := getMatchingDomainRRSet(tc.input.rrsets, tc.input.zoneName, tc.input.ep)
+		assert.EqualValues(t, exp.rrset, rrset)
+		assert.Equal(t, exp.ok, ok)
 	}
 
 	for _, tc := range testCases {

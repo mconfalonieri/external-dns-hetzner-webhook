@@ -20,12 +20,12 @@
 package hetznercloud
 
 import (
+	"fmt"
 	"strings"
 
 	"sigs.k8s.io/external-dns/endpoint"
 
 	"github.com/hetznercloud/hcloud-go/v2/hcloud"
-	hdns "github.com/jobstoit/hetzner-dns-go/dns"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -44,33 +44,40 @@ func adjustCNAMETarget(domain string, target string) string {
 	return adjustedTarget
 }
 
+// extractRRSetRecords extracts the records from an endpoint.
+func extractRRSetRecords(zoneName string, ep *endpoint.Endpoint) []hcloud.ZoneRRSetRecord {
+	targets := []string(ep.Targets)
+	records := make([]hcloud.ZoneRRSetRecord, len(targets))
+	for idx, target := range targets {
+		if ep.RecordType == "CNAME" {
+			target = adjustCNAMETarget(zoneName, target)
+		}
+		records[idx] = hcloud.ZoneRRSetRecord{
+			Value: target,
+		}
+	}
+	return records
+}
+
 // processCreateActionsByZone processes the create actions for one zone.
-func processCreateActionsByZone(zoneID int64, zoneName string, rrsets []*hcloud.ZoneRRSet, endpoints []*endpoint.Endpoint, changes *hetznerChanges) {
+func processCreateActionsByZone(zone *hcloud.Zone, rrsets []*hcloud.ZoneRRSet, endpoints []*endpoint.Endpoint, changes *hetznerChanges) {
+	zoneName := zone.Name
 	for _, ep := range endpoints {
-		// Warn if there are existing records since we expect to create only new records.
+		// If there is an existing record we refuse to act.
 		if matchingRRSet, _ := getMatchingDomainRRSet(rrsets, zoneName, ep); matchingRRSet != nil {
 			log.WithFields(log.Fields{
 				"zoneName":   zoneName,
 				"dnsName":    ep.DNSName,
 				"recordType": ep.RecordType,
-			}).Warn("Preexisting records exist which should not exist for creation actions.")
-		}
-
-		for _, target := range ep.Targets {
-			if ep.RecordType == "CNAME" {
-				target = adjustCNAMETarget(zoneName, target)
+			}).Warn("Planning a creation but an existing record was found.")
+		} else {
+			opts := hcloud.ZoneRRSetCreateOpts{
+				Name:    makeEndpointName(zoneName, ep.DNSName),
+				Type:    hcloud.ZoneRRSetType(ep.RecordType),
+				TTL:     getEndpointTTL(ep),
+				Records: extractRRSetRecords(zoneName, ep),
 			}
-			opts := &hcloud.RecordCreateOpts{
-				Name:  makeEndpointName(zoneName, ep.DNSName),
-				Ttl:   getEndpointTTL(ep),
-				Type:  hdns.RecordType(ep.RecordType),
-				Value: target,
-				Zone: &hcloud.Zone{
-					ID:   zoneID,
-					Name: zoneName,
-				},
-			}
-			changes.AddChangeCreate(zoneID, opts)
+			changes.AddChangeCreate(zone, opts)
 		}
 	}
 }
@@ -84,84 +91,136 @@ func processCreateActions(
 ) {
 	// Process endpoints that need to be created.
 	for zoneID, endpoints := range createsByZoneID {
-		zoneName := zoneIDNameMapper[zoneID]
+		zone := zoneIDNameMapper[zoneID]
 		if len(endpoints) == 0 {
 			log.WithFields(log.Fields{
-				"zoneName": zoneName,
+				"zoneName": zone.Name,
 			}).Debug("Skipping domain, no creates found.")
 			continue
 		}
 		rrsets := rrSetsByZoneID[zoneID]
-		processCreateActionsByZone(zoneID, zoneName, rrsets, endpoints, changes)
+		processCreateActionsByZone(zone, rrsets, endpoints, changes)
 	}
+}
+
+// sameZoneRRSetRecords returns true if two arrays contains the same elements
+// and false otherwise. Please note that this implementation purposely excludes
+// the comments from the comparison.
+func sameZoneRRSetRecords(first, second []hcloud.ZoneRRSetRecord) bool {
+	// If the length is different, it is false.
+	if len(first) != len(second) {
+		return false
+	}
+	// Build a map "reversing" index and record. For the latter, we are only
+	// interested in the Value field.
+	second_map := make(map[string]int, len(second))
+	for i, r := range second {
+		second_map[r.Value] = i
+	}
+
+	// Delete from second_map the values found in first
+	for _, r := range first {
+		value := r.Value
+		delete(second_map, value)
+	}
+
+	// If all elements in second_map are deleted, first and second have the
+	// same elements, as we already ruled out different lengths.
+	return len(second_map) == 0
+}
+
+// ensureStringMap ensures that a map is instantiated.
+func ensureStringMap(m map[string]string) map[string]string {
+	if m == nil {
+		m = map[string]string{}
+	}
+	return m
+}
+
+// equalStringMaps checks two maps for equality. We don't want to rely on
+// reflection due to performance costs.
+func equalStringMaps(first, second map[string]string) bool {
+	first = ensureStringMap(first)
+	second = ensureStringMap(second)
+	// Check length
+	if len(first) != len(second) {
+		return false
+	}
+	// Check contents
+	for k, v1 := range first {
+		if v2, ok := second[k]; ok {
+			if v1 != v2 {
+				return false
+			}
+		} else {
+			return false
+		}
+	}
+	return true
 }
 
 func processUpdateEndpoint(mRRSet *hcloud.ZoneRRSet, ep *endpoint.Endpoint, changes *hetznerChanges) {
-	// Generate
-	for _, target := range ep.Targets {
-		if ep.RecordType == "CNAME" {
-			target = adjustCNAMETarget(zoneName, target)
-		}
-		if record, ok := matchingRecordsByTarget[target]; ok {
-			opts := &hdns.RecordUpdateOpts{
-				Name:  makeEndpointName(zoneName, ep.DNSName),
-				Ttl:   getEndpointTTL(ep),
-				Type:  hdns.RecordType(ep.RecordType),
-				Value: target,
-				Zone: &hdns.Zone{
-					ID:   zoneID,
-					Name: zoneName,
-				},
-			}
-			changes.AddChangeUpdate(zoneID, record, opts)
+	zone := mRRSet.Zone
+	zoneName := zone.Name
 
-			// Updates are removed from this map.
-			delete(matchingRecordsByTarget, target)
-		} else {
-			// Record did not previously exist, create new 'target'
-			opts := &hdns.RecordCreateOpts{
-				Name:  makeEndpointName(zoneName, ep.DNSName),
-				Ttl:   getEndpointTTL(ep),
-				Type:  hdns.RecordType(ep.RecordType),
-				Value: target,
-				Zone: &hdns.Zone{
-					ID:   zoneID,
-					Name: zoneName,
-				},
-			}
-			changes.AddChangeCreate(zoneID, opts)
+	// The arguments that we want to fill.
+	var (
+		ttlOpts     *hcloud.ZoneRRSetChangeTTLOpts  = nil
+		recordsOpts *hcloud.ZoneRRSetSetRecordsOpts = nil
+		updateOpts  *hcloud.ZoneRRSetUpdateOpts     = nil
+	)
+
+	// Check if we need to update the TTL. We do not update an unconfigured TTL
+	epTTL := getEndpointTTL(ep)
+	rrSetTTL := mRRSet.TTL
+	if epTTL != nil && (rrSetTTL == nil || *rrSetTTL != *epTTL) {
+		newTTL := *epTTL
+		ttlOpts = &hcloud.ZoneRRSetChangeTTLOpts{
+			TTL: &newTTL,
 		}
 	}
-}
 
-// cleanupRemainingTargets deletes the entries for the updates that are queued for creation.
-func cleanupRemainingTargets(zoneID string, matchingRecordsByTarget map[string]hdns.Record, changes *hetznerChanges) {
-	for _, record := range matchingRecordsByTarget {
-		changes.AddChangeDelete(zoneID, record)
+	// Check if we need to update the records
+	records := extractRRSetRecords(zoneName, ep)
+	if !sameZoneRRSetRecords(records, mRRSet.Records) {
+		recordsOpts = &hcloud.ZoneRRSetSetRecordsOpts{
+			Records: records,
+		}
 	}
-}
 
-// getMatchingRecordsByTarget organizes a slice of targets in a map with the
-// target as key.
-func getMatchingRecordsByTarget(records []hdns.Record) map[string]hdns.Record {
-	recordsMap := make(map[string]hdns.Record, 0)
-	for _, r := range records {
-		recordsMap[r.Value] = r
+	// Check if we need to update the labels
+	labels, err := getHetznerLabels(ep)
+
+	fmt.Printf("Labels old: %d, new: %d\n", len(mRRSet.Labels), len(labels))
+	if err != nil {
+		log.WithFields(log.Fields{
+			"zoneName":   zoneName,
+			"dnsName":    ep.DNSName,
+			"recordType": ep.RecordType,
+		}).Warnf("Labels will be ignored for a parsing error: %s", err.Error())
+	} else if !equalStringMaps(labels, mRRSet.Labels) {
+		fmt.Println("Updating labels")
+		updateOpts = &hcloud.ZoneRRSetUpdateOpts{
+			Labels: labels,
+		}
 	}
-	return recordsMap
+
+	changes.AddChangeUpdate(mRRSet, ttlOpts, recordsOpts, updateOpts)
 }
 
 // processUpdateActionsByZone processes update actions for a single zone.
-func processUpdateActionsByZone(zoneName string, rrsets []*hcloud.ZoneRRSet, endpoints []*endpoint.Endpoint, changes *hetznerChanges) {
+func processUpdateActionsByZone(zone *hcloud.Zone, rrsets []*hcloud.ZoneRRSet, endpoints []*endpoint.Endpoint, changes *hetznerChanges) {
+	zoneName := zone.Name
 	for _, ep := range endpoints {
-		if mRRSet, _ := getMatchingDomainRRSet(rrsets, zoneName, ep); mRRSet != nil {
-			processUpdateEndpoint(mRRSet, ep, changes)
-		} else {
+		mRRSet, found := getMatchingDomainRRSet(rrsets, zoneName, ep)
+		if !found {
 			log.WithFields(log.Fields{
 				"zoneName":   zoneName,
 				"dnsName":    ep.DNSName,
 				"recordType": ep.RecordType,
 			}).Warn("Planning an update but no existing records found.")
+		} else {
+			processUpdateEndpoint(mRRSet, ep, changes)
 		}
 
 	}
@@ -170,76 +229,54 @@ func processUpdateActionsByZone(zoneName string, rrsets []*hcloud.ZoneRRSet, end
 // processUpdateActions processes the update requests.
 func processUpdateActions(
 	zoneIDNameMapper zoneIDName,
-	recordsByZoneID map[int64][]*hcloud.ZoneRRSet,
+	rrSetsByZoneID map[int64][]*hcloud.ZoneRRSet,
 	updatesByZoneID map[int64][]*endpoint.Endpoint,
 	changes *hetznerChanges,
 ) {
 	// Generate creates and updates based on existing
 	for zoneID, endpoints := range updatesByZoneID {
-		zoneName := zoneIDNameMapper[zoneID]
+		zone := zoneIDNameMapper[zoneID]
+		zoneName := zone.Name
 		if len(endpoints) == 0 {
 			log.WithFields(log.Fields{
 				"zoneName": zoneName,
 			}).Debug("Skipping Zone, no updates found.")
 			continue
 		}
+		rrsets := rrSetsByZoneID[zoneID]
+		processUpdateActionsByZone(zone, rrsets, endpoints, changes)
 
-		records := recordsByZoneID[zoneID]
-		processUpdateActionsByZone(zoneID, zoneName, records, endpoints, changes)
-
-	}
-}
-
-// targetsMatch determines if a record matches one of the endpoint's targets.
-func targetsMatch(record hdns.Record, ep *endpoint.Endpoint) bool {
-	for _, t := range ep.Targets {
-		endpointTarget := t
-		recordTarget := record.Value
-		if ep.RecordType == endpoint.RecordTypeCNAME {
-			domain := record.Zone.Name
-			endpointTarget = adjustCNAMETarget(domain, t)
-		}
-		if endpointTarget == recordTarget {
-			return true
-		}
-	}
-	return false
-}
-
-// processDeleteActionsByEndpoint processes delete actions for an endpoint.
-func processDeleteActionsByEndpoint(zoneID string, matchingRecords []hdns.Record, ep *endpoint.Endpoint, changes *hetznerChanges) {
-	for _, record := range matchingRecords {
-		if targetsMatch(record, ep) {
-			changes.AddChangeDelete(zoneID, record)
-		}
 	}
 }
 
 // processDeleteActionsByZone processes delete actions for a single zone.
-func processDeleteActionsByZone(zoneID, zoneName string, records []hdns.Record, endpoints []*endpoint.Endpoint, changes *hetznerChanges) {
+func processDeleteActionsByZone(zone *hcloud.Zone, rrsets []*hcloud.ZoneRRSet, endpoints []*endpoint.Endpoint, changes *hetznerChanges) {
+	zoneName := zone.Name
 	for _, ep := range endpoints {
-		matchingRecords := getMatchingDomainRecords(records, zoneName, ep)
-
-		if len(matchingRecords) == 0 {
+		mRRSet, found := getMatchingDomainRRSet(rrsets, zoneName, ep)
+		if !found {
 			log.WithFields(log.Fields{
 				"zoneName":   zoneName,
 				"dnsName":    ep.DNSName,
 				"recordType": ep.RecordType,
-			}).Warn("Records to delete not found.")
+			}).Warn("RRSet to delete not found.")
+		} else {
+			changes.AddChangeDelete(mRRSet)
 		}
-		processDeleteActionsByEndpoint(zoneID, matchingRecords, ep, changes)
+
 	}
 }
 
 // processDeleteActions processes the delete requests.
 func processDeleteActions(
 	zoneIDNameMapper zoneIDName,
-	recordsByZoneID map[int64][]*hcloud.ZoneRRSet,
+	rrSetsByZoneID map[int64][]*hcloud.ZoneRRSet,
 	deletesByZoneID map[int64][]*endpoint.Endpoint,
 	changes *hetznerChanges,
 ) {
 	for zoneID, endpoints := range deletesByZoneID {
-		zoneName := zoneIDNameMapper[zoneID]
+		zone := zoneIDNameMapper[zoneID]
+		zoneName := zone.Name
 		if len(endpoints) == 0 {
 			log.WithFields(log.Fields{
 				"zoneName": zoneName,
@@ -247,8 +284,8 @@ func processDeleteActions(
 			continue
 		}
 
-		records := recordsByZoneID[zoneID]
-		processDeleteActionsByZone(zoneID, zoneName, records, endpoints, changes)
+		rrsets := rrSetsByZoneID[zoneID]
+		processDeleteActionsByZone(zone, rrsets, endpoints, changes)
 
 	}
 }

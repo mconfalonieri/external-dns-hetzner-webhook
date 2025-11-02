@@ -19,6 +19,7 @@ package hetznercloud
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/hetznercloud/hcloud-go/v2/hcloud"
@@ -35,9 +36,16 @@ type zonesResponse struct {
 	err   error
 }
 
-// rrSetsResponse simulates a response that returns a list of records.
+// rrSetsResponse simulates a response that returns a list of RRSets.
 type rrSetsResponse struct {
 	rrsets []*hcloud.ZoneRRSet
+	resp   *hcloud.Response
+	err    error
+}
+
+// createRRSetResponse simulates a response to a RRSet creation request.
+type createRRSetResponse struct {
+	result hcloud.ZoneRRSetCreateResult
 	resp   *hcloud.Response
 	err    error
 }
@@ -49,7 +57,14 @@ type actionResponse struct {
 	err    error
 }
 
-// deleteRRSetResponse simulates a response to a record deletion request.
+// rrSetResponse simulates a response that returns one RRSet.
+type rrSetResponse struct {
+	rrset *hcloud.ZoneRRSet
+	resp  *hcloud.Response
+	err   error
+}
+
+// deleteRRSetResponse simulates a response to a RRSet deletion request.
 type deleteRRSetResponse struct {
 	result hcloud.ZoneRRSetDeleteResult
 	resp   *hcloud.Response
@@ -63,6 +78,7 @@ type mockClientState struct {
 	CreateRRSetCalled        bool
 	UpdateRRSetTTLCalled     bool
 	UpdateRRSetRecordsCalled bool
+	UpdateRRSetLabelsCalled  bool
 	DeleteRRSetCalled        bool
 }
 
@@ -70,9 +86,10 @@ type mockClientState struct {
 type mockClient struct {
 	getZones           zonesResponse
 	getRRSets          rrSetsResponse
-	createRRSet        actionResponse
+	createRRSet        createRRSetResponse
 	updateRRSetTTL     actionResponse
 	updateRRSetRecords actionResponse
+	updateRRSetLabels  rrSetResponse
 	deleteRRSet        deleteRRSetResponse
 	filterRRSetsByZone bool
 	state              mockClientState
@@ -116,10 +133,10 @@ func (m *mockClient) GetRRSets(ctx context.Context, zone *hcloud.Zone, opts hclo
 }
 
 // CreateRRSet simulates a request to create a DNS record.
-func (m *mockClient) CreateRRSet(ctx context.Context, rrset *hcloud.ZoneRRSet, opts hcloud.ZoneRRSetAddRecordsOpts) (*hcloud.Action, *hcloud.Response, error) {
+func (m *mockClient) CreateRRSet(ctx context.Context, zone *hcloud.Zone, opts hcloud.ZoneRRSetCreateOpts) (hcloud.ZoneRRSetCreateResult, *hcloud.Response, error) {
 	r := m.createRRSet
 	m.state.CreateRRSetCalled = true
-	return r.action, r.resp, r.err
+	return r.result, r.resp, r.err
 }
 
 // UpdateRRSetTTL simulates a request to update a DNS record.
@@ -134,6 +151,13 @@ func (m *mockClient) UpdateRRSetRecords(ctx context.Context, rrset *hcloud.ZoneR
 	r := m.updateRRSetRecords
 	m.state.UpdateRRSetRecordsCalled = true
 	return r.action, r.resp, r.err
+}
+
+// UpdateRRSetLabels simulates a request to change the labels associated with the record.
+func (m *mockClient) UpdateRRSetLabels(ctx context.Context, rrset *hcloud.ZoneRRSet, opts hcloud.ZoneRRSetUpdateOpts) (*hcloud.ZoneRRSet, *hcloud.Response, error) {
+	r := m.updateRRSetLabels
+	m.state.UpdateRRSetLabelsCalled = true
+	return r.rrset, r.resp, r.err
 }
 
 // DeleteRRSet simulates a request to delete a DNS record.
@@ -154,4 +178,58 @@ func assertError(t *testing.T, expected, actual error) bool {
 		expError = true
 	}
 	return expError
+}
+
+// Test_NewHetznerCloud tests NewHetznerCloud().
+func Test_NewHetznerCloud(t *testing.T) {
+	type testCase struct {
+		name     string
+		input    string
+		expected struct {
+			clientPresent bool
+			err           error
+		}
+	}
+
+	run := func(t *testing.T, tc testCase) {
+		exp := tc.expected
+		client, err := NewHetznerCloud(tc.input)
+		if !assertError(t, exp.err, err) {
+			if exp.clientPresent {
+				assert.NotNil(t, client)
+				assert.NotNil(t, client.client)
+			} else {
+				assert.Nil(t, client)
+			}
+		}
+	}
+
+	testCases := []testCase{
+		{
+			name:  "empty api key",
+			input: "",
+			expected: struct {
+				clientPresent bool
+				err           error
+			}{
+				err: errors.New("nil API key provided"),
+			},
+		},
+		{
+			name:  "some api key",
+			input: "TEST_API_KEY",
+			expected: struct {
+				clientPresent bool
+				err           error
+			}{
+				clientPresent: true,
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			run(t, tc)
+		})
+	}
 }

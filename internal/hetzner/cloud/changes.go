@@ -43,21 +43,21 @@ func (c *hetznerChanges) empty() bool {
 }
 
 // AddChangeCreate adds a new creation entry to the current object.
-func (c *hetznerChanges) AddChangeCreate(rrset *hcloud.ZoneRRSet, opts hcloud.ZoneRRSetAddRecordsOpts) {
+func (c *hetznerChanges) AddChangeCreate(zone *hcloud.Zone, opts hcloud.ZoneRRSetCreateOpts) {
 	changeCreate := &hetznerChangeCreate{
-		rrset: rrset,
-		opts:  opts,
+		zone: zone,
+		opts: opts,
 	}
 	c.creates = append(c.creates, changeCreate)
 }
 
 // AddChangeUpdate adds a new update entry to the current object.
-func (c *hetznerChanges) AddChangeUpdate(rrset *hcloud.ZoneRRSet, ttlOpts *hcloud.ZoneRRSetChangeTTLOpts, recordsOpts *hcloud.ZoneRRSetSetRecordsOpts, labels map[string]string) {
+func (c *hetznerChanges) AddChangeUpdate(rrset *hcloud.ZoneRRSet, ttlOpts *hcloud.ZoneRRSetChangeTTLOpts, recordsOpts *hcloud.ZoneRRSetSetRecordsOpts, updateOpts *hcloud.ZoneRRSetUpdateOpts) {
 	changeUpdate := &hetznerChangeUpdate{
 		rrset:       rrset,
 		ttlOpts:     ttlOpts,
 		recordsOpts: recordsOpts,
-		labels:      labels,
+		updateOpts:  updateOpts,
 	}
 	c.updates = append(c.updates, changeUpdate)
 }
@@ -95,7 +95,7 @@ func (c hetznerChanges) applyDeletes(ctx context.Context, client apiClient) erro
 func (c hetznerChanges) applyCreates(ctx context.Context, client apiClient) error {
 	metrics := metrics.GetOpenMetricsInstance()
 	for _, e := range c.creates {
-		rrset := e.rrset
+		zone := e.zone
 		opts := e.opts
 		if opts.TTL == nil {
 			ttl := c.defaultTTL
@@ -103,12 +103,12 @@ func (c hetznerChanges) applyCreates(ctx context.Context, client apiClient) erro
 		}
 		log.WithFields(e.GetLogFields()).Debug("Creating domain record")
 		log.Infof("Creating record [%s] of type [%s] with records(%s) in zone [%s]",
-			rrset.Name, rrset.Type, getRRSetRecordsString(rrset.Records), rrset.Zone.Name)
+			opts.Name, opts.Type, getRRSetRecordsString(opts.Records), zone.Name)
 		if c.dryRun {
 			continue
 		}
 		start := time.Now()
-		if _, _, err := client.CreateRRSet(ctx, rrset, opts); err != nil {
+		if _, _, err := client.CreateRRSet(ctx, zone, opts); err != nil {
 			metrics.IncFailedApiCallsTotal(actCreateRRSet)
 			return err
 		}
@@ -126,6 +126,7 @@ func (c hetznerChanges) applyUpdates(ctx context.Context, client apiClient) erro
 		rrset := e.rrset
 		recordOpts := e.recordsOpts
 		ttlOpts := e.ttlOpts
+		updateOpts := e.updateOpts
 		log.WithFields(e.GetLogFields()).Debug("Updating domain record")
 		if recordOpts != nil {
 			log.Infof("Updating recordset for ID [%s], Name [%s], Type [%s] in zone [%s]: %s",
@@ -154,6 +155,22 @@ func (c hetznerChanges) applyUpdates(ctx context.Context, client apiClient) erro
 			}
 			start := time.Now()
 			if _, _, err := client.UpdateRRSetTTL(ctx, rrset, *ttlOpts); err != nil {
+				metrics.IncFailedApiCallsTotal(actUpdateRRSetTTL)
+				return err
+			}
+			delay := time.Since(start)
+			metrics.IncSuccessfulApiCallsTotal(actUpdateRRSetTTL)
+			metrics.AddApiDelayHist(actUpdateRRSetTTL, delay.Milliseconds())
+		}
+		if updateOpts != nil {
+			logLabels := formatLabels(updateOpts.Labels)
+			log.Infof("Updating labels for ID [%s], Name [%s], Type [%s] in zone [%s]: %s",
+				rrset.ID, rrset.Name, rrset.Type, rrset.Zone.Name, logLabels)
+			if c.dryRun {
+				continue
+			}
+			start := time.Now()
+			if _, _, err := client.UpdateRRSetLabels(ctx, rrset, *updateOpts); err != nil {
 				metrics.IncFailedApiCallsTotal(actUpdateRRSetTTL)
 				return err
 			}

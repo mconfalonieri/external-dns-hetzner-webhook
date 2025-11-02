@@ -33,24 +33,79 @@ import (
 
 // Test_NewHetznerProvider tests NewHetznerProvider().
 func Test_NewHetznerProvider(t *testing.T) {
-	cfg := hetzner.Configuration{
-		APIKey:       "testKey",
-		DryRun:       true,
-		Debug:        true,
-		BatchSize:    50,
-		DefaultTTL:   3600,
-		DomainFilter: []string{"alpha.com, beta.com"},
+	type testCase struct {
+		name     string
+		input    *hetzner.Configuration
+		expected struct {
+			provider HetznerProvider
+			err      error
+		}
 	}
 
-	p, _ := NewHetznerProvider(&cfg)
+	run := func(t *testing.T, tc testCase) {
+		exp := tc.expected
+		p, err := NewHetznerProvider(tc.input)
+		if !assertError(t, exp.err, err) {
+			assert.NotNil(t, p.client)
+			assert.Equal(t, exp.provider.dryRun, p.dryRun)
+			assert.Equal(t, exp.provider.debug, p.debug)
+			assert.Equal(t, exp.provider.batchSize, p.batchSize)
+			assert.Equal(t, exp.provider.defaultTTL, p.defaultTTL)
+			actualJSON, _ := p.domainFilter.MarshalJSON()
+			expectedJSON, _ := exp.provider.domainFilter.MarshalJSON()
+			assert.Equal(t, actualJSON, expectedJSON)
+		}
+	}
 
-	assert.Equal(t, cfg.DryRun, p.dryRun)
-	assert.Equal(t, cfg.Debug, p.debug)
-	assert.Equal(t, cfg.BatchSize, p.batchSize)
-	assert.Equal(t, cfg.DefaultTTL, p.defaultTTL)
-	actualJSON, _ := p.domainFilter.MarshalJSON()
-	expectedJSON, _ := hetzner.GetDomainFilter(cfg).MarshalJSON()
-	assert.Equal(t, actualJSON, expectedJSON)
+	testCases := []testCase{
+		{
+			name: "empty api key",
+			input: &hetzner.Configuration{
+				APIKey:       "",
+				DryRun:       true,
+				Debug:        true,
+				BatchSize:    50,
+				DefaultTTL:   3600,
+				DomainFilter: []string{"alpha.com, beta.com"},
+			},
+			expected: struct {
+				provider HetznerProvider
+				err      error
+			}{
+				err: errors.New("cannot instantiate provider: nil API key provided"),
+			},
+		},
+		{
+			name: "some api key",
+			input: &hetzner.Configuration{
+				APIKey:       "TEST_API_KEY",
+				DryRun:       true,
+				Debug:        true,
+				BatchSize:    50,
+				DefaultTTL:   3600,
+				DomainFilter: []string{"alpha.com, beta.com"},
+			},
+			expected: struct {
+				provider HetznerProvider
+				err      error
+			}{
+				provider: HetznerProvider{
+					client:       nil, // This will be ignored
+					batchSize:    50,
+					debug:        true,
+					dryRun:       true,
+					defaultTTL:   3600,
+					domainFilter: endpoint.NewDomainFilter([]string{"alpha.com, beta.com"}),
+				},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			run(t, tc)
+		})
+	}
 }
 
 // Test_Zones tests HetznerProvider.Zones().

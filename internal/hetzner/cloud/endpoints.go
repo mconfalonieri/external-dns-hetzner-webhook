@@ -61,11 +61,12 @@ func makeEndpointTarget(entryTarget string) (string, error) {
 // the targets for the Endpoint objects, if needed.
 func extractEndpointTargets(rrset *hcloud.ZoneRRSet) []string {
 	targets := make([]string, len(rrset.Records))
-	for _, record := range rrset.Records {
+	for idx, record := range rrset.Records {
 		target := record.Value
 		if rrset.Type == hcloud.ZoneRRSetTypeCNAME && !strings.HasSuffix(target, ".") {
 			target = fmt.Sprintf("%s.%s.", target, rrset.Zone.Name)
 		}
+		targets[idx] = target
 	}
 	return targets
 }
@@ -106,7 +107,7 @@ func endpointsByZoneID(zoneIDNameMapper zoneIDName, endpoints []*endpoint.Endpoi
 }
 
 // getMatchingRRSet returns the RRSet that matches an endpoint.
-func getMatchingDomainRRSet(rrsets []*hcloud.ZoneRRSet, zoneName string, ep *endpoint.Endpoint) (*hcloud.ZoneRRSet, error) {
+func getMatchingDomainRRSet(rrsets []*hcloud.ZoneRRSet, zoneName string, ep *endpoint.Endpoint) (*hcloud.ZoneRRSet, bool) {
 	var name string
 	if ep.DNSName != zoneName {
 		name = strings.TrimSuffix(ep.DNSName, "."+zoneName)
@@ -116,10 +117,10 @@ func getMatchingDomainRRSet(rrsets []*hcloud.ZoneRRSet, zoneName string, ep *end
 
 	for _, rrset := range rrsets {
 		if rrset.Name == name && string(rrset.Type) == ep.RecordType {
-			return rrset, nil
+			return rrset, true
 		}
 	}
-	return nil, fmt.Errorf("cannot find an RRSet matching name=%s and type=%s", ep.DNSName, ep.RecordType)
+	return nil, false
 }
 
 // getEndpointTTL returns a pointer to a value representing the endpoint TTL or
@@ -142,6 +143,8 @@ func getEndpointLogFields(ep *endpoint.Endpoint) log.Fields {
 	}
 }
 
+// adjustEndpointTargets adjusts a serie of targets according to the
+// specifications.
 func adjustEndpointTargets(targets endpoint.Targets) (endpoint.Targets, error) {
 	adjustedTargets := endpoint.Targets{}
 	for _, target := range targets {
@@ -152,4 +155,14 @@ func adjustEndpointTargets(targets endpoint.Targets) (endpoint.Targets, error) {
 		adjustedTargets = append(adjustedTargets, adjustedTarget)
 	}
 	return adjustedTargets, nil
+}
+
+// getHetznerLabels returns the Hetzner-specific labels from the endpoint. The
+// return map is always instantiated if there is no error.
+func getHetznerLabels(ep *endpoint.Endpoint) (map[string]string, error) {
+	ps := ep.ProviderSpecific
+	if len(ps) == 0 {
+		return map[string]string{}, nil
+	}
+	return extractHetznerLabels(ps)
 }

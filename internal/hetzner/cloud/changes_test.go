@@ -22,8 +22,14 @@ import (
 	"errors"
 	"testing"
 
-	hdns "github.com/jobstoit/hetzner-dns-go/dns"
+	"github.com/hetznercloud/hcloud-go/v2/hcloud"
 	"github.com/stretchr/testify/assert"
+)
+
+// Test TTLs for update
+var (
+	testFirstTTL  = 10000
+	testSecondTTL = 20000
 )
 
 // Test_hetznerChanges_empty tests hetznerChanges.empty().
@@ -46,62 +52,46 @@ func Test_hetznerChanges_empty(t *testing.T) {
 			expected: true,
 		},
 		{
-			name: "Creations",
+			name: "Creations present",
 			changes: hetznerChanges{
 				creates: []*hetznerChangeCreate{
-					{
-						ZoneID:  "alphaZoneID",
-						Options: &hdns.RecordCreateOpts{},
-					},
+					{},
 				},
 			},
+			expected: false,
 		},
 		{
-			name: "Updates",
+			name: "Updates present",
 			changes: hetznerChanges{
 				updates: []*hetznerChangeUpdate{
-					{
-						ZoneID:  "alphaZoneID",
-						Record:  hdns.Record{},
-						Options: &hdns.RecordUpdateOpts{},
-					},
+					{},
 				},
 			},
+			expected: false,
 		},
 		{
-			name: "Deletions",
+			name: "Deletions present",
 			changes: hetznerChanges{
 				deletes: []*hetznerChangeDelete{
-					{
-						ZoneID: "alphaZoneID",
-						Record: hdns.Record{},
-					},
+					{},
 				},
 			},
+			expected: false,
 		},
 		{
-			name: "All",
+			name: "All present",
 			changes: hetznerChanges{
 				creates: []*hetznerChangeCreate{
-					{
-						ZoneID:  "alphaZoneID",
-						Options: &hdns.RecordCreateOpts{},
-					},
+					{},
 				},
 				updates: []*hetznerChangeUpdate{
-					{
-						ZoneID:  "alphaZoneID",
-						Record:  hdns.Record{},
-						Options: &hdns.RecordUpdateOpts{},
-					},
+					{},
 				},
 				deletes: []*hetznerChangeDelete{
-					{
-						ZoneID: "alphaZoneID",
-						Record: hdns.Record{},
-					},
+					{},
 				},
 			},
+			expected: false,
 		},
 	}
 
@@ -118,8 +108,8 @@ func Test_hetznerChanges_AddChangeCreate(t *testing.T) {
 		name     string
 		instance hetznerChanges
 		input    struct {
-			zoneID  string
-			options *hdns.RecordCreateOpts
+			zone *hcloud.Zone
+			opts hcloud.ZoneRRSetCreateOpts
 		}
 		expected hetznerChanges
 	}
@@ -127,7 +117,7 @@ func Test_hetznerChanges_AddChangeCreate(t *testing.T) {
 	run := func(t *testing.T, tc testCase) {
 		inp := tc.input
 		actual := tc.instance
-		actual.AddChangeCreate(inp.zoneID, inp.options)
+		actual.AddChangeCreate(inp.zone, inp.opts)
 		assert.EqualValues(t, tc.expected, actual)
 	}
 
@@ -136,34 +126,40 @@ func Test_hetznerChanges_AddChangeCreate(t *testing.T) {
 			name:     "add create",
 			instance: hetznerChanges{},
 			input: struct {
-				zoneID  string
-				options *hdns.RecordCreateOpts
+				zone *hcloud.Zone
+				opts hcloud.ZoneRRSetCreateOpts
 			}{
-				zoneID: "zoneIDAlpha",
-				options: &hdns.RecordCreateOpts{
-					Name:  "www",
-					Ttl:   &testTTL,
-					Type:  "A",
-					Value: "127.0.0.1",
-					Zone: &hdns.Zone{
-						ID:   "zoneIDAlpha",
-						Name: "alpha.com",
+				zone: &hcloud.Zone{
+					ID:   1,
+					Name: "alpha.com",
+				},
+				opts: hcloud.ZoneRRSetCreateOpts{
+					Name: "www",
+					Type: hcloud.ZoneRRSetTypeA,
+					Records: []hcloud.ZoneRRSetRecord{
+						{
+							Value: "127.0.0.1",
+						},
 					},
+					TTL: &testTTL,
 				},
 			},
 			expected: hetznerChanges{
 				creates: []*hetznerChangeCreate{
 					{
-						ZoneID: "zoneIDAlpha",
-						Options: &hdns.RecordCreateOpts{
-							Name:  "www",
-							Ttl:   &testTTL,
-							Type:  "A",
-							Value: "127.0.0.1",
-							Zone: &hdns.Zone{
-								ID:   "zoneIDAlpha",
-								Name: "alpha.com",
+						zone: &hcloud.Zone{
+							ID:   1,
+							Name: "alpha.com",
+						},
+						opts: hcloud.ZoneRRSetCreateOpts{
+							Name: "www",
+							Type: hcloud.ZoneRRSetTypeA,
+							Records: []hcloud.ZoneRRSetRecord{
+								{
+									Value: "127.0.0.1",
+								},
 							},
+							TTL: &testTTL,
 						},
 					},
 				},
@@ -184,9 +180,10 @@ func Test_hetznerChanges_AddChangeUpdate(t *testing.T) {
 		name     string
 		instance hetznerChanges
 		input    struct {
-			zoneID  string
-			record  hdns.Record
-			options *hdns.RecordUpdateOpts
+			rrset       *hcloud.ZoneRRSet
+			ttlOpts     *hcloud.ZoneRRSetChangeTTLOpts
+			recordsOpts *hcloud.ZoneRRSetSetRecordsOpts
+			updateOpts  *hcloud.ZoneRRSetUpdateOpts
 		}
 		expected hetznerChanges
 	}
@@ -194,7 +191,7 @@ func Test_hetznerChanges_AddChangeUpdate(t *testing.T) {
 	run := func(t *testing.T, tc testCase) {
 		inp := tc.input
 		actual := tc.instance
-		actual.AddChangeUpdate(inp.zoneID, inp.record, inp.options)
+		actual.AddChangeUpdate(inp.rrset, inp.ttlOpts, inp.recordsOpts, inp.updateOpts)
 		assert.EqualValues(t, tc.expected, actual)
 	}
 
@@ -203,57 +200,36 @@ func Test_hetznerChanges_AddChangeUpdate(t *testing.T) {
 			name:     "add update",
 			instance: hetznerChanges{},
 			input: struct {
-				zoneID  string
-				record  hdns.Record
-				options *hdns.RecordUpdateOpts
+				rrset       *hcloud.ZoneRRSet
+				ttlOpts     *hcloud.ZoneRRSetChangeTTLOpts
+				recordsOpts *hcloud.ZoneRRSetSetRecordsOpts
+				updateOpts  *hcloud.ZoneRRSetUpdateOpts
 			}{
-				zoneID: "zoneIDAlpha",
-				record: hdns.Record{
-					ID:    "id_1",
-					Name:  "www",
-					Ttl:   -1,
-					Type:  "A",
-					Value: "127.0.0.1",
-					Zone: &hdns.Zone{
-						ID:   "zoneIDAlpha",
+				rrset: &hcloud.ZoneRRSet{
+					Zone: &hcloud.Zone{
+						ID:   1,
 						Name: "alpha.com",
 					},
+					Name: "www",
+					Type: hcloud.ZoneRRSetTypeA,
 				},
-				options: &hdns.RecordUpdateOpts{
-					Name:  "www",
-					Ttl:   &testTTL,
-					Type:  "A",
-					Value: "127.0.0.1",
-					Zone: &hdns.Zone{
-						ID:   "zoneIDAlpha",
-						Name: "alpha.com",
-					},
+				ttlOpts: &hcloud.ZoneRRSetChangeTTLOpts{
+					TTL: &testTTL,
 				},
 			},
 			expected: hetznerChanges{
 				updates: []*hetznerChangeUpdate{
 					{
-						ZoneID: "zoneIDAlpha",
-						Record: hdns.Record{
-							ID:    "id_1",
-							Name:  "www",
-							Ttl:   -1,
-							Type:  "A",
-							Value: "127.0.0.1",
-							Zone: &hdns.Zone{
-								ID:   "zoneIDAlpha",
+						rrset: &hcloud.ZoneRRSet{
+							Zone: &hcloud.Zone{
+								ID:   1,
 								Name: "alpha.com",
 							},
+							Name: "www",
+							Type: hcloud.ZoneRRSetTypeA,
 						},
-						Options: &hdns.RecordUpdateOpts{
-							Name:  "www",
-							Ttl:   &testTTL,
-							Type:  "A",
-							Value: "127.0.0.1",
-							Zone: &hdns.Zone{
-								ID:   "zoneIDAlpha",
-								Name: "alpha.com",
-							},
+						ttlOpts: &hcloud.ZoneRRSetChangeTTLOpts{
+							TTL: &testTTL,
 						},
 					},
 				},
@@ -273,54 +249,51 @@ func Test_hetznerChanges_AddChangeDelete(t *testing.T) {
 	type testCase struct {
 		name     string
 		instance hetznerChanges
-		input    struct {
-			zoneID string
-			record hdns.Record
-		}
+		input    *hcloud.ZoneRRSet
 		expected hetznerChanges
 	}
 
 	run := func(t *testing.T, tc testCase) {
-		inp := tc.input
 		actual := tc.instance
-		actual.AddChangeDelete(inp.zoneID, inp.record)
+		actual.AddChangeDelete(tc.input)
 		assert.EqualValues(t, tc.expected, actual)
 	}
 
 	testCases := []testCase{
 		{
-			name:     "add update",
+			name:     "add delete",
 			instance: hetznerChanges{},
-			input: struct {
-				zoneID string
-				record hdns.Record
-			}{
-				zoneID: "zoneIDAlpha",
-				record: hdns.Record{
-					ID:    "id_1",
-					Name:  "www",
-					Ttl:   -1,
-					Type:  "A",
-					Value: "127.0.0.1",
-					Zone: &hdns.Zone{
-						ID:   "zoneIDAlpha",
-						Name: "alpha.com",
+			input: &hcloud.ZoneRRSet{
+				Zone: &hcloud.Zone{
+					ID:   1,
+					Name: "alpha.com",
+				},
+				ID:   "id_1",
+				Name: "www",
+				Type: hcloud.ZoneRRSetTypeA,
+				TTL:  &testTTL,
+				Records: []hcloud.ZoneRRSetRecord{
+					{
+						Value: "1.1.1.1",
 					},
 				},
 			},
 			expected: hetznerChanges{
 				deletes: []*hetznerChangeDelete{
 					{
-						ZoneID: "zoneIDAlpha",
-						Record: hdns.Record{
-							ID:    "id_1",
-							Name:  "www",
-							Ttl:   -1,
-							Type:  "A",
-							Value: "127.0.0.1",
-							Zone: &hdns.Zone{
-								ID:   "zoneIDAlpha",
+						rrset: &hcloud.ZoneRRSet{
+							Zone: &hcloud.Zone{
+								ID:   1,
 								Name: "alpha.com",
+							},
+							ID:   "id_1",
+							Name: "www",
+							Type: hcloud.ZoneRRSetTypeA,
+							TTL:  &testTTL,
+							Records: []hcloud.ZoneRRSetRecord{
+								{
+									Value: "1.1.1.1",
+								},
 							},
 						},
 					},
@@ -362,17 +335,20 @@ func Test_hetznerChanges_applyDeletes(t *testing.T) {
 			changes: &hetznerChanges{
 				deletes: []*hetznerChangeDelete{
 					{
-						ZoneID: "zoneIDAlpha",
-						Record: hdns.Record{
-							ID:    "id1",
-							Type:  hdns.RecordTypeA,
-							Name:  "www",
-							Value: "1.1.1.1",
-							Zone: &hdns.Zone{
-								ID:   "zoneIDAlpha",
+						rrset: &hcloud.ZoneRRSet{
+							Zone: &hcloud.Zone{
+								ID:   1,
 								Name: "alpha.com",
 							},
-							Ttl: -1,
+							ID:   "id_1",
+							Name: "www",
+							Type: hcloud.ZoneRRSetTypeA,
+							TTL:  &defaultTTL,
+							Records: []hcloud.ZoneRRSetRecord{
+								{
+									Value: "1.1.1.1",
+								},
+							},
 						},
 					},
 				},
@@ -382,7 +358,7 @@ func Test_hetznerChanges_applyDeletes(t *testing.T) {
 				state mockClientState
 				err   error
 			}{
-				state: mockClientState{DeleteRecordCalled: true},
+				state: mockClientState{DeleteRRSetCalled: true},
 			},
 		},
 		{
@@ -390,23 +366,26 @@ func Test_hetznerChanges_applyDeletes(t *testing.T) {
 			changes: &hetznerChanges{
 				deletes: []*hetznerChangeDelete{
 					{
-						ZoneID: "zoneIDAlpha",
-						Record: hdns.Record{
-							ID:    "id1",
-							Type:  hdns.RecordTypeA,
-							Name:  "www",
-							Value: "1.1.1.1",
-							Zone: &hdns.Zone{
-								ID:   "zoneIDAlpha",
+						rrset: &hcloud.ZoneRRSet{
+							Zone: &hcloud.Zone{
+								ID:   1,
 								Name: "alpha.com",
 							},
-							Ttl: -1,
+							ID:   "id_1",
+							Name: "www",
+							Type: hcloud.ZoneRRSetTypeA,
+							TTL:  &defaultTTL,
+							Records: []hcloud.ZoneRRSetRecord{
+								{
+									Value: "1.1.1.1",
+								},
+							},
 						},
 					},
 				},
 			},
 			input: &mockClient{
-				deleteRecord: deleteResponse{
+				deleteRRSet: deleteRRSetResponse{
 					err: errors.New("test delete error"),
 				},
 			},
@@ -414,7 +393,7 @@ func Test_hetznerChanges_applyDeletes(t *testing.T) {
 				state mockClientState
 				err   error
 			}{
-				state: mockClientState{DeleteRecordCalled: true},
+				state: mockClientState{DeleteRRSetCalled: true},
 				err:   errors.New("test delete error"),
 			},
 		},
@@ -423,17 +402,20 @@ func Test_hetznerChanges_applyDeletes(t *testing.T) {
 			changes: &hetznerChanges{
 				deletes: []*hetznerChangeDelete{
 					{
-						ZoneID: "zoneIDAlpha",
-						Record: hdns.Record{
-							ID:    "id1",
-							Type:  hdns.RecordTypeA,
-							Name:  "www",
-							Value: "1.1.1.1",
-							Zone: &hdns.Zone{
-								ID:   "zoneIDAlpha",
+						rrset: &hcloud.ZoneRRSet{
+							Zone: &hcloud.Zone{
+								ID:   1,
 								Name: "alpha.com",
 							},
-							Ttl: -1,
+							ID:   "id_1",
+							Name: "www",
+							Type: hcloud.ZoneRRSetTypeA,
+							TTL:  &defaultTTL,
+							Records: []hcloud.ZoneRRSetRecord{
+								{
+									Value: "1.1.1.1",
+								},
+							},
 						},
 					},
 				},
@@ -482,16 +464,19 @@ func Test_hetznerChanges_applyCreates(t *testing.T) {
 			changes: &hetznerChanges{
 				creates: []*hetznerChangeCreate{
 					{
-						ZoneID: "zoneIDAlpha",
-						Options: &hdns.RecordCreateOpts{
+						zone: &hcloud.Zone{
+							ID:   1,
+							Name: "alpha.com",
+						},
+						opts: hcloud.ZoneRRSetCreateOpts{
 							Name: "www",
-							Type: hdns.RecordTypeA,
-							Zone: &hdns.Zone{
-								ID:   "zoneIDAlpha",
-								Name: "alpha.com",
+							Type: hcloud.ZoneRRSetTypeA,
+							Records: []hcloud.ZoneRRSetRecord{
+								{
+									Value: "127.0.0.1",
+								},
 							},
-							Value: "127.0.0.1",
-							Ttl:   &testTTL,
+							TTL: &testTTL,
 						},
 					},
 				},
@@ -501,7 +486,7 @@ func Test_hetznerChanges_applyCreates(t *testing.T) {
 				state mockClientState
 				err   error
 			}{
-				state: mockClientState{CreateRecordCalled: true},
+				state: mockClientState{CreateRRSetCalled: true},
 			},
 		},
 		{
@@ -509,22 +494,25 @@ func Test_hetznerChanges_applyCreates(t *testing.T) {
 			changes: &hetznerChanges{
 				creates: []*hetznerChangeCreate{
 					{
-						ZoneID: "zoneIDAlpha",
-						Options: &hdns.RecordCreateOpts{
+						zone: &hcloud.Zone{
+							ID:   1,
+							Name: "alpha.com",
+						},
+						opts: hcloud.ZoneRRSetCreateOpts{
 							Name: "www",
-							Type: hdns.RecordTypeA,
-							Zone: &hdns.Zone{
-								ID:   "zoneIDAlpha",
-								Name: "alpha.com",
+							Type: hcloud.ZoneRRSetTypeA,
+							Records: []hcloud.ZoneRRSetRecord{
+								{
+									Value: "127.0.0.1",
+								},
 							},
-							Value: "127.0.0.1",
-							Ttl:   &testTTL,
+							TTL: &testTTL,
 						},
 					},
 				},
 			},
 			input: &mockClient{
-				createRecord: recordResponse{
+				createRRSet: createRRSetResponse{
 					err: errors.New("test creation error"),
 				},
 			},
@@ -532,30 +520,33 @@ func Test_hetznerChanges_applyCreates(t *testing.T) {
 				state mockClientState
 				err   error
 			}{
-				state: mockClientState{CreateRecordCalled: true},
+				state: mockClientState{CreateRRSetCalled: true},
 				err:   errors.New("test creation error"),
 			},
 		},
 		{
 			name: "creation dry run",
 			input: &mockClient{
-				createRecord: recordResponse{
+				createRRSet: createRRSetResponse{
 					err: errors.New("test creation error"),
 				},
 			},
 			changes: &hetznerChanges{
 				creates: []*hetznerChangeCreate{
 					{
-						ZoneID: "zoneIDAlpha",
-						Options: &hdns.RecordCreateOpts{
+						zone: &hcloud.Zone{
+							ID:   1,
+							Name: "alpha.com",
+						},
+						opts: hcloud.ZoneRRSetCreateOpts{
 							Name: "www",
-							Zone: &hdns.Zone{
-								ID:   "zoneIDAlpha",
-								Name: "alpha.com",
+							Type: hcloud.ZoneRRSetTypeA,
+							Records: []hcloud.ZoneRRSetRecord{
+								{
+									Value: "127.0.0.1",
+								},
 							},
-							Type:  "A",
-							Value: "127.0.0.1",
-							Ttl:   &testTTL,
+							TTL: &testTTL,
 						},
 					},
 				},
@@ -599,31 +590,31 @@ func Test_hetznerChanges_applyUpdates(t *testing.T) {
 
 	testCases := []testCase{
 		{
-			name:  "update",
+			name:  "update TTL",
 			input: &mockClient{},
 			changes: &hetznerChanges{
 				updates: []*hetznerChangeUpdate{
 					{
-						ZoneID: "zoneIDAlpha",
-						Record: hdns.Record{
-							Zone: &hdns.Zone{
-								ID:   "zoneIDAlpha",
+						rrset: &hcloud.ZoneRRSet{
+							Zone: &hcloud.Zone{
+								ID:   1,
 								Name: "alpha.com",
 							},
-							Name:  "www",
-							Type:  "A",
-							Value: "127.0.0.1",
-							Ttl:   testTTL,
+							ID:   "id_1",
+							Name: "www",
+							Type: hcloud.ZoneRRSetTypeA,
+							TTL:  &testFirstTTL,
+							Records: []hcloud.ZoneRRSetRecord{
+								{
+									Value: "1.1.1.1",
+								},
+								{
+									Value: "2.2.2.2",
+								},
+							},
 						},
-						Options: &hdns.RecordUpdateOpts{
-							Zone: &hdns.Zone{
-								ID:   "zoneIDAlpha",
-								Name: "alpha.com",
-							},
-							Name:  "ftp",
-							Type:  "A",
-							Value: "127.0.0.1",
-							Ttl:   &testTTL,
+						ttlOpts: &hcloud.ZoneRRSetChangeTTLOpts{
+							TTL: &testSecondTTL,
 						},
 					},
 				},
@@ -632,39 +623,141 @@ func Test_hetznerChanges_applyUpdates(t *testing.T) {
 				state mockClientState
 				err   error
 			}{
-				state: mockClientState{UpdateRecordCalled: true},
+				state: mockClientState{
+					UpdateRRSetTTLCalled: true,
+				},
 			},
 		},
 		{
-			name: "update error",
+			name:  "update records",
+			input: &mockClient{},
+			changes: &hetznerChanges{
+				updates: []*hetznerChangeUpdate{
+					{
+						rrset: &hcloud.ZoneRRSet{
+							Zone: &hcloud.Zone{
+								ID:   1,
+								Name: "alpha.com",
+							},
+							ID:   "id_1",
+							Name: "www",
+							Type: hcloud.ZoneRRSetTypeA,
+							TTL:  &testFirstTTL,
+							Records: []hcloud.ZoneRRSetRecord{
+								{
+									Value: "1.1.1.1",
+								},
+								{
+									Value: "2.2.2.2",
+								},
+							},
+						},
+						recordsOpts: &hcloud.ZoneRRSetSetRecordsOpts{
+							Records: []hcloud.ZoneRRSetRecord{
+								{
+									Value: "1.1.1.1",
+								},
+								{
+									Value: "3.3.3.3",
+								},
+							},
+						},
+					},
+				},
+			},
+			expected: struct {
+				state mockClientState
+				err   error
+			}{
+				state: mockClientState{UpdateRRSetRecordsCalled: true},
+			},
+		},
+		{
+			name:  "update all",
+			input: &mockClient{},
+			changes: &hetznerChanges{
+				updates: []*hetznerChangeUpdate{
+					{
+						rrset: &hcloud.ZoneRRSet{
+							Zone: &hcloud.Zone{
+								ID:   1,
+								Name: "alpha.com",
+							},
+							ID:   "id_1",
+							Name: "www",
+							Type: hcloud.ZoneRRSetTypeA,
+							TTL:  &testFirstTTL,
+							Records: []hcloud.ZoneRRSetRecord{
+								{
+									Value: "1.1.1.1",
+								},
+								{
+									Value: "2.2.2.2",
+								},
+							},
+						},
+						ttlOpts: &hcloud.ZoneRRSetChangeTTLOpts{
+							TTL: &testSecondTTL,
+						},
+						recordsOpts: &hcloud.ZoneRRSetSetRecordsOpts{
+							Records: []hcloud.ZoneRRSetRecord{
+								{
+									Value: "1.1.1.1",
+								},
+								{
+									Value: "3.3.3.3",
+								},
+							},
+						},
+						updateOpts: &hcloud.ZoneRRSetUpdateOpts{
+							Labels: map[string]string{
+								"testLabel": "testValue",
+							},
+						},
+					},
+				},
+			},
+			expected: struct {
+				state mockClientState
+				err   error
+			}{
+				state: mockClientState{
+					UpdateRRSetTTLCalled:     true,
+					UpdateRRSetRecordsCalled: true,
+					UpdateRRSetLabelsCalled:  true,
+				},
+			},
+		},
+		{
+			name: "update TTL error",
 			input: &mockClient{
-				updateRecord: recordResponse{
+				updateRRSetTTL: actionResponse{
 					err: errors.New("test update error"),
 				},
 			},
 			changes: &hetznerChanges{
 				updates: []*hetznerChangeUpdate{
 					{
-						ZoneID: "zoneIDAlpha",
-						Record: hdns.Record{
-							Zone: &hdns.Zone{
-								ID:   "zoneIDAlpha",
+						rrset: &hcloud.ZoneRRSet{
+							Zone: &hcloud.Zone{
+								ID:   1,
 								Name: "alpha.com",
 							},
-							Name:  "www",
-							Type:  "A",
-							Value: "127.0.0.1",
-							Ttl:   testTTL,
+							ID:   "id_1",
+							Name: "www",
+							Type: hcloud.ZoneRRSetTypeA,
+							TTL:  &testFirstTTL,
+							Records: []hcloud.ZoneRRSetRecord{
+								{
+									Value: "1.1.1.1",
+								},
+								{
+									Value: "2.2.2.2",
+								},
+							},
 						},
-						Options: &hdns.RecordUpdateOpts{
-							Zone: &hdns.Zone{
-								ID:   "zoneIDAlpha",
-								Name: "alpha.com",
-							},
-							Name:  "ftp",
-							Type:  "A",
-							Value: "127.0.0.1",
-							Ttl:   &testTTL,
+						ttlOpts: &hcloud.ZoneRRSetChangeTTLOpts{
+							TTL: &testSecondTTL,
 						},
 					},
 				},
@@ -673,7 +766,56 @@ func Test_hetznerChanges_applyUpdates(t *testing.T) {
 				state mockClientState
 				err   error
 			}{
-				state: mockClientState{UpdateRecordCalled: true},
+				state: mockClientState{UpdateRRSetTTLCalled: true},
+				err:   errors.New("test update error"),
+			},
+		},
+		{
+			name: "update records error",
+			input: &mockClient{
+				updateRRSetRecords: actionResponse{
+					err: errors.New("test update error"),
+				},
+			},
+			changes: &hetznerChanges{
+				updates: []*hetznerChangeUpdate{
+					{
+						rrset: &hcloud.ZoneRRSet{
+							Zone: &hcloud.Zone{
+								ID:   1,
+								Name: "alpha.com",
+							},
+							ID:   "id_1",
+							Name: "www",
+							Type: hcloud.ZoneRRSetTypeA,
+							TTL:  &testFirstTTL,
+							Records: []hcloud.ZoneRRSetRecord{
+								{
+									Value: "1.1.1.1",
+								},
+								{
+									Value: "2.2.2.2",
+								},
+							},
+						},
+						recordsOpts: &hcloud.ZoneRRSetSetRecordsOpts{
+							Records: []hcloud.ZoneRRSetRecord{
+								{
+									Value: "1.1.1.1",
+								},
+								{
+									Value: "3.3.3.3",
+								},
+							},
+						},
+					},
+				},
+			},
+			expected: struct {
+				state mockClientState
+				err   error
+			}{
+				state: mockClientState{UpdateRRSetRecordsCalled: true},
 				err:   errors.New("test update error"),
 			},
 		},
@@ -683,26 +825,41 @@ func Test_hetznerChanges_applyUpdates(t *testing.T) {
 			changes: &hetznerChanges{
 				updates: []*hetznerChangeUpdate{
 					{
-						ZoneID: "zoneIDAlpha",
-						Record: hdns.Record{
-							Zone: &hdns.Zone{
-								ID:   "zoneIDAlpha",
+						rrset: &hcloud.ZoneRRSet{
+							Zone: &hcloud.Zone{
+								ID:   1,
 								Name: "alpha.com",
 							},
-							Name:  "www",
-							Type:  "A",
-							Value: "127.0.0.1",
-							Ttl:   testTTL,
+							ID:   "id_1",
+							Name: "www",
+							Type: hcloud.ZoneRRSetTypeA,
+							TTL:  &testFirstTTL,
+							Records: []hcloud.ZoneRRSetRecord{
+								{
+									Value: "1.1.1.1",
+								},
+								{
+									Value: "2.2.2.2",
+								},
+							},
 						},
-						Options: &hdns.RecordUpdateOpts{
-							Zone: &hdns.Zone{
-								ID:   "zoneIDAlpha",
-								Name: "alpha.com",
+						ttlOpts: &hcloud.ZoneRRSetChangeTTLOpts{
+							TTL: &testSecondTTL,
+						},
+						recordsOpts: &hcloud.ZoneRRSetSetRecordsOpts{
+							Records: []hcloud.ZoneRRSetRecord{
+								{
+									Value: "1.1.1.1",
+								},
+								{
+									Value: "3.3.3.3",
+								},
 							},
-							Name:  "ftp",
-							Type:  "A",
-							Value: "127.0.0.1",
-							Ttl:   &testTTL,
+						},
+						updateOpts: &hcloud.ZoneRRSetUpdateOpts{
+							Labels: map[string]string{
+								"testLabel": "testValue",
+							},
 						},
 					},
 				},
@@ -761,57 +918,78 @@ func Test_hetznerChanges_ApplyChanges(t *testing.T) {
 			changes: &hetznerChanges{
 				deletes: []*hetznerChangeDelete{
 					{
-						ZoneID: "zoneIDAlpha",
-						Record: hdns.Record{
-							ID:    "id1",
-							Type:  hdns.RecordTypeA,
-							Name:  "www",
-							Value: "1.1.1.1",
-							Zone: &hdns.Zone{
-								ID:   "zoneIDAlpha",
+						rrset: &hcloud.ZoneRRSet{
+							Zone: &hcloud.Zone{
+								ID:   1,
 								Name: "alpha.com",
 							},
-							Ttl: -1,
+							ID:   "id_1",
+							Name: "www",
+							Type: hcloud.ZoneRRSetTypeA,
+							TTL:  &testTTL,
+							Records: []hcloud.ZoneRRSetRecord{
+								{
+									Value: "1.1.1.1",
+								},
+							},
 						},
 					},
 				},
 				creates: []*hetznerChangeCreate{
 					{
-						ZoneID: "zoneIDAlpha",
-						Options: &hdns.RecordCreateOpts{
+						zone: &hcloud.Zone{
+							ID:   1,
+							Name: "alpha.com",
+						},
+						opts: hcloud.ZoneRRSetCreateOpts{
 							Name: "www",
-							Zone: &hdns.Zone{
-								ID:   "zoneIDAlpha",
-								Name: "alpha.com",
+							Type: hcloud.ZoneRRSetTypeA,
+							Records: []hcloud.ZoneRRSetRecord{
+								{
+									Value: "127.0.0.1",
+								},
 							},
-							Type:  "A",
-							Value: "127.0.0.1",
-							Ttl:   &testTTL,
+							TTL: &testTTL,
 						},
 					},
 				},
 				updates: []*hetznerChangeUpdate{
 					{
-						ZoneID: "zoneIDAlpha",
-						Record: hdns.Record{
-							Zone: &hdns.Zone{
-								ID:   "zoneIDAlpha",
+						rrset: &hcloud.ZoneRRSet{
+							Zone: &hcloud.Zone{
+								ID:   1,
 								Name: "alpha.com",
 							},
-							Name:  "www",
-							Type:  "A",
-							Value: "127.0.0.1",
-							Ttl:   testTTL,
+							ID:   "id_1",
+							Name: "www",
+							Type: hcloud.ZoneRRSetTypeA,
+							TTL:  &testFirstTTL,
+							Records: []hcloud.ZoneRRSetRecord{
+								{
+									Value: "1.1.1.1",
+								},
+								{
+									Value: "2.2.2.2",
+								},
+							},
 						},
-						Options: &hdns.RecordUpdateOpts{
-							Zone: &hdns.Zone{
-								ID:   "zoneIDAlpha",
-								Name: "alpha.com",
+						ttlOpts: &hcloud.ZoneRRSetChangeTTLOpts{
+							TTL: &testSecondTTL,
+						},
+						recordsOpts: &hcloud.ZoneRRSetSetRecordsOpts{
+							Records: []hcloud.ZoneRRSetRecord{
+								{
+									Value: "1.1.1.1",
+								},
+								{
+									Value: "3.3.3.3",
+								},
 							},
-							Name:  "ftp",
-							Type:  "A",
-							Value: "127.0.0.1",
-							Ttl:   &testTTL,
+						},
+						updateOpts: &hcloud.ZoneRRSetUpdateOpts{
+							Labels: map[string]string{
+								"testLabel": "testValue",
+							},
 						},
 					},
 				},
@@ -822,9 +1000,11 @@ func Test_hetznerChanges_ApplyChanges(t *testing.T) {
 				err   error
 			}{
 				state: mockClientState{
-					CreateRecordCalled: true,
-					DeleteRecordCalled: true,
-					UpdateRecordCalled: true,
+					CreateRRSetCalled:        true,
+					UpdateRRSetTTLCalled:     true,
+					UpdateRRSetRecordsCalled: true,
+					UpdateRRSetLabelsCalled:  true,
+					DeleteRRSetCalled:        true,
 				},
 			},
 		},
@@ -833,23 +1013,26 @@ func Test_hetznerChanges_ApplyChanges(t *testing.T) {
 			changes: &hetznerChanges{
 				deletes: []*hetznerChangeDelete{
 					{
-						ZoneID: "zoneIDAlpha",
-						Record: hdns.Record{
-							ID:    "id1",
-							Type:  hdns.RecordTypeA,
-							Name:  "www",
-							Value: "1.1.1.1",
-							Zone: &hdns.Zone{
-								ID:   "zoneIDAlpha",
+						rrset: &hcloud.ZoneRRSet{
+							Zone: &hcloud.Zone{
+								ID:   1,
 								Name: "alpha.com",
 							},
-							Ttl: -1,
+							ID:   "id_1",
+							Name: "www",
+							Type: hcloud.ZoneRRSetTypeA,
+							TTL:  &testTTL,
+							Records: []hcloud.ZoneRRSetRecord{
+								{
+									Value: "1.1.1.1",
+								},
+							},
 						},
 					},
 				},
 			},
 			input: &mockClient{
-				deleteRecord: deleteResponse{
+				deleteRRSet: deleteRRSetResponse{
 					err: errors.New("test delete error"),
 				},
 			},
@@ -858,7 +1041,7 @@ func Test_hetznerChanges_ApplyChanges(t *testing.T) {
 				err   error
 			}{
 				state: mockClientState{
-					DeleteRecordCalled: true,
+					DeleteRRSetCalled: true,
 				},
 				err: errors.New("test delete error"),
 			},
@@ -868,22 +1051,25 @@ func Test_hetznerChanges_ApplyChanges(t *testing.T) {
 			changes: &hetznerChanges{
 				creates: []*hetznerChangeCreate{
 					{
-						ZoneID: "zoneIDAlpha",
-						Options: &hdns.RecordCreateOpts{
+						zone: &hcloud.Zone{
+							ID:   1,
+							Name: "alpha.com",
+						},
+						opts: hcloud.ZoneRRSetCreateOpts{
 							Name: "www",
-							Zone: &hdns.Zone{
-								ID:   "zoneIDAlpha",
-								Name: "alpha.com",
+							Type: hcloud.ZoneRRSetTypeA,
+							Records: []hcloud.ZoneRRSetRecord{
+								{
+									Value: "127.0.0.1",
+								},
 							},
-							Type:  "A",
-							Value: "127.0.0.1",
-							Ttl:   &testTTL,
+							TTL: &testTTL,
 						},
 					},
 				},
 			},
 			input: &mockClient{
-				createRecord: recordResponse{
+				createRRSet: createRRSetResponse{
 					err: errors.New("test creation error"),
 				},
 			},
@@ -892,41 +1078,41 @@ func Test_hetznerChanges_ApplyChanges(t *testing.T) {
 				err   error
 			}{
 				state: mockClientState{
-					CreateRecordCalled: true,
+					CreateRRSetCalled: true,
 				},
 				err: errors.New("test creation error"),
 			},
 		},
 		{
-			name: "update error",
+			name: "update TTL error",
 			input: &mockClient{
-				updateRecord: recordResponse{
+				updateRRSetTTL: actionResponse{
 					err: errors.New("test update error"),
 				},
 			},
 			changes: &hetznerChanges{
 				updates: []*hetznerChangeUpdate{
 					{
-						ZoneID: "zoneIDAlpha",
-						Record: hdns.Record{
-							Zone: &hdns.Zone{
-								ID:   "zoneIDAlpha",
+						rrset: &hcloud.ZoneRRSet{
+							Zone: &hcloud.Zone{
+								ID:   1,
 								Name: "alpha.com",
 							},
-							Name:  "www",
-							Type:  "A",
-							Value: "127.0.0.1",
-							Ttl:   testTTL,
+							ID:   "id_1",
+							Name: "www",
+							Type: hcloud.ZoneRRSetTypeA,
+							TTL:  &testFirstTTL,
+							Records: []hcloud.ZoneRRSetRecord{
+								{
+									Value: "1.1.1.1",
+								},
+								{
+									Value: "2.2.2.2",
+								},
+							},
 						},
-						Options: &hdns.RecordUpdateOpts{
-							Zone: &hdns.Zone{
-								ID:   "zoneIDAlpha",
-								Name: "alpha.com",
-							},
-							Name:  "ftp",
-							Type:  "A",
-							Value: "127.0.0.1",
-							Ttl:   &testTTL,
+						ttlOpts: &hcloud.ZoneRRSetChangeTTLOpts{
+							TTL: &testSecondTTL,
 						},
 					},
 				},
@@ -936,7 +1122,58 @@ func Test_hetznerChanges_ApplyChanges(t *testing.T) {
 				err   error
 			}{
 				state: mockClientState{
-					UpdateRecordCalled: true,
+					UpdateRRSetTTLCalled: true,
+				},
+				err: errors.New("test update error"),
+			},
+		},
+		{
+			name: "update records error",
+			input: &mockClient{
+				updateRRSetRecords: actionResponse{
+					err: errors.New("test update error"),
+				},
+			},
+			changes: &hetznerChanges{
+				updates: []*hetznerChangeUpdate{
+					{
+						rrset: &hcloud.ZoneRRSet{
+							Zone: &hcloud.Zone{
+								ID:   1,
+								Name: "alpha.com",
+							},
+							ID:   "id_1",
+							Name: "www",
+							Type: hcloud.ZoneRRSetTypeA,
+							TTL:  &testTTL,
+							Records: []hcloud.ZoneRRSetRecord{
+								{
+									Value: "1.1.1.1",
+								},
+								{
+									Value: "2.2.2.2",
+								},
+							},
+						},
+						recordsOpts: &hcloud.ZoneRRSetSetRecordsOpts{
+							Records: []hcloud.ZoneRRSetRecord{
+								{
+									Value: "1.1.1.1",
+								},
+								{
+									Value: "3.3.3.3",
+								},
+							},
+						},
+					},
+				},
+			},
+			expected: struct {
+				state mockClientState
+				err   error
+			}{
+				state: mockClientState{
+					UpdateRRSetRecordsCalled: true,
 				},
 				err: errors.New("test update error"),
 			},
