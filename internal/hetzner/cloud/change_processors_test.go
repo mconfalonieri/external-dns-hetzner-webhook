@@ -769,7 +769,8 @@ func Test_equalStringMaps(t *testing.T) {
 				},
 			},
 			expected: false,
-		}, {
+		},
+		{
 			name: "different elements",
 			input: struct {
 				first  map[string]string

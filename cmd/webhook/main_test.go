@@ -18,13 +18,14 @@
 package main
 
 import (
-	"external-dns-hetzner-webhook/internal/hetzner"
-	hetznercloud "external-dns-hetzner-webhook/internal/hetzner/cloud"
-	hetznerdns "external-dns-hetzner-webhook/internal/hetzner/dns"
 	"os"
 	"syscall"
 	"testing"
 	"time"
+
+	"external-dns-hetzner-webhook/internal/hetzner"
+	hetznercloud "external-dns-hetzner-webhook/internal/hetzner/cloud"
+	hetznerdns "external-dns-hetzner-webhook/internal/hetzner/dns"
 
 	"github.com/stretchr/testify/assert"
 	"sigs.k8s.io/external-dns/provider"

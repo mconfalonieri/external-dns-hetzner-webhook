@@ -20,9 +20,10 @@ package hetznercloud
 import (
 	"context"
 	"errors"
-	"external-dns-hetzner-webhook/internal/hetzner"
 	"net/http"
 	"testing"
+
+	"external-dns-hetzner-webhook/internal/hetzner"
 
 	"github.com/hetznercloud/hcloud-go/v2/hcloud"
 	"github.com/stretchr/testify/assert"

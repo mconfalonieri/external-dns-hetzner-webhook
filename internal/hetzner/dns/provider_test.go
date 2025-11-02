@@ -20,9 +20,10 @@ package hetznerdns
 import (
 	"context"
 	"errors"
-	"external-dns-hetzner-webhook/internal/hetzner"
 	"net/http"
 	"testing"
+
+	"external-dns-hetzner-webhook/internal/hetzner"
 
 	hdns "github.com/jobstoit/hetzner-dns-go/dns"
 	"github.com/stretchr/testify/assert"
