@@ -20,7 +20,6 @@
 package hetznercloud
 
 import (
-	"fmt"
 	"strings"
 
 	"sigs.k8s.io/external-dns/endpoint"
@@ -191,7 +190,6 @@ func processUpdateEndpoint(mRRSet *hcloud.ZoneRRSet, ep *endpoint.Endpoint, chan
 	// Check if we need to update the labels
 	labels, err := getHetznerLabels(ep)
 
-	fmt.Printf("Labels old: %d, new: %d\n", len(mRRSet.Labels), len(labels))
 	if err != nil {
 		log.WithFields(log.Fields{
 			"zoneName":   zoneName,
@@ -199,7 +197,7 @@ func processUpdateEndpoint(mRRSet *hcloud.ZoneRRSet, ep *endpoint.Endpoint, chan
 			"recordType": ep.RecordType,
 		}).Warnf("Labels will be ignored for a parsing error: %s", err.Error())
 	} else if !equalStringMaps(labels, mRRSet.Labels) {
-		fmt.Println("Updating labels")
+		log.Debugf("Updating labels to %s", formatLabels(labels))
 		updateOpts = &hcloud.ZoneRRSetUpdateOpts{
 			Labels: labels,
 		}
@@ -220,6 +218,7 @@ func processUpdateActionsByZone(zone *hcloud.Zone, rrsets []*hcloud.ZoneRRSet, e
 				"recordType": ep.RecordType,
 			}).Warn("Planning an update but no existing records found.")
 		} else {
+			mRRSet.Zone = zone
 			processUpdateEndpoint(mRRSet, ep, changes)
 		}
 

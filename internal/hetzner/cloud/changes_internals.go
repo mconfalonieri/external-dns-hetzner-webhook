@@ -18,6 +18,7 @@
 package hetznercloud
 
 import (
+	"strconv"
 	"strings"
 
 	"github.com/hetznercloud/hcloud-go/v2/hcloud"
@@ -40,12 +41,16 @@ type hetznerChangeCreate struct {
 
 // GetLogFields returns the log fields for this object.
 func (cc hetznerChangeCreate) GetLogFields() log.Fields {
+	ttl := "unconfigured"
+	if cc.opts.TTL != nil {
+		ttl = strconv.FormatInt(int64(*cc.opts.TTL), 10)
+	}
 	return log.Fields{
 		"zone":       cc.zone.Name,
 		"dnsName":    cc.opts.Name,
 		"recordType": string(cc.opts.Type),
 		"targets":    getRRSetRecordsString(cc.opts.Records),
-		"ttl":        *cc.opts.TTL,
+		"ttl":        ttl,
 	}
 }
 
@@ -66,7 +71,11 @@ func (cu hetznerChangeUpdate) GetLogFields() log.Fields {
 		"recordType": string(cu.rrset.Type),
 	}
 	if cu.ttlOpts != nil {
-		fields["*ttl"] = *cu.ttlOpts.TTL
+		ttl := "unconfigured"
+		if cu.ttlOpts.TTL != nil {
+			ttl = strconv.FormatInt(int64(*cu.ttlOpts.TTL), 10)
+		}
+		fields["*ttl"] = ttl
 	}
 	if cu.recordsOpts != nil {
 		fields["*targets"] = getRRSetRecordsString(cu.recordsOpts.Records)

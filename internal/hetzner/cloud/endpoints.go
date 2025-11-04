@@ -84,7 +84,10 @@ func createEndpointFromRecord(rrset *hcloud.ZoneRRSet) *endpoint.Endpoint {
 	// Handle local CNAMEs
 	targets := extractEndpointTargets(rrset)
 	ep := endpoint.NewEndpoint(name, string(rrset.Type), targets...)
-	ep.RecordTTL = endpoint.TTL(*rrset.TTL)
+	ep.ProviderSpecific = getProviderSpecific(rrset.Labels)
+	if rrset.TTL != nil {
+		ep.RecordTTL = endpoint.TTL(*rrset.TTL)
+	}
 	return ep
 }
 

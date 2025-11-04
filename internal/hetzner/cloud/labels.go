@@ -23,10 +23,13 @@ import (
 	"regexp"
 	"strings"
 
+	log "github.com/sirupsen/logrus"
 	"sigs.k8s.io/external-dns/endpoint"
 )
 
 const (
+	LABELS = "webhook/hetzner-labels"
+
 	regex_1char = "^[a-z0-9A-Z]$"
 	regex_label = "^[a-z0-9A-Z][a-z0-9A-Z_\\-./]*[a-z0-9A-Z]$"
 	regex_value = "^[a-z0-9A-Z][a-z0-9A-Z_\\-.]*[a-z0-9A-Z]$"
@@ -48,6 +51,20 @@ func formatLabels(labels map[string]string) string {
 		pairs = append(pairs, k+"="+v)
 	}
 	return strings.Join(pairs, ";")
+}
+
+func getProviderSpecific(labels map[string]string) endpoint.ProviderSpecific {
+	if len(labels) == 0 {
+		return endpoint.ProviderSpecific{}
+	}
+
+	labelset := formatLabels(labels)
+	return endpoint.ProviderSpecific{
+		endpoint.ProviderSpecificProperty{
+			Name:  LABELS,
+			Value: labelset,
+		},
+	}
 }
 
 // checkLabel checks if the label is correct.
@@ -112,14 +129,16 @@ func extractLabelMap(value string) (map[string]string, error) {
 // extractHetznerLabels extracts the label map if available. A map is always
 // instantiated if there is no error.
 func extractHetznerLabels(ps endpoint.ProviderSpecific) (map[string]string, error) {
-	const LABELS = "hetzner-labels"
 	for _, p := range ps {
 		if p.Name == LABELS {
+			log.Debugf("Processing provider-specific: %s", p.Name)
 			labels, err := extractLabelMap(p.Value)
 			if err != nil {
 				return nil, fmt.Errorf("cannot process labels: %s", err.Error())
 			}
 			return labels, nil
+		} else {
+			log.Debugf("Ignoring provider-specific: %s", p.Name)
 		}
 	}
 	return map[string]string{}, nil

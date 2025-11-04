@@ -82,6 +82,7 @@ func (p *HetznerProvider) Zones(ctx context.Context) ([]*hcloud.Zone, error) {
 
 	zones, err := fetchZones(ctx, p.client, p.batchSize)
 	if err != nil {
+		log.Errorf("Got an error while fetching zones: %s", err.Error())
 		return nil, err
 	}
 
@@ -95,6 +96,7 @@ func (p *HetznerProvider) Zones(ctx context.Context) ([]*hcloud.Zone, error) {
 	}
 	metrics.SetFilteredOutZones(filteredOutZones)
 
+	log.Debugf("Got %d zones, filtered out %d zones.", len(zones), filteredOutZones)
 	p.ensureZoneIDMappingPresent(zones)
 
 	return result, nil
@@ -173,8 +175,7 @@ func (p *HetznerProvider) Records(ctx context.Context) ([]*endpoint.Endpoint, er
 func (p *HetznerProvider) ensureZoneIDMappingPresent(zones []*hcloud.Zone) {
 	zoneIDNameMapper := zoneIDName{}
 	for _, z := range zones {
-		zoneID := z.ID
-		zoneIDNameMapper.Add(zoneID, z)
+		zoneIDNameMapper.Add(z)
 	}
 	p.zoneIDNameMapper = zoneIDNameMapper
 }

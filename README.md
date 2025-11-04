@@ -164,10 +164,29 @@ And then:
 helm install external-dns-hetzner bitnami/external-dns -f external-dns-hetzner-values.yaml -n external-dns
 ```
 
-## Custom annotations
+## Hetzner labels
 
-From version **0.8.0** some custom provider annotations were introduced.
+Hetzner labels are supported from version **0.8.0** as provider-specific
+annotations. This feature has some additional requirements to work properly:
 
+- External DNS in use must be **0.19.0** or higher
+- the zone must be migrated to Hetzner Cloud console
+- **USE_CLOUD_API** must be set to `true`
+
+The labels are set in the annotation `external-dns.alpha.kubernetes.io/webhook-hetzner-labels`.
+
+For example, if we want to set these labels:
+
+| Label      | Value      |
+| ---------- | ---------- |
+| it.env     | production |
+| department | education  |
+
+The annotation syntax will be:
+
+```yaml
+  external-dns.alpha.kubernetes.io/webhook-hetzner-labels: it.env=production;department=education
+```
 
 ## Upgrading from previous versions
 

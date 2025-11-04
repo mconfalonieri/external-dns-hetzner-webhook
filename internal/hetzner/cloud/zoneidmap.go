@@ -32,8 +32,11 @@ import (
 
 type zoneIDName map[int64]*hcloud.Zone
 
-func (z zoneIDName) Add(zoneID int64, zone *hcloud.Zone) {
-	z[zoneID] = zone
+func (z zoneIDName) Add(zone *hcloud.Zone) {
+	if zone != nil {
+		zoneID := zone.ID
+		z[zoneID] = zone
+	}
 }
 
 // FindZone identifies the most suitable DNS zone for a given hostname.
