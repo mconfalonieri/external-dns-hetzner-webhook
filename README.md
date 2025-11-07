@@ -218,7 +218,7 @@ might be worth to check out:
   Cloud API are untested with previous versions.
 
 Please notice that the Cloud API requires migrating the DNS zones to the new
-console.
+DNS tab in Hetzner console.
 
 ### 0.6.x to 0.7.x
 
