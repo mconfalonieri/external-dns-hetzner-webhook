@@ -16,7 +16,7 @@ This webhook supports both the old DNS API and the new Cloud DNS interface.
 
 ## Requirements
 
-This webhook can be used in conjunction with **ExternalDNS v0.14.0 or higher**,
+This webhook can be used in conjunction with **ExternalDNS v0.19.0 or higher**,
 configured for using the webhook interface. Some examples for a working
 configuration are shown in the next section.
 
@@ -74,7 +74,7 @@ provider:
   webhook:
     image:
       repository: ghcr.io/mconfalonieri/external-dns-hetzner-webhook
-      tag: v0.7.0
+      tag: v0.8.0
     env:
       - name: HETZNER_API_KEY
         valueFrom:
@@ -213,7 +213,9 @@ might be worth to check out:
 
 - the new Cloud API is now supported through the **USE_CLOUD_API** environment
   variable;
-- some provider-specific annotations are now processed.
+- [Hetzner labels](#hetzner-labels) are available when the new Cloud API is in use;
+- The minimum ExternalDNS version is now **0.19.0** as the label system and the
+  Cloud API are untested with previous versions.
 
 Please notice that the Cloud API requires migrating the DNS zones to the new
 console.
@@ -408,6 +410,7 @@ The actions supported by the Cloud API provider are:
 - `create_rrset`
 - `update_rrset_ttl`
 - `update_rrset_records`
+- `update_rrset` (this is the method used to update labels)
 - `delete_rrset`
 
 The label `zone` can assume one of the zone names as its value.

@@ -172,7 +172,7 @@ func (c hetznerChanges) applyUpdates(ctx context.Context, client apiClient) erro
 			}
 			start := time.Now()
 			if _, _, err := client.UpdateRRSetLabels(ctx, rrset, *updateOpts); err != nil {
-				metrics.IncFailedApiCallsTotal(actUpdateRRSetTTL)
+				metrics.IncFailedApiCallsTotal(actUpdateRRSet)
 				return err
 			}
 			delay := time.Since(start)

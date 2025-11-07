@@ -32,6 +32,7 @@ const (
 	actCreateRRSet        = "create_rrset"
 	actUpdateRRSetTTL     = "update_rrset_ttl"
 	actUpdateRRSetRecords = "update_rrset_records"
+	actUpdateRRSet        = "update_rrset"
 	actDeleteRRSet        = "delete_rrset"
 )
 
