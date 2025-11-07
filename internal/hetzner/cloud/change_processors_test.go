@@ -2010,7 +2010,7 @@ func Test_processDeleteActions(t *testing.T) {
 					{
 						rrset: &hcloud.ZoneRRSet{
 							Zone: &hcloud.Zone{
-								ID:   1,
+								ID:   2,
 								Name: "beta.com",
 							},
 							ID:   "id_3",
