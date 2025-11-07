@@ -160,7 +160,7 @@ func Test_createEndpointFromRecord(t *testing.T) {
 	}
 
 	run := func(t *testing.T, tc testCase) {
-		actual := createEndpointFromRecord(tc.input)
+		actual := createEndpointFromRecord("--slash--", tc.input)
 		assert.EqualValues(t, tc.expected, actual)
 	}
 

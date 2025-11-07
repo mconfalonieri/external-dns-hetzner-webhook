@@ -31,6 +31,7 @@ import (
 type hetznerChanges struct {
 	dryRun     bool
 	defaultTTL int
+	slash      string
 
 	creates []*hetznerChangeCreate
 	updates []*hetznerChangeUpdate

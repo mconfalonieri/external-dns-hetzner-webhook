@@ -185,8 +185,24 @@ For example, if we want to set these labels:
 The annotation syntax will be:
 
 ```yaml
-  external-dns.alpha.kubernetes.io/webhook-hetzner-labels: it.env=production;department=education
+  external-dns.alpha.kubernetes.io/webhook-hetzner-label-it.env: production
+  external-dns.alpha.kubernetes.io/webhook-hetzner-label-department: education
 ```
+
+This kind of label:
+
+| Label        | Value |
+| ------------ | ----- |
+| prefix/label | value |
+
+requires an escape sequence for the slash part. By default this will be:
+`--slash--`, so the label will be written as:
+
+```yaml
+  external-dns.alpha.kubernetes.io/webhook-hetzner-label-prefix--slash--label: value
+```
+
+This can be changed using the **SLASH_ESC_SEQ** environment variable.
 
 ## Upgrading from previous versions
 
@@ -230,12 +246,13 @@ The following environment variables can be used for configuring the application.
 These variables control the behavior of the webhook when interacting with
 Hetzner DNS API.
 
-| Variable        | Description              | Notes                      |
-| --------------- | -------------------------| -------------------------- |
-| HETZNER_API_KEY | Hetzner API token        | Mandatory                  |
-| BATCH_SIZE      | Number of zones per call | Default: `100`, max: `100` |
-| DEFAULT_TTL     | Default record TTL       | Default: `7200`            |
-| USE_CLOUD_API   | Use the new cloud API    | Default: `false`           |
+| Variable        | Description                           | Notes                      |
+| --------------- | ------------------------------------- | -------------------------- |
+| HETZNER_API_KEY | Hetzner API token                     | Mandatory                  |
+| BATCH_SIZE      | Number of zones per call              | Default: `100`, max: `100` |
+| DEFAULT_TTL     | Default record TTL                    | Default: `7200`            |
+| USE_CLOUD_API   | Use the new cloud API                 | Default: `false`           |
+| SLASH_ESC_SEQ   | Escape sequence for label annotations | Default: `--slash--`       |
 
 ### Test and debug
 

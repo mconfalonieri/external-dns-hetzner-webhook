@@ -47,6 +47,7 @@ type HetznerProvider struct {
 	defaultTTL       int
 	zoneIDNameMapper zoneIDName
 	domainFilter     *endpoint.DomainFilter
+	slashEscSeq      string
 }
 
 // NewHetznerProvider creates a new HetznerProvider instance.
@@ -71,6 +72,7 @@ func NewHetznerProvider(config *hetzner.Configuration) (*HetznerProvider, error)
 		dryRun:       config.DryRun,
 		defaultTTL:   config.DefaultTTL,
 		domainFilter: hetzner.GetDomainFilter(*config),
+		slashEscSeq:  config.SlashEscSeq,
 	}, nil
 }
 
@@ -151,7 +153,7 @@ func (p *HetznerProvider) Records(ctx context.Context) ([]*endpoint.Endpoint, er
 			// Ensure the record has all the required zone information
 			rrset.Zone = zone
 			if provider.SupportedRecordType(string(rrset.Type)) {
-				ep := createEndpointFromRecord(rrset)
+				ep := createEndpointFromRecord(p.slashEscSeq, rrset)
 				endpoints = append(endpoints, ep)
 			} else {
 				skippedRecords++
@@ -223,6 +225,7 @@ func (p *HetznerProvider) ApplyChanges(ctx context.Context, planChanges *plan.Ch
 	changes := hetznerChanges{
 		dryRun:     p.dryRun,
 		defaultTTL: p.defaultTTL,
+		slash:      p.slashEscSeq,
 	}
 
 	processCreateActions(p.zoneIDNameMapper, rrSetsByZoneID, createsByZoneID, &changes)

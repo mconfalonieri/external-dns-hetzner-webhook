@@ -72,7 +72,7 @@ func extractEndpointTargets(rrset *hcloud.ZoneRRSet) []string {
 }
 
 // createEndpointFromRecord creates an endpoint from a record.
-func createEndpointFromRecord(rrset *hcloud.ZoneRRSet) *endpoint.Endpoint {
+func createEndpointFromRecord(slash string, rrset *hcloud.ZoneRRSet) *endpoint.Endpoint {
 	name := fmt.Sprintf("%s.%s", rrset.Name, rrset.Zone.Name)
 
 	// root name is identified by @ and should be
@@ -84,7 +84,8 @@ func createEndpointFromRecord(rrset *hcloud.ZoneRRSet) *endpoint.Endpoint {
 	// Handle local CNAMEs
 	targets := extractEndpointTargets(rrset)
 	ep := endpoint.NewEndpoint(name, string(rrset.Type), targets...)
-	ep.ProviderSpecific = getProviderSpecific(rrset.Labels)
+	log.Debugf("Reading extracted endpoint %s", ep.DNSName)
+	ep.ProviderSpecific = getProviderSpecific(slash, rrset.Labels)
 	if rrset.TTL != nil {
 		ep.RecordTTL = endpoint.TTL(*rrset.TTL)
 	}
@@ -162,10 +163,10 @@ func adjustEndpointTargets(targets endpoint.Targets) (endpoint.Targets, error) {
 
 // getHetznerLabels returns the Hetzner-specific labels from the endpoint. The
 // return map is always instantiated if there is no error.
-func getHetznerLabels(ep *endpoint.Endpoint) (map[string]string, error) {
+func getHetznerLabels(slash string, ep *endpoint.Endpoint) (map[string]string, error) {
 	ps := ep.ProviderSpecific
 	if len(ps) == 0 {
 		return map[string]string{}, nil
 	}
-	return extractHetznerLabels(ps)
+	return extractHetznerLabels(slash, ps)
 }

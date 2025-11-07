@@ -317,7 +317,9 @@ func Test_processCreateActions(t *testing.T) {
 
 	run := func(t *testing.T, tc testCase) {
 		inp := tc.input
-		changes := hetznerChanges{}
+		changes := hetznerChanges{
+			slash: "--testslash--",
+		}
 		processCreateActions(inp.zoneIDNameMapper, inp.rrSetsByZoneID,
 			inp.createsByZoneID, &changes)
 		assertEqualChanges(t, tc.expectedChanges, changes)
@@ -498,6 +500,12 @@ func Test_processCreateActions(t *testing.T) {
 							Targets:    endpoint.Targets{"2.2.2.2"},
 							RecordType: "A",
 							RecordTTL:  7200,
+							ProviderSpecific: endpoint.ProviderSpecific{
+								endpoint.ProviderSpecificProperty{
+									Name:  "webhook/hetzner-label-alpha.com--testslash--env",
+									Value: "test",
+								},
+							},
 						},
 					},
 				},
@@ -517,6 +525,9 @@ func Test_processCreateActions(t *testing.T) {
 								{
 									Value: "2.2.2.2",
 								},
+							},
+							Labels: map[string]string{
+								"alpha.com/env": "test",
 							},
 						},
 					},
@@ -1080,8 +1091,8 @@ func Test_processUpdateEndpoint(t *testing.T) {
 					RecordTTL:  endpoint.TTL(testTTL),
 					ProviderSpecific: endpoint.ProviderSpecific{
 						{
-							Name:  "hetzner-labels",
-							Value: "env=production",
+							Name:  "webhook/hetzner-label-env",
+							Value: "production",
 						},
 					},
 				},
@@ -1150,8 +1161,8 @@ func Test_processUpdateEndpoint(t *testing.T) {
 					RecordTTL:  endpoint.TTL(testTTL),
 					ProviderSpecific: endpoint.ProviderSpecific{
 						{
-							Name:  "hetzner-labels",
-							Value: "env=production",
+							Name:  "webhook/hetzner-label-env",
+							Value: "production",
 						},
 					},
 				},
@@ -1220,8 +1231,8 @@ func Test_processUpdateEndpoint(t *testing.T) {
 					RecordTTL:  endpoint.TTL(testSecondTTL),
 					ProviderSpecific: endpoint.ProviderSpecific{
 						{
-							Name:  "hetzner-labels",
-							Value: "env=production",
+							Name:  "webhook/hetzner-label-env",
+							Value: "production",
 						},
 					},
 				},
@@ -1680,8 +1691,12 @@ func Test_processUpdateActions(t *testing.T) {
 							RecordTTL:  endpoint.TTL(defaultTTL),
 							ProviderSpecific: endpoint.ProviderSpecific{
 								{
-									Name:  "hetzner-labels",
-									Value: "env=production;project=beta.com",
+									Name:  "webhook/hetzner-label-env",
+									Value: "production",
+								},
+								{
+									Name:  "webhook/hetzner-label-project",
+									Value: "beta.com",
 								},
 							},
 						},

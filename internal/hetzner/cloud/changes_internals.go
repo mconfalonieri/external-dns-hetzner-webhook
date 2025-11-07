@@ -81,7 +81,7 @@ func (cu hetznerChangeUpdate) GetLogFields() log.Fields {
 		fields["*targets"] = getRRSetRecordsString(cu.recordsOpts.Records)
 	}
 	if cu.updateOpts != nil {
-		fields["*labels"] = cu.updateOpts.Labels
+		fields["*labels"] = formatLabels(cu.updateOpts.Labels)
 	}
 	return fields
 }

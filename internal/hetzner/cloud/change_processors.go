@@ -70,11 +70,23 @@ func processCreateActionsByZone(zone *hcloud.Zone, rrsets []*hcloud.ZoneRRSet, e
 				"recordType": ep.RecordType,
 			}).Warn("Planning a creation but an existing record was found.")
 		} else {
+			labels, err := getHetznerLabels(changes.slash, ep)
+			if err != nil {
+				log.WithFields(log.Fields{
+					"zoneName":   zoneName,
+					"dnsName":    ep.DNSName,
+					"recordType": ep.RecordType,
+				}).Warnf("Labels will be ignored due to a parsing error: %s", err.Error())
+			}
+			if len(labels) == 0 {
+				labels = nil
+			}
 			opts := hcloud.ZoneRRSetCreateOpts{
 				Name:    makeEndpointName(zoneName, ep.DNSName),
 				Type:    hcloud.ZoneRRSetType(ep.RecordType),
 				TTL:     getEndpointTTL(ep),
 				Records: extractRRSetRecords(zoneName, ep),
+				Labels:  labels,
 			}
 			changes.AddChangeCreate(zone, opts)
 		}
@@ -188,7 +200,7 @@ func processUpdateEndpoint(mRRSet *hcloud.ZoneRRSet, ep *endpoint.Endpoint, chan
 	}
 
 	// Check if we need to update the labels
-	labels, err := getHetznerLabels(ep)
+	labels, err := getHetznerLabels(changes.slash, ep)
 
 	if err != nil {
 		log.WithFields(log.Fields{
@@ -260,6 +272,7 @@ func processDeleteActionsByZone(zone *hcloud.Zone, rrsets []*hcloud.ZoneRRSet, e
 				"recordType": ep.RecordType,
 			}).Warn("RRSet to delete not found.")
 		} else {
+			mRRSet.Zone = zone
 			changes.AddChangeDelete(mRRSet)
 		}
 

@@ -477,6 +477,9 @@ func Test_hetznerChanges_applyCreates(t *testing.T) {
 								},
 							},
 							TTL: &testTTL,
+							Labels: map[string]string{
+								"env": "test",
+							},
 						},
 					},
 				},
@@ -676,6 +679,7 @@ func Test_hetznerChanges_applyUpdates(t *testing.T) {
 			name:  "update all",
 			input: &mockClient{},
 			changes: &hetznerChanges{
+				slash: "--slash--",
 				updates: []*hetznerChangeUpdate{
 					{
 						rrset: &hcloud.ZoneRRSet{
@@ -823,6 +827,7 @@ func Test_hetznerChanges_applyUpdates(t *testing.T) {
 			name:  "update dry run",
 			input: &mockClient{},
 			changes: &hetznerChanges{
+				slash: "--slash--",
 				updates: []*hetznerChangeUpdate{
 					{
 						rrset: &hcloud.ZoneRRSet{
@@ -916,6 +921,7 @@ func Test_hetznerChanges_ApplyChanges(t *testing.T) {
 		{
 			name: "all changes",
 			changes: &hetznerChanges{
+				slash: "--slash--",
 				deletes: []*hetznerChangeDelete{
 					{
 						rrset: &hcloud.ZoneRRSet{

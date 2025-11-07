@@ -49,6 +49,8 @@ type Configuration struct {
 	RegexDomainFilter string `env:"REGEXP_DOMAIN_FILTER" default:""`
 	// Regular expression for excluding domains
 	RegexDomainExclusion string `env:"REGEXP_DOMAIN_FILTER_EXCLUSION" default:""`
+	// Slash escape sequence for labels
+	SlashEscSeq string `env:"SLASH_ESC_SEQ" default:"--slash--"`
 }
 
 // NewConfiguration creates a new configuration object.

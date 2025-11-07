@@ -108,7 +108,7 @@ func Test_GetLogFields(t *testing.T) {
 				"dnsName":    "www",
 				"recordType": "A",
 				"targets":    "1.1.1.1;2.2.2.2",
-				"ttl":        7200,
+				"ttl":        "7200",
 			},
 		},
 		{
@@ -156,8 +156,8 @@ func Test_GetLogFields(t *testing.T) {
 				"dnsName":    "www",
 				"recordType": "A",
 				"*targets":   "1.1.1.1;3.3.3.3",
-				"*ttl":       testSecondTTL,
-				"*labels":    map[string]string{"testLabel": "testValue"},
+				"*ttl":       "20000",
+				"*labels":    "testLabel=testValue",
 			},
 		},
 		{

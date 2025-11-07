@@ -28,11 +28,12 @@ import (
 )
 
 const (
-	LABELS = "webhook/hetzner-labels"
+	slashDefault   string = "--slash--"
+	providerPrefix string = "webhook/hetzner-label-"
 
-	regex_1char = "^[a-z0-9A-Z]$"
-	regex_label = "^[a-z0-9A-Z][a-z0-9A-Z_\\-./]*[a-z0-9A-Z]$"
-	regex_value = "^[a-z0-9A-Z][a-z0-9A-Z_\\-.]*[a-z0-9A-Z]$"
+	regex_1char string = "^[a-z0-9A-Z]$"
+	regex_label string = "^[a-z0-9A-Z][a-z0-9A-Z_\\-./]*[a-z0-9A-Z]$"
+	regex_value string = "^[a-z0-9A-Z][a-z0-9A-Z_\\-.]*[a-z0-9A-Z]$"
 )
 
 var (
@@ -41,9 +42,9 @@ var (
 	regexValueChecker = regexp.MustCompile(regex_value)
 )
 
-// formatLabels formats the labels back into a string.
+// formatLabels formats the labels into a printable string.
 func formatLabels(labels map[string]string) string {
-	if labels == nil {
+	if len(labels) == 0 {
 		return ""
 	}
 	pairs := make([]string, 0)
@@ -53,18 +54,24 @@ func formatLabels(labels map[string]string) string {
 	return strings.Join(pairs, ";")
 }
 
-func getProviderSpecific(labels map[string]string) endpoint.ProviderSpecific {
+// getProviderSpecific returns an endpoint.ProviderSpecific object from a label
+// map.
+func getProviderSpecific(slash string, labels map[string]string) endpoint.ProviderSpecific {
 	if len(labels) == 0 {
-		return endpoint.ProviderSpecific{}
+		log.Debug("No labels found")
+		return nil
 	}
-
-	labelset := formatLabels(labels)
-	return endpoint.ProviderSpecific{
-		endpoint.ProviderSpecificProperty{
-			Name:  LABELS,
-			Value: labelset,
-		},
+	ps := make(endpoint.ProviderSpecific, 0)
+	for label, value := range labels {
+		label = strings.ReplaceAll(label, "/", slash)
+		name := providerPrefix + label
+		log.Debugf("Adding provider-specific: [%s: %s]", name, value)
+		ps = append(ps, endpoint.ProviderSpecificProperty{
+			Name:  name,
+			Value: value,
+		})
 	}
+	return ps
 }
 
 // checkLabel checks if the label is correct.
@@ -73,6 +80,8 @@ func checkLabel(label string) error {
 		return errors.New("empty label is not acceptable")
 	} else if !(len(label) == 1 && regex1CharChecker.MatchString(label)) && !(len(label) > 1 && regexLabelChecker.MatchString(label)) {
 		return fmt.Errorf("label [%s] is not acceptable", label)
+	} else if len(label) > 63 {
+		return fmt.Errorf("label [%s...] is longer than 63 characters", label[:20])
 	}
 	return nil
 }
@@ -81,65 +90,34 @@ func checkLabel(label string) error {
 func checkValue(value string) error {
 	if value != "" && !(len(value) == 1 && regex1CharChecker.MatchString(value)) && !(len(value) > 1 && regexValueChecker.MatchString(value)) {
 		return fmt.Errorf("value \"%s\" is not acceptable", value)
+	} else if len(value) > 63 {
+		return fmt.Errorf("value \"%s...\" is longer than 63 characters", value[:20])
 	}
 	return nil
 }
 
-// parsePair parses the label=value pairs and does a formal checking on their
-// syntax according to Hetzner formal requirements:
-// https://docs.hetzner.cloud/reference/cloud#labels
-func parsePair(item string) (string, string, error) {
-	if item == "" {
-		return "", "", fmt.Errorf("empty string provided")
-	}
-	rawPair := strings.Split(item, "=")
-	if len(rawPair) != 2 {
-		return "", "", fmt.Errorf("malformed pair \"%s\"", item)
-	}
-	label := rawPair[0]
-	value := rawPair[1]
-
-	// Check the label
-	if err := checkLabel(label); err != nil {
-		return "", "", fmt.Errorf("in pair \"%s\": %s", item, err.Error())
-	}
-
-	// Check the value
-	if err := checkValue(value); err != nil {
-		return "", "", fmt.Errorf("for label [%s]: %s", label, err.Error())
-	}
-
-	return label, value, nil
-}
-
-// extractLabelMap extracts the labels from a field.
-func extractLabelMap(value string) (map[string]string, error) {
-	items := strings.Split(value, ";")
-	labels := make(map[string]string, len(items))
-	for idx, item := range items {
-		label, value, err := parsePair(item)
-		if err != nil {
-			return nil, fmt.Errorf("malformed pair in position %d: %s", idx, err.Error())
-		}
-		labels[label] = value
-	}
-	return labels, nil
-}
-
 // extractHetznerLabels extracts the label map if available. A map is always
 // instantiated if there is no error.
-func extractHetznerLabels(ps endpoint.ProviderSpecific) (map[string]string, error) {
+func extractHetznerLabels(slash string, ps endpoint.ProviderSpecific) (map[string]string, error) {
+	if slash == "" {
+		slash = slashDefault
+	}
+	labels := make(map[string]string, 0)
 	for _, p := range ps {
-		if p.Name == LABELS {
-			log.Debugf("Processing provider-specific: %s", p.Name)
-			labels, err := extractLabelMap(p.Value)
-			if err != nil {
-				return nil, fmt.Errorf("cannot process labels: %s", err.Error())
+		if strings.HasPrefix(p.Name, providerPrefix) {
+			log.Debugf("Processing provider-specific: [%s: %s]", p.Name, p.Value)
+			label := strings.TrimPrefix(p.Name, providerPrefix)
+			label = strings.ReplaceAll(label, slash, "/")
+			value := p.Value
+			if err := checkLabel(label); err != nil {
+				return nil, fmt.Errorf("cannot process label for [%s: \"%s\"]: %s", label, value, err.Error())
+			} else if err := checkValue(value); err != nil {
+				return nil, fmt.Errorf("cannot process value for [%s: \"%s\"]: %s", label, value, err.Error())
 			}
-			return labels, nil
+			labels[label] = value
 		} else {
-			log.Debugf("Ignoring provider-specific: %s", p.Name)
+			log.Debugf("Ignoring provider-specific: [%s: %s]", p.Name, p.Value)
 		}
 	}
-	return map[string]string{}, nil
+	return labels, nil
 }

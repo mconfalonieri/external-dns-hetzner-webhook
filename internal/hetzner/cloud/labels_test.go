@@ -19,9 +19,11 @@ package hetznercloud
 
 import (
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"sigs.k8s.io/external-dns/endpoint"
 )
 
 // Test_formatLabels tests formatLabels().
@@ -34,7 +36,7 @@ func Test_formatLabels(t *testing.T) {
 
 	run := func(t *testing.T, tc testCase) {
 		actual := formatLabels(tc.input)
-		assert.Equal(t, tc.expected, actual)
+		assert.ElementsMatch(t, strings.Split(tc.expected, ";"), strings.Split(actual, ";"))
 	}
 
 	testCases := []testCase{
@@ -61,6 +63,68 @@ func Test_formatLabels(t *testing.T) {
 				"label3": "value3",
 			},
 			expected: "label1=value1;label2=value2;label3=value3",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			run(t, tc)
+		})
+	}
+}
+
+// Test_getProviderSpecific tests getProviderSpecific().
+func Test_getProviderSpecific(t *testing.T) {
+	type testCase struct {
+		name     string
+		input    map[string]string
+		expected endpoint.ProviderSpecific
+	}
+
+	run := func(t *testing.T, tc testCase) {
+		actual := getProviderSpecific("--slash--", tc.input)
+		assert.ElementsMatch(t, tc.expected, actual)
+	}
+
+	testCases := []testCase{
+		{
+			name:     "empty map",
+			input:    map[string]string{},
+			expected: nil,
+		},
+		{
+			name: "simple elements",
+			input: map[string]string{
+				"env":     "test",
+				"project": "vanilla",
+			},
+			expected: endpoint.ProviderSpecific{
+				endpoint.ProviderSpecificProperty{
+					Name:  "webhook/hetzner-label-env",
+					Value: "test",
+				},
+				endpoint.ProviderSpecificProperty{
+					Name:  "webhook/hetzner-label-project",
+					Value: "vanilla",
+				},
+			},
+		},
+		{
+			name: "complex elements",
+			input: map[string]string{
+				"alpha.com/app-env":  "test",
+				"project/subproject": "ice-cream.vanilla",
+			},
+			expected: endpoint.ProviderSpecific{
+				endpoint.ProviderSpecificProperty{
+					Name:  "webhook/hetzner-label-alpha.com--slash--app-env",
+					Value: "test",
+				},
+				endpoint.ProviderSpecificProperty{
+					Name:  "webhook/hetzner-label-project--slash--subproject",
+					Value: "ice-cream.vanilla",
+				},
+			},
 		},
 	}
 
@@ -109,6 +173,11 @@ func Test_checkLabel(t *testing.T) {
 			name:     "label not acceptable 5",
 			input:    "label/",
 			expected: errors.New("label [label/] is not acceptable"),
+		},
+		{
+			name:     "label not acceptable 6",
+			input:    "this-is-a-very-long-label-label-label-label-label-label-label-label",
+			expected: errors.New("label [this-is-a-very-long-...] is longer than 63 characters"),
 		},
 		{
 			name:     "acceptable label 1",
@@ -183,6 +252,11 @@ func Test_checkValue(t *testing.T) {
 			expected: errors.New("value \"prefix/value\" is not acceptable"),
 		},
 		{
+			name:     "value not acceptable 5",
+			input:    "this-is-a-very-long-value-value-value-value-value-value-value-value",
+			expected: errors.New("value \"this-is-a-very-long-...\" is longer than 63 characters"),
+		},
+		{
 			name:     "acceptable value 1",
 			input:    "",
 			expected: nil,
@@ -221,93 +295,141 @@ func Test_checkValue(t *testing.T) {
 	}
 }
 
-// Test_parsePair tests parsePair().
-func Test_parsePair(t *testing.T) {
+// Test_extractHetznerLabels tests extractHetznerLabels().
+func Test_extractHetznerLabels(t *testing.T) {
 	type testCase struct {
-		name     string
-		input    string
+		name  string
+		input struct {
+			slash string
+			ps    endpoint.ProviderSpecific
+		}
 		expected struct {
-			label string
-			value string
-			err   error
+			labels map[string]string
+			err    error
 		}
 	}
 
 	run := func(t *testing.T, tc testCase) {
 		exp := tc.expected
-		label, value, err := parsePair(tc.input)
+		inp := tc.input
+		labels, err := extractHetznerLabels(inp.slash, inp.ps)
 		if !assertError(t, exp.err, err) {
-			assert.Equal(t, exp.label, label)
-			assert.Equal(t, exp.value, value)
+			assert.Equal(t, exp.labels, labels)
 		}
 	}
 
 	testCases := []testCase{
 		{
-			name:  "empty string",
-			input: "",
-			expected: struct {
-				label string
-				value string
-				err   error
+			name: "no provider specific parameters",
+			input: struct {
+				slash string
+				ps    endpoint.ProviderSpecific
 			}{
-				err: errors.New("empty string provided"),
+				slash: "--slash--",
+				ps:    endpoint.ProviderSpecific{},
+			},
+			expected: struct {
+				labels map[string]string
+				err    error
+			}{
+				labels: map[string]string{},
 			},
 		},
 		{
-			name:  "malformed pair 1",
-			input: "label",
-			expected: struct {
-				label string
-				value string
-				err   error
+			name: "unsupported provider specific parameters",
+			input: struct {
+				slash string
+				ps    endpoint.ProviderSpecific
 			}{
-				err: errors.New("malformed pair \"label\""),
+				slash: "--slash--",
+				ps: endpoint.ProviderSpecific{
+					endpoint.ProviderSpecificProperty{
+						Name:  "test/custom-parameter",
+						Value: "value",
+					},
+				},
+			},
+			expected: struct {
+				labels map[string]string
+				err    error
+			}{
+				labels: map[string]string{},
 			},
 		},
 		{
-			name:  "malformed pair 2",
-			input: "label=value=value",
-			expected: struct {
-				label string
-				value string
-				err   error
+			name: "mixed provider specific parameters",
+			input: struct {
+				slash string
+				ps    endpoint.ProviderSpecific
 			}{
-				err: errors.New("malformed pair \"label=value=value\""),
+				slash: "--testslash--",
+				ps: endpoint.ProviderSpecific{
+					endpoint.ProviderSpecificProperty{
+						Name:  "test/custom-parameter",
+						Value: "value",
+					},
+					endpoint.ProviderSpecificProperty{
+						Name:  "webhook/hetzner-label-environment",
+						Value: "test",
+					},
+					endpoint.ProviderSpecificProperty{
+						Name:  "webhook/hetzner-label-project--testslash--subproject",
+						Value: "prefix.value",
+					},
+				},
+			},
+			expected: struct {
+				labels map[string]string
+				err    error
+			}{
+				labels: map[string]string{
+					"project/subproject": "prefix.value",
+					"environment":        "test",
+				},
 			},
 		},
 		{
-			name:  "label error",
-			input: "=value",
-			expected: struct {
-				label string
-				value string
-				err   error
+			name: "empty slash parameter",
+			input: struct {
+				slash string
+				ps    endpoint.ProviderSpecific
 			}{
-				err: errors.New("in pair \"=value\": empty label is not acceptable"),
+				slash: "",
+				ps: endpoint.ProviderSpecific{
+					endpoint.ProviderSpecificProperty{
+						Name:  "webhook/hetzner-label-project--slash--subproject",
+						Value: "prefix.value",
+					},
+				},
+			},
+			expected: struct {
+				labels map[string]string
+				err    error
+			}{
+				labels: map[string]string{
+					"project/subproject": "prefix.value",
+				},
 			},
 		},
 		{
-			name:  "value error",
-			input: "label=prefix/value",
-			expected: struct {
-				label string
-				value string
-				err   error
+			name: "value format error",
+			input: struct {
+				slash string
+				ps    endpoint.ProviderSpecific
 			}{
-				err: errors.New("for label [label]: value \"prefix/value\" is not acceptable"),
+				slash: "--slash--",
+				ps: endpoint.ProviderSpecific{
+					endpoint.ProviderSpecificProperty{
+						Name:  "webhook/hetzner-label-project",
+						Value: "prefix/value",
+					},
+				},
 			},
-		},
-		{
-			name:  "acceptable pair",
-			input: "prefix/label=value",
 			expected: struct {
-				label string
-				value string
-				err   error
+				labels map[string]string
+				err    error
 			}{
-				label: "prefix/label",
-				value: "value",
+				err: errors.New("cannot process value for [project: \"prefix/value\"]: value \"prefix/value\" is not acceptable"),
 			},
 		},
 	}
