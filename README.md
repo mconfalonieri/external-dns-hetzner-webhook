@@ -1,4 +1,4 @@
-# ExternalDNS - Hetzner Webhook
+# ExternalDNS - UNOFFICIAL Hetzner Webhook
 
 ⚠️ **This software is experimental.** ⚠️
 

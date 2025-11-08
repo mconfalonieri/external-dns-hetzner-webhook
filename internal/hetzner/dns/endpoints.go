@@ -133,6 +133,9 @@ func endpointsByZoneID(zoneIDNameMapper provider.ZoneIDName, endpoints []*endpoi
 // getMatchingDomainRecords returns the records that match an endpoint.
 func getMatchingDomainRecords(records []hdns.Record, zoneName string, ep *endpoint.Endpoint) []hdns.Record {
 	var name string
+	if len(ep.ProviderSpecific) > 0 {
+		log.Warnf("Ignoring provider-specific directives in endpoint [%s] of type [%s].", ep.DNSName, ep.RecordType)
+	}
 	if ep.DNSName != zoneName {
 		name = strings.TrimSuffix(ep.DNSName, "."+zoneName)
 	} else {
