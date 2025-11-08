@@ -37,6 +37,7 @@ dockers_v2:
     - "{{ .Env.REGISTRY }}/{{ .Env.IMAGE_NAME }}"
     tags:
       - "{{ .Tag }}"
+      - "latest"
     labels:
       "org.opencontainers.image.title": "{{ .ProjectName }}"
       "org.opencontainers.image.description": "Hetzner DNS webhook for external-dns"
