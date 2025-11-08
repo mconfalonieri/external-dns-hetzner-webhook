@@ -423,12 +423,16 @@ func Test_getMatchingDomainRecords(t *testing.T) {
 							ID:   "zoneIDAlpha",
 							Name: "alpha.com",
 						},
-						Name: "www",
+						Name:  "www",
+						Type:  hdns.RecordTypeA,
+						Value: "1.1.1.1",
 					},
 				},
 				zoneName: "alpha.com",
 				ep: &endpoint.Endpoint{
-					DNSName: "ftp.alpha.com",
+					DNSName:    "ftp.alpha.com",
+					RecordType: endpoint.RecordTypeA,
+					Targets:    endpoint.Targets{"1.1.1.1"},
 				},
 			},
 			expected: []hdns.Record{},
@@ -447,12 +451,16 @@ func Test_getMatchingDomainRecords(t *testing.T) {
 							ID:   "zoneIDAlpha",
 							Name: "alpha.com",
 						},
-						Name: "www",
+						Name:  "www",
+						Type:  hdns.RecordTypeA,
+						Value: "1.1.1.1",
 					},
 				},
 				zoneName: "alpha.com",
 				ep: &endpoint.Endpoint{
-					DNSName: "www.alpha.com",
+					DNSName:    "www.alpha.com",
+					RecordType: endpoint.RecordTypeA,
+					Targets:    endpoint.Targets{"1.1.1.1"},
 				},
 			},
 			expected: []hdns.Record{
@@ -462,7 +470,54 @@ func Test_getMatchingDomainRecords(t *testing.T) {
 						ID:   "zoneIDAlpha",
 						Name: "alpha.com",
 					},
-					Name: "www",
+					Name:  "www",
+					Type:  hdns.RecordTypeA,
+					Value: "1.1.1.1",
+				},
+			},
+		},
+		{
+			name: "matches with warning",
+			input: struct {
+				records  []hdns.Record
+				zoneName string
+				ep       *endpoint.Endpoint
+			}{
+				records: []hdns.Record{
+					{
+						ID: "id1",
+						Zone: &hdns.Zone{
+							ID:   "zoneIDAlpha",
+							Name: "alpha.com",
+						},
+						Name:  "www",
+						Type:  hdns.RecordTypeA,
+						Value: "1.1.1.1",
+					},
+				},
+				zoneName: "alpha.com",
+				ep: &endpoint.Endpoint{
+					DNSName:    "www.alpha.com",
+					RecordType: endpoint.RecordTypeA,
+					Targets:    endpoint.Targets{"1.1.1.1"},
+					ProviderSpecific: endpoint.ProviderSpecific{
+						endpoint.ProviderSpecificProperty{
+							Name:  "webhook/hetzner-label-environment",
+							Value: "test",
+						},
+					},
+				},
+			},
+			expected: []hdns.Record{
+				{
+					ID: "id1",
+					Zone: &hdns.Zone{
+						ID:   "zoneIDAlpha",
+						Name: "alpha.com",
+					},
+					Name:  "www",
+					Type:  hdns.RecordTypeA,
+					Value: "1.1.1.1",
 				},
 			},
 		},
