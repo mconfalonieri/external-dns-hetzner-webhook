@@ -15,10 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package hetzner
+package hetznerdns
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	hdns "github.com/jobstoit/hetzner-dns-go/dns"
@@ -133,7 +134,8 @@ func (m *mockClient) DeleteRecord(ctx context.Context, record *hdns.Record) (*hd
 	return r.resp, r.err
 }
 
-// assertError checks if an error is thrown when expected.
+// assertError checks if an error is thrown when expected. It also returns
+// true if an error was expected and false it wasn't.
 func assertError(t *testing.T, expected, actual error) bool {
 	var expError bool
 	if expected == nil {
@@ -144,4 +146,57 @@ func assertError(t *testing.T, expected, actual error) bool {
 		expError = true
 	}
 	return expError
+}
+
+func Test_NewHetznerDNS(t *testing.T) {
+	type testCase struct {
+		name     string
+		input    string
+		expected struct {
+			clientPresent bool
+			err           error
+		}
+	}
+
+	run := func(t *testing.T, tc testCase) {
+		exp := tc.expected
+		client, err := NewHetznerDNS(tc.input)
+		if !assertError(t, exp.err, err) {
+			if exp.clientPresent {
+				assert.NotNil(t, client)
+				assert.NotNil(t, client.client)
+			} else {
+				assert.Nil(t, client)
+			}
+		}
+	}
+
+	testCases := []testCase{
+		{
+			name:  "empty api key",
+			input: "",
+			expected: struct {
+				clientPresent bool
+				err           error
+			}{
+				err: errors.New("nil API key provided"),
+			},
+		},
+		{
+			name:  "some api key",
+			input: "TEST_API_KEY",
+			expected: struct {
+				clientPresent bool
+				err           error
+			}{
+				clientPresent: true,
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			run(t, tc)
+		})
+	}
 }

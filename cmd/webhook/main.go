@@ -23,12 +23,13 @@ import (
 	"syscall"
 
 	"external-dns-hetzner-webhook/internal/hetzner"
+	hetznercloud "external-dns-hetzner-webhook/internal/hetzner/cloud"
+	hetznerdns "external-dns-hetzner-webhook/internal/hetzner/dns"
 	"external-dns-hetzner-webhook/internal/server"
 
 	log "github.com/sirupsen/logrus"
+	"sigs.k8s.io/external-dns/provider"
 	"sigs.k8s.io/external-dns/provider/webhook/api"
-
-	"github.com/codingconcepts/env"
 )
 
 var (
@@ -60,6 +61,18 @@ func waitForSignal(status healthStatus) {
 	status.SetReady(false)
 }
 
+// createProvider creates a provider depending on the USE_CLOUD_API environment
+// variable. It uses the "hetznerdns" implementation if it is false and the
+// "hetznercloud" implementation if it is true. By default it creates a
+// "hetznerdns" provider.
+func createProvider(config *hetzner.Configuration) (provider.Provider, error) {
+	if config.UseCloudAPI {
+		return hetznercloud.NewHetznerProvider(config)
+	} else {
+		return hetznerdns.NewHetznerProvider(config)
+	}
+}
+
 // main reads the server configuration and starts both the webhook and the
 // metrics socket.
 func main() {
@@ -79,15 +92,15 @@ func main() {
 	go metricsSocket.Start(nil, *socketOptions)
 
 	// Read provider configuration
-	providerConfig := &hetzner.Configuration{}
-	if err := env.Set(providerConfig); err != nil {
+	config, err := hetzner.NewConfiguration()
+	if err != nil {
 		serverStatus.SetHealthy(false)
 		log.Fatal("Provider configuration unreadable - shutting down:", err)
 		log.Exit(1)
 	}
 
 	// instantiate the Hetzner provider
-	provider, err := hetzner.NewHetznerProvider(providerConfig)
+	provider, err := createProvider(config)
 	if err != nil {
 		serverStatus.SetHealthy(false)
 		log.Fatal("Provider cannot be instantiated - shutting down:", err)

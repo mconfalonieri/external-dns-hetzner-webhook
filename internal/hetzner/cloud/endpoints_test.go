@@ -15,16 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package hetzner
+package hetznercloud
 
 import (
 	"testing"
 
-	hdns "github.com/jobstoit/hetzner-dns-go/dns"
+	"github.com/hetznercloud/hcloud-go/v2/hcloud"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"sigs.k8s.io/external-dns/endpoint"
-	"sigs.k8s.io/external-dns/provider"
 )
 
 // Test_makeEndpointName tests makeEndpointName().
@@ -97,143 +96,52 @@ func Test_makeEndpointName(t *testing.T) {
 // Test_makeEndpointTarget tests makeEndpointTarget().
 func Test_makeEndpointTarget(t *testing.T) {
 	type testCase struct {
-		name  string
-		input struct {
-			domain      string
-			entryTarget string
-			epType      string
+		name     string
+		input    string
+		expected struct {
+			adjustedTarget string
+			err            error
 		}
-		expected string
 	}
 
 	run := func(t *testing.T, tc testCase) {
 		inp := tc.input
 		exp := tc.expected
-		actual := makeEndpointTarget(inp.domain, inp.entryTarget, inp.epType)
-		assert.Equal(t, exp, actual)
+		actual, err := makeEndpointTarget(inp)
+		assert.Equal(t, exp.adjustedTarget, actual)
+		assertError(t, exp.err, err)
 	}
 
 	testCases := []testCase{
 		{
-			name: "IP without domain provided",
-			input: struct {
-				domain      string
-				entryTarget string
-				epType      string
+			name:  "ipv4 address",
+			input: "1.1.1.1",
+			expected: struct {
+				adjustedTarget string
+				err            error
 			}{
-				domain:      "",
-				entryTarget: "0.0.0.0",
-				epType:      "A",
+				adjustedTarget: "1.1.1.1",
 			},
-			expected: "0.0.0.0",
 		},
 		{
-			name: "IP with domain provided",
-			input: struct {
-				domain      string
-				entryTarget string
-				epType      string
+			name:  "fqdn provided",
+			input: "www.alpha.com",
+			expected: struct {
+				adjustedTarget string
+				err            error
 			}{
-				domain:      "alpha.com",
-				entryTarget: "0.0.0.0",
-				epType:      "A",
+				adjustedTarget: "www.alpha.com",
 			},
-			expected: "0.0.0.0",
 		},
 		{
-			name: "No domain provided",
-			input: struct {
-				domain      string
-				entryTarget string
-				epType      string
+			name:  "hostname with trailing dot",
+			input: "www.",
+			expected: struct {
+				adjustedTarget string
+				err            error
 			}{
-				domain:      "",
-				entryTarget: "www.alpha.com",
-				epType:      "CNAME",
+				adjustedTarget: "www",
 			},
-			expected: "www.alpha.com",
-		},
-		{
-			name: "Other domain without trailing dot provided",
-			input: struct {
-				domain      string
-				entryTarget string
-				epType      string
-			}{
-				domain:      "alpha.com",
-				entryTarget: "www.beta.com",
-				epType:      "CNAME",
-			},
-			expected: "www.beta.com",
-		},
-		{
-			name: "Other domain with trailing dot provided",
-			input: struct {
-				domain      string
-				entryTarget string
-				epType      string
-			}{
-				domain:      "alpha.com",
-				entryTarget: "www.beta.com.",
-				epType:      "CNAME",
-			},
-			expected: "www.beta.com",
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			run(t, tc)
-		})
-	}
-}
-
-// Test_mergeEndpointsByNameType tests mergeEndpointsByNameType().
-func Test_mergeEndpointsByNameType(t *testing.T) {
-	mkEndpoint := func(params [3]string) *endpoint.Endpoint {
-		return &endpoint.Endpoint{
-			RecordType: params[0],
-			DNSName:    params[1],
-			Targets:    []string{params[2]},
-		}
-	}
-
-	type testCase struct {
-		name        string
-		input       [][3]string
-		expectedLen int
-	}
-
-	run := func(t *testing.T, tc testCase) {
-		input := make([]*endpoint.Endpoint, 0, len(tc.input))
-		for _, r := range tc.input {
-			input = append(input, mkEndpoint(r))
-		}
-		actual := mergeEndpointsByNameType(input)
-		assert.Equal(t, len(actual), tc.expectedLen)
-	}
-
-	testCases := []testCase{
-		{
-			name: "1:1 endpoint",
-			input: [][3]string{
-				{"A", "www.alfa.com", "8.8.8.8"},
-				{"A", "www.beta.com", "9.9.9.9"},
-				{"A", "www.gamma.com", "1.1.1.1"},
-			},
-			expectedLen: 3,
-		},
-		{
-			name: "6:4 endpoint",
-			input: [][3]string{
-				{"A", "www.alfa.com", "1.1.1.1"},
-				{"A", "www.beta.com", "2.2.2.2"},
-				{"A", "www.beta.com", "3.3.3.3"},
-				{"A", "www.gamma.com", "4.4.4.4"},
-				{"A", "www.gamma.com", "5.5.5.5"},
-				{"A", "www.delta.com", "6.6.6.6"},
-			},
-			expectedLen: 4,
 		},
 	}
 
@@ -247,55 +155,90 @@ func Test_mergeEndpointsByNameType(t *testing.T) {
 func Test_createEndpointFromRecord(t *testing.T) {
 	type testCase struct {
 		name     string
-		input    hdns.Record
+		input    *hcloud.ZoneRRSet
 		expected *endpoint.Endpoint
 	}
 
 	run := func(t *testing.T, tc testCase) {
-		actual := createEndpointFromRecord(tc.input)
+		actual := createEndpointFromRecord("--slash--", tc.input)
 		assert.EqualValues(t, tc.expected, actual)
 	}
 
 	testCases := []testCase{
 		{
 			name: "top domain",
-			input: hdns.Record{
-				ID:    "id_0",
-				Name:  "@",
-				Type:  hdns.RecordTypeCNAME,
-				Value: "www.alpha.com.",
-				Zone: &hdns.Zone{
-					ID:   "zoneIDBeta",
+			input: &hcloud.ZoneRRSet{
+				Zone: &hcloud.Zone{
+					ID:   2,
 					Name: "beta.com",
 				},
-				Ttl: 7200,
+				ID:   "id_0",
+				Name: "@",
+				Type: hcloud.ZoneRRSetTypeCNAME,
+				TTL:  &defaultTTL,
+				Records: []hcloud.ZoneRRSetRecord{
+					{
+						Value: "www.alpha.com.",
+					},
+				},
 			},
 			expected: &endpoint.Endpoint{
 				DNSName:    "beta.com",
-				RecordType: "CNAME",
+				RecordType: endpoint.RecordTypeCNAME,
 				Targets:    endpoint.Targets{"www.alpha.com"},
-				RecordTTL:  7200,
+				RecordTTL:  endpoint.TTL(defaultTTL),
 				Labels:     endpoint.Labels{},
 			},
 		},
 		{
-			name: "record",
-			input: hdns.Record{
-				ID:    "id_1",
-				Name:  "ftp",
-				Type:  hdns.RecordTypeCNAME,
-				Value: "www.alpha.com.",
-				Zone: &hdns.Zone{
-					ID:   "zoneIDBeta",
+			name: "single record",
+			input: &hcloud.ZoneRRSet{
+				Zone: &hcloud.Zone{
+					ID:   2,
 					Name: "beta.com",
 				},
-				Ttl: 7200,
+				ID:   "id_1",
+				Name: "ftp",
+				Type: hcloud.ZoneRRSetTypeCNAME,
+				TTL:  &defaultTTL,
+				Records: []hcloud.ZoneRRSetRecord{
+					{
+						Value: "www.alpha.com.",
+					},
+				},
 			},
 			expected: &endpoint.Endpoint{
 				DNSName:    "ftp.beta.com",
 				RecordType: "CNAME",
 				Targets:    endpoint.Targets{"www.alpha.com"},
-				RecordTTL:  7200,
+				RecordTTL:  endpoint.TTL(defaultTTL),
+				Labels:     endpoint.Labels{},
+			},
+		},
+		{
+			name: "multiple records",
+			input: &hcloud.ZoneRRSet{
+				Zone: &hcloud.Zone{
+					ID:   2,
+					Name: "beta.com",
+				},
+				ID:   "id_1",
+				Name: "ftp",
+				Type: hcloud.ZoneRRSetTypeCNAME,
+				TTL:  &defaultTTL,
+				Records: []hcloud.ZoneRRSetRecord{
+					{
+						Value: "www.alpha.com.",
+					}, {
+						Value: "www.gamma.com.",
+					},
+				},
+			},
+			expected: &endpoint.Endpoint{
+				DNSName:    "ftp.beta.com",
+				RecordType: "CNAME",
+				Targets:    endpoint.Targets{"www.alpha.com", "www.gamma.com"},
+				RecordTTL:  endpoint.TTL(defaultTTL),
 				Labels:     endpoint.Labels{},
 			},
 		},
@@ -313,10 +256,10 @@ func Test_endpointsByZoneID(t *testing.T) {
 	type testCase struct {
 		name  string
 		input struct {
-			zoneIDNameMapper provider.ZoneIDName
+			zoneIDNameMapper zoneIDName
 			endpoints        []*endpoint.Endpoint
 		}
-		expected map[string][]*endpoint.Endpoint
+		expected map[int64][]*endpoint.Endpoint
 	}
 
 	run := func(t *testing.T, tc testCase) {
@@ -328,26 +271,38 @@ func Test_endpointsByZoneID(t *testing.T) {
 		{
 			name: "empty input",
 			input: struct {
-				zoneIDNameMapper provider.ZoneIDName
+				zoneIDNameMapper zoneIDName
 				endpoints        []*endpoint.Endpoint
 			}{
-				zoneIDNameMapper: provider.ZoneIDName{
-					"zoneIDAlpha": "alpha.com",
-					"zoneIDBeta":  "beta.com",
+				zoneIDNameMapper: zoneIDName{
+					1: &hcloud.Zone{
+						ID:   1,
+						Name: "alpha.com",
+					},
+					2: &hcloud.Zone{
+						ID:   2,
+						Name: "beta.com",
+					},
 				},
 				endpoints: []*endpoint.Endpoint{},
 			},
-			expected: map[string][]*endpoint.Endpoint{},
+			expected: map[int64][]*endpoint.Endpoint{},
 		},
 		{
 			name: "some input",
 			input: struct {
-				zoneIDNameMapper provider.ZoneIDName
+				zoneIDNameMapper zoneIDName
 				endpoints        []*endpoint.Endpoint
 			}{
-				zoneIDNameMapper: provider.ZoneIDName{
-					"zoneIDAlpha": "alpha.com",
-					"zoneIDBeta":  "beta.com",
+				zoneIDNameMapper: zoneIDName{
+					1: &hcloud.Zone{
+						ID:   1,
+						Name: "alpha.com",
+					},
+					2: &hcloud.Zone{
+						ID:   2,
+						Name: "beta.com",
+					},
 				},
 				endpoints: []*endpoint.Endpoint{
 					{
@@ -366,8 +321,8 @@ func Test_endpointsByZoneID(t *testing.T) {
 					},
 				},
 			},
-			expected: map[string][]*endpoint.Endpoint{
-				"zoneIDAlpha": {
+			expected: map[int64][]*endpoint.Endpoint{
+				1: {
 					&endpoint.Endpoint{
 						DNSName:    "www.alpha.com",
 						RecordType: "A",
@@ -376,7 +331,7 @@ func Test_endpointsByZoneID(t *testing.T) {
 						},
 					},
 				},
-				"zoneIDBeta": {
+				2: {
 					&endpoint.Endpoint{
 						DNSName:    "www.beta.com",
 						RecordType: "A",
@@ -396,33 +351,36 @@ func Test_endpointsByZoneID(t *testing.T) {
 	}
 }
 
-// Test_getMatchingDomainRecords tests getMatchingDomainRecords().
-func Test_getMatchingDomainRecords(t *testing.T) {
+// Test_getMatchingDomainRRSet tests getMatchingDomainRRSet().
+func Test_getMatchingDomainRRSet(t *testing.T) {
 	type testCase struct {
 		name  string
 		input struct {
-			records  []hdns.Record
+			rrsets   []*hcloud.ZoneRRSet
 			zoneName string
 			ep       *endpoint.Endpoint
 		}
-		expected []hdns.Record
+		expected struct {
+			rrset *hcloud.ZoneRRSet
+			ok    bool
+		}
 	}
 
 	testCases := []testCase{
 		{
 			name: "no matches",
 			input: struct {
-				records  []hdns.Record
+				rrsets   []*hcloud.ZoneRRSet
 				zoneName string
 				ep       *endpoint.Endpoint
 			}{
-				records: []hdns.Record{
+				rrsets: []*hcloud.ZoneRRSet{
 					{
-						ID: "id1",
-						Zone: &hdns.Zone{
-							ID:   "zoneIDAlpha",
+						Zone: &hcloud.Zone{
+							ID:   1,
 							Name: "alpha.com",
 						},
+						ID:   "id1",
 						Name: "www",
 					},
 				},
@@ -431,22 +389,28 @@ func Test_getMatchingDomainRecords(t *testing.T) {
 					DNSName: "ftp.alpha.com",
 				},
 			},
-			expected: []hdns.Record{},
+			expected: struct {
+				rrset *hcloud.ZoneRRSet
+				ok    bool
+			}{
+				rrset: nil,
+				ok:    false,
+			},
 		},
 		{
 			name: "matches",
 			input: struct {
-				records  []hdns.Record
+				rrsets   []*hcloud.ZoneRRSet
 				zoneName string
 				ep       *endpoint.Endpoint
 			}{
-				records: []hdns.Record{
+				rrsets: []*hcloud.ZoneRRSet{
 					{
-						ID: "id1",
-						Zone: &hdns.Zone{
-							ID:   "zoneIDAlpha",
+						Zone: &hcloud.Zone{
+							ID:   1,
 							Name: "alpha.com",
 						},
+						ID:   "id1",
 						Name: "www",
 					},
 				},
@@ -455,22 +419,28 @@ func Test_getMatchingDomainRecords(t *testing.T) {
 					DNSName: "www.alpha.com",
 				},
 			},
-			expected: []hdns.Record{
-				{
-					ID: "id1",
-					Zone: &hdns.Zone{
-						ID:   "zoneIDAlpha",
+			expected: struct {
+				rrset *hcloud.ZoneRRSet
+				ok    bool
+			}{
+				rrset: &hcloud.ZoneRRSet{
+					Zone: &hcloud.Zone{
+						ID:   1,
 						Name: "alpha.com",
 					},
+					ID:   "id1",
 					Name: "www",
 				},
+				ok: true,
 			},
 		},
 	}
 
 	run := func(t *testing.T, tc testCase) {
-		actual := getMatchingDomainRecords(tc.input.records, tc.input.zoneName, tc.input.ep)
-		assert.ElementsMatch(t, actual, tc.expected)
+		exp := tc.expected
+		rrset, ok := getMatchingDomainRRSet(tc.input.rrsets, tc.input.zoneName, tc.input.ep)
+		assert.EqualValues(t, exp.rrset, rrset)
+		assert.Equal(t, exp.ok, ok)
 	}
 
 	for _, tc := range testCases {

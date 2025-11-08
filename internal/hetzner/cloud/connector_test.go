@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package hetzner
+package hetznercloud
 
 import (
 	"context"
@@ -23,7 +23,7 @@ import (
 	"net/http"
 	"testing"
 
-	hdns "github.com/jobstoit/hetzner-dns-go/dns"
+	"github.com/hetznercloud/hcloud-go/v2/hcloud"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -32,115 +32,147 @@ func Test_fetchRecords(t *testing.T) {
 	type testCase struct {
 		name  string
 		input struct {
-			zoneID    string
-			dnsClient apiClient
+			zone      *hcloud.Zone
+			client    apiClient
 			batchSize int
 		}
 		expected struct {
-			records []hdns.Record
-			err     error
+			rrsets []*hcloud.ZoneRRSet
+			err    error
 		}
 	}
 
 	run := func(t *testing.T, tc testCase) {
 		inp := tc.input
 		exp := tc.expected
-		actual, err := fetchRecords(context.Background(), inp.zoneID, inp.dnsClient, inp.batchSize)
+		actual, err := fetchRecords(context.Background(), inp.zone, inp.client, inp.batchSize)
 		if !assertError(t, exp.err, err) {
-			assert.ElementsMatch(t, exp.records, actual)
+			assert.ElementsMatch(t, exp.rrsets, actual)
 		}
 	}
 
 	testCases := []testCase{
 		{
-			name: "records fetched",
+			name: "RRSets fetched",
 			input: struct {
-				zoneID    string
-				dnsClient apiClient
+				zone      *hcloud.Zone
+				client    apiClient
 				batchSize int
 			}{
-				zoneID: "zoneIDAlpha",
-				dnsClient: &mockClient{
-					getRecords: recordsResponse{
-						records: []*hdns.Record{
+				zone: &hcloud.Zone{ID: 1},
+				client: &mockClient{
+					getRRSets: rrSetsResponse{
+						rrsets: []*hcloud.ZoneRRSet{
 							{
+								Zone: &hcloud.Zone{
+									ID:   1,
+									Name: "alpha.com",
+								},
 								ID:   "id_1",
 								Name: "www",
-								Type: hdns.RecordTypeA,
-								Zone: &hdns.Zone{
-									ID:   "zoneIDAlpha",
-									Name: "alpha.com",
+								Type: hcloud.ZoneRRSetTypeA,
+								TTL:  &defaultTTL,
+								Records: []hcloud.ZoneRRSetRecord{
+									{
+										Value: "1.1.1.1",
+									},
 								},
-								Value: "1.1.1.1",
-								Ttl:   -1,
 							},
 							{
+								Zone: &hcloud.Zone{
+									ID:   1,
+									Name: "alpha.com",
+								},
 								ID:   "id_2",
 								Name: "ftp",
-								Type: hdns.RecordTypeA,
-								Zone: &hdns.Zone{
-									ID:   "zoneIDAlpha",
-									Name: "alpha.com",
+								Type: hcloud.ZoneRRSetTypeA,
+								TTL:  &defaultTTL,
+								Records: []hcloud.ZoneRRSetRecord{
+									{
+										Value: "2.2.2.2",
+									},
 								},
-								Value: "2.2.2.2",
-								Ttl:   -1,
 							},
 							{
-								ID:   "id_3",
-								Name: "mail",
-								Type: hdns.RecordTypeMX,
-								Zone: &hdns.Zone{
-									ID:   "zoneIDAlpha",
+								Zone: &hcloud.Zone{
+									ID:   1,
 									Name: "alpha.com",
 								},
-								Value: "3.3.3.3",
-								Ttl:   -1,
+								ID:   "id_3",
+								Name: "mail",
+								Type: hcloud.ZoneRRSetTypeMX,
+								TTL:  &defaultTTL,
+								Records: []hcloud.ZoneRRSetRecord{
+									{
+										Value: "3.3.3.3",
+									},
+								},
 							},
 						},
-						resp: &hdns.Response{
+						resp: &hcloud.Response{
 							Response: &http.Response{StatusCode: http.StatusOK},
+							Meta: hcloud.Meta{
+								Pagination: &hcloud.Pagination{
+									Page:         1,
+									PerPage:      100,
+									LastPage:     1,
+									TotalEntries: 3,
+								},
+							},
 						},
 					},
 				},
 				batchSize: 100,
 			},
 			expected: struct {
-				records []hdns.Record
-				err     error
+				rrsets []*hcloud.ZoneRRSet
+				err    error
 			}{
-				records: []hdns.Record{
+				rrsets: []*hcloud.ZoneRRSet{
 					{
+						Zone: &hcloud.Zone{
+							ID:   1,
+							Name: "alpha.com",
+						},
 						ID:   "id_1",
 						Name: "www",
-						Type: hdns.RecordTypeA,
-						Zone: &hdns.Zone{
-							ID:   "zoneIDAlpha",
-							Name: "alpha.com",
+						Type: hcloud.ZoneRRSetTypeA,
+						TTL:  &defaultTTL,
+						Records: []hcloud.ZoneRRSetRecord{
+							{
+								Value: "1.1.1.1",
+							},
 						},
-						Value: "1.1.1.1",
-						Ttl:   -1,
 					},
 					{
+						Zone: &hcloud.Zone{
+							ID:   1,
+							Name: "alpha.com",
+						},
 						ID:   "id_2",
 						Name: "ftp",
-						Type: hdns.RecordTypeA,
-						Zone: &hdns.Zone{
-							ID:   "zoneIDAlpha",
-							Name: "alpha.com",
+						Type: hcloud.ZoneRRSetTypeA,
+						TTL:  &defaultTTL,
+						Records: []hcloud.ZoneRRSetRecord{
+							{
+								Value: "2.2.2.2",
+							},
 						},
-						Value: "2.2.2.2",
-						Ttl:   -1,
 					},
 					{
-						ID:   "id_3",
-						Name: "mail",
-						Type: hdns.RecordTypeMX,
-						Zone: &hdns.Zone{
-							ID:   "zoneIDAlpha",
+						Zone: &hcloud.Zone{
+							ID:   1,
 							Name: "alpha.com",
 						},
-						Value: "3.3.3.3",
-						Ttl:   -1,
+						ID:   "id_3",
+						Name: "mail",
+						Type: hcloud.ZoneRRSetTypeMX,
+						TTL:  &defaultTTL,
+						Records: []hcloud.ZoneRRSetRecord{
+							{
+								Value: "3.3.3.3",
+							},
+						},
 					},
 				},
 			},
@@ -148,21 +180,21 @@ func Test_fetchRecords(t *testing.T) {
 		{
 			name: "error fetching records",
 			input: struct {
-				zoneID    string
-				dnsClient apiClient
+				zone      *hcloud.Zone
+				client    apiClient
 				batchSize int
 			}{
-				zoneID: "zoneIDAlpha",
-				dnsClient: &mockClient{
-					getRecords: recordsResponse{
+				zone: &hcloud.Zone{ID: 1},
+				client: &mockClient{
+					getRRSets: rrSetsResponse{
 						err: errors.New("records test error"),
 					},
 				},
 				batchSize: 100,
 			},
 			expected: struct {
-				records []hdns.Record
-				err     error
+				rrsets []*hcloud.ZoneRRSet
+				err    error
 			}{
 				err: errors.New("records test error"),
 			},
@@ -181,11 +213,11 @@ func Test_fetchZones(t *testing.T) {
 	type testCase struct {
 		name  string
 		input struct {
-			dnsClient apiClient
+			client    apiClient
 			batchSize int
 		}
 		expected struct {
-			zones []hdns.Zone
+			zones []*hcloud.Zone
 			err   error
 		}
 	}
@@ -193,7 +225,7 @@ func Test_fetchZones(t *testing.T) {
 	run := func(t *testing.T, tc testCase) {
 		inp := tc.input
 		exp := tc.expected
-		actual, err := fetchZones(context.Background(), inp.dnsClient, inp.batchSize)
+		actual, err := fetchZones(context.Background(), inp.client, inp.batchSize)
 		if !assertError(t, exp.err, err) {
 			assert.ElementsMatch(t, actual, exp.zones)
 		}
@@ -203,25 +235,25 @@ func Test_fetchZones(t *testing.T) {
 		{
 			name: "zones fetched",
 			input: struct {
-				dnsClient apiClient
+				client    apiClient
 				batchSize int
 			}{
-				dnsClient: &mockClient{
+				client: &mockClient{
 					getZones: zonesResponse{
-						zones: []*hdns.Zone{
+						zones: []*hcloud.Zone{
 							{
-								ID:   "zoneIDAlpha",
+								ID:   1,
 								Name: "alpha.com",
 							},
 							{
-								ID:   "zoneIDBeta",
+								ID:   2,
 								Name: "beta.com",
 							},
 						},
-						resp: &hdns.Response{
+						resp: &hcloud.Response{
 							Response: &http.Response{StatusCode: http.StatusOK},
-							Meta: hdns.Meta{
-								Pagination: &hdns.Pagination{
+							Meta: hcloud.Meta{
+								Pagination: &hcloud.Pagination{
 									Page:         1,
 									PerPage:      100,
 									LastPage:     1,
@@ -234,16 +266,16 @@ func Test_fetchZones(t *testing.T) {
 				batchSize: 100,
 			},
 			expected: struct {
-				zones []hdns.Zone
+				zones []*hcloud.Zone
 				err   error
 			}{
-				zones: []hdns.Zone{
+				zones: []*hcloud.Zone{
 					{
-						ID:   "zoneIDAlpha",
+						ID:   1,
 						Name: "alpha.com",
 					},
 					{
-						ID:   "zoneIDBeta",
+						ID:   2,
 						Name: "beta.com",
 					},
 				},
@@ -252,10 +284,10 @@ func Test_fetchZones(t *testing.T) {
 		{
 			name: "error fetching zones",
 			input: struct {
-				dnsClient apiClient
+				client    apiClient
 				batchSize int
 			}{
-				dnsClient: &mockClient{
+				client: &mockClient{
 					getZones: zonesResponse{
 						err: errors.New("zones test error"),
 					},
@@ -263,7 +295,7 @@ func Test_fetchZones(t *testing.T) {
 				batchSize: 100,
 			},
 			expected: struct {
-				zones []hdns.Zone
+				zones []*hcloud.Zone
 				err   error
 			}{
 				err: errors.New("zones test error"),

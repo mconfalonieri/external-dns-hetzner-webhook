@@ -29,17 +29,31 @@ import (
 
 // Configuration contains the Hetzner provider's configuration.
 type Configuration struct {
-	APIKey               string   `env:"HETZNER_API_KEY" required:"true"`
-	DryRun               bool     `env:"DRY_RUN" default:"false"`
-	Debug                bool     `env:"HETZNER_DEBUG" default:"false"`
-	BatchSize            int      `env:"BATCH_SIZE" default:"100"`
-	DefaultTTL           int      `env:"DEFAULT_TTL" default:"7200"`
-	DomainFilter         []string `env:"DOMAIN_FILTER" default:""`
-	ExcludeDomains       []string `env:"EXCLUDE_DOMAIN_FILTER" default:""`
-	RegexDomainFilter    string   `env:"REGEXP_DOMAIN_FILTER" default:""`
-	RegexDomainExclusion string   `env:"REGEXP_DOMAIN_FILTER_EXCLUSION" default:""`
+	// Use the new Cloud API for DNS
+	UseCloudAPI bool `env:"USE_CLOUD_API" default:"false"`
+	// DNS API key or Cloud API key
+	APIKey string `env:"HETZNER_API_KEY" required:"true"`
+	// If true, do not execute actions on the API
+	DryRun bool `env:"DRY_RUN" default:"false"`
+	// Enable debugging logs
+	Debug bool `env:"HETZNER_DEBUG" default:"false"`
+	// Default batch size (max 100)
+	BatchSize int `env:"BATCH_SIZE" default:"100"`
+	// Default TTL when not specified
+	DefaultTTL int `env:"DEFAULT_TTL" default:"7200"`
+	// Domain filter
+	DomainFilter []string `env:"DOMAIN_FILTER" default:""`
+	// Excluded domains
+	ExcludeDomains []string `env:"EXCLUDE_DOMAIN_FILTER" default:""`
+	// Regular expression for domain filter
+	RegexDomainFilter string `env:"REGEXP_DOMAIN_FILTER" default:""`
+	// Regular expression for excluding domains
+	RegexDomainExclusion string `env:"REGEXP_DOMAIN_FILTER_EXCLUSION" default:""`
+	// Slash escape sequence for labels
+	SlashEscSeq string `env:"SLASH_ESC_SEQ" default:"--slash--"`
 }
 
+// NewConfiguration creates a new configuration object.
 func NewConfiguration() (*Configuration, error) {
 	cfg := &Configuration{}
 
@@ -51,13 +65,14 @@ func NewConfiguration() (*Configuration, error) {
 	return cfg, nil
 }
 
-// GetDomainFilter returns the domain filter from the configuration.
+// GetDomainFilter returns the domain filter from the configuration. If the
+// regular expression filters are set, the others are ignored.
 func GetDomainFilter(config Configuration) *endpoint.DomainFilter {
 	var domainFilter *endpoint.DomainFilter
 	createMsg := "Creating Hetzner provider with "
 
 	if config.RegexDomainFilter != "" {
-		createMsg += fmt.Sprintf("Regexp domain filter: '%s', ", config.RegexDomainFilter)
+		createMsg += fmt.Sprintf("regexp domain filter: '%s', ", config.RegexDomainFilter)
 		if config.RegexDomainExclusion != "" {
 			createMsg += fmt.Sprintf("with exclusion: '%s', ", config.RegexDomainExclusion)
 		}
