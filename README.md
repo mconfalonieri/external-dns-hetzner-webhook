@@ -173,7 +173,8 @@ annotations. This feature has some additional requirements to work properly:
 - the zone must be migrated to Hetzner Cloud console
 - **USE_CLOUD_API** must be set to `true`
 
-The labels are set in the annotation `external-dns.alpha.kubernetes.io/webhook-hetzner-labels`.
+The labels are set with an annotation prefixed with:
+`external-dns.alpha.kubernetes.io/webhook-hetzner-label-`.
 
 For example, if we want to set these labels:
 
