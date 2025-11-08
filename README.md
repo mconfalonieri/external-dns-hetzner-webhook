@@ -74,7 +74,7 @@ provider:
   webhook:
     image:
       repository: ghcr.io/mconfalonieri/external-dns-hetzner-webhook
-      tag: v0.8.0
+      tag: v0.8.1
     env:
       - name: HETZNER_API_KEY
         valueFrom:
@@ -131,7 +131,7 @@ extraArgs:
 
 sidecars:
   - name: hetzner-webhook
-    image: ghcr.io/mconfalonieri/external-dns-hetzner-webhook:v0.8.0
+    image: ghcr.io/mconfalonieri/external-dns-hetzner-webhook:v0.8.1
     ports:
       - containerPort: 8888
         name: webhook
