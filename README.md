@@ -26,7 +26,7 @@ for the account managing your domains is required for this webhook to work
 properly when the **USE_CLOUD_API** environment variable is set to `false` or
 not set.
 
-### New Cloud API
+### Cloud API
 
 A [Cloud API token](https://docs.hetzner.com/cloud/api/getting-started/generating-api-token/)
 is required when the new Cloud API is in use (the **USE_CLOUD_API** environment
@@ -172,6 +172,7 @@ annotations. This feature has some additional requirements to work properly:
 - External DNS in use must be **0.19.0** or higher
 - the zone must be migrated to Hetzner Cloud console
 - **USE_CLOUD_API** must be set to `true`
+- **HETZNER_API_TOKEN** must refer to a Cloud API token
 
 The labels are set with an annotation prefixed with:
 `external-dns.alpha.kubernetes.io/webhook-hetzner-label-`.
@@ -213,7 +214,7 @@ The configuration is still compatible, however some changes were introduced that
 might be worth to check out:
 
 - the new Cloud API is now supported through the **USE_CLOUD_API** environment
-  variable;
+  variable and using a Cloud API token for **HETZNER_API_TOKEN**;
 - [Hetzner labels](#hetzner-labels) are available when the new Cloud API is in use;
 - The minimum ExternalDNS version is now **0.19.0** as the label system and the
   Cloud API are untested with previous versions.
@@ -256,6 +257,9 @@ Hetzner DNS API.
 | DEFAULT_TTL     | Default record TTL                    | Default: `7200`            |
 | USE_CLOUD_API   | Use the new cloud API                 | Default: `false`           |
 | SLASH_ESC_SEQ   | Escape sequence for label annotations | Default: `--slash--`       |
+
+Please notice that when **USE_CLOUD_API** is set to `true`, the token stored in
+**HETZNER_API_KEY** must be a Hetzner Cloud token, NOT the classic DNS one.
 
 ### Test and debug
 
