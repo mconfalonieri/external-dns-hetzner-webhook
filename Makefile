@@ -77,60 +77,30 @@ build-amd64: ## Build the AMD64 binary
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o build/bin/$(ARTIFACT_NAME)-amd64 ./cmd/webhook
 
 .PHONY: run
-run:build ## Run the binary on local machine
+run: build ## Run the binary on local machine
 	build/bin/external-dns-hetzner-webhook
+
+.PHONY: all
+all: unit-test build ## Run the unit tests and build the binaries
 
 ##@ Docker
 
 .PHONY: docker-build
-docker-build: build ## Build the local docker image
-	docker build . \
-		-f docker/localbuild.Dockerfile \
-		-t $(IMAGE)
-
-.PHONY: docker-push
-docker-push: ## Push the local docker image
-	docker push $(IMAGE)
+docker-build: build-arm64 build-amd64 ## Build docker images for all platforms
+	docker buildx build \
+		--platform linux/amd64,linux/arm64 \
+		-t $(IMAGE) \
+		-f localbuild.Dockerfile \
+		.
 
 .PHONY: docker-all
-docker-all: docker-build docker-push ## Build and push the local image and tag
+docker-all: build-arm64 build-amd64 ## Build and push docker images for all platforms
+	docker buildx build \
+		--platform linux/amd64,linux/arm64 \
+		-t $(IMAGE) \
+		-f localbuild.Dockerfile \
+		--push .
 
-
-##@ Docker multiarch
-
-.PHONY: docker-build-arm64
-docker-build-arm64: build-arm64
-	docker build . \
-		-f docker/localbuild.arm64.Dockerfile \
-		-t $(IMAGE)-arm64
-
-.PHONY: docker-build-amd64
-docker-build-amd64: build-amd64
-	docker build . \
-		-f docker/localbuild.amd64.Dockerfile \
-		-t $(IMAGE)-amd64
-
-.PHONY: docker-multiarch-build
-docker-multiarch-build: docker-build-arm64 docker-build-amd64 ## Build docker multiarch images
-	docker manifest rm $(IMAGE); \
-	docker manifest create $(IMAGE) \
-		--amend $(IMAGE)-amd64 \
-		--amend $(IMAGE)-arm64
-
-.PHONY: docker-push-arm64
-docker-push-arm64:
-	docker push $(IMAGE)-arm64
-
-.PHONY: docker-push-amd64
-docker-push-amd64:
-	docker push $(IMAGE)-amd64
-
-.PHONY: docker-multiarch-push
-docker-multiarch-push: docker-push-arm64 docker-push-amd64 ## Push the docker multiarch manifest
-	docker manifest push $(IMAGE)
-
-.PHONY: docker-multiarch-all
-docker-multiarch-all: docker-multiarch-build docker-multiarch-push ## Build and push multiarch images and tag
 
 ##@ Test
 
