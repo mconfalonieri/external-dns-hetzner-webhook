@@ -22,6 +22,8 @@ IMAGE_NAME ?= external-dns-hetzner-webhook
 IMAGE_TAG ?= localbuild
 IMAGE = $(REGISTRY)/$(IMAGE_NAME):$(IMAGE_TAG)
 
+VERSION=`git describe --tags --abbrev=0`
+
 ##@ General
 
 .PHONY: help
@@ -37,6 +39,11 @@ show: ## Show variables
 	@echo "\033[36m  IMAGE_TAG\033[0m     $(IMAGE_TAG)"
 	@echo "\033[36m  IMAGE\033[0m         $(IMAGE)"
 
+##@ Documentation
+
+.PHONY: readme
+readme: ## Update version in README.md
+	scripts/generate_readme.sh $(VERSION)
 
 ##@ Code analysis
 
@@ -81,7 +88,7 @@ run: build ## Run the binary on local machine
 	build/bin/external-dns-hetzner-webhook
 
 .PHONY: all
-all: unit-test build ## Run the unit tests and build the binaries
+all: unit-test build doc ## Run the unit tests and build the binaries
 
 ##@ Docker
 

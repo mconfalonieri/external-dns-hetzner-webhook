@@ -32,7 +32,7 @@ jobs:
       - name: Cleanup for renovate
         if: startsWith(github.head_ref, 'renovate/')
         run: make renovate-fix
-      - name: Save changes
+      - name: Save renovate changes
         if: startsWith(github.head_ref, 'renovate/')
         uses: stefanzweifel/git-auto-commit-action@v7
         with:
