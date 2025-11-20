@@ -7,7 +7,7 @@ before:
       {{- if .IsSnapshot -}}
            make readme
       {{- else -}}
-           scripts/generate_readme.sh {{ .Version }}
+           scripts/generate_readme.sh v{{ .Version }}
       {{- end -}}
 builds:
   - main: ./cmd/webhook
