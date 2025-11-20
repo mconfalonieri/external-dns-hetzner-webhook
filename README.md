@@ -13,6 +13,7 @@ This webhook supports both the old DNS API and the new Cloud DNS interface.
 
 ℹ️ If you are upgrading to **0.8.x** from previous versions read the
 [Upgrading from previous versions](#upgrading-from-previous-versions) section.
+The latest version is **v0.8.1**.
 
 ## Requirements
 

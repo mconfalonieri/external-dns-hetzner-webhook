@@ -3,6 +3,7 @@ version: 2
 before:
   hooks:
     - scripts/release_precheck.sh
+    - './generate_readme.sh {{ .Version }}'
 builds:
   - main: ./cmd/webhook
     env:
