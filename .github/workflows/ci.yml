@@ -32,7 +32,7 @@ jobs:
       - name: Cleanup for renovate
         if: startsWith(github.head_ref, 'renovate/')
         run: make renovate-fix
-      - name: Save changes
+      - name: Save renovate changes
         if: startsWith(github.head_ref, 'renovate/')
         uses: stefanzweifel/git-auto-commit-action@v7
         with:
@@ -43,3 +43,8 @@ jobs:
           distribution: goreleaser
           version: ~> v2
           args: release --snapshot --clean --skip=publish
+      - name: Save release changes
+        if: ${{ github.ref == 'refs/heads/main' }}
+        uses: stefanzweifel/git-auto-commit-action@v7
+        with:
+          commit_message: "Saving changes"
