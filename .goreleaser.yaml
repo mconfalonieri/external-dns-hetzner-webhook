@@ -3,12 +3,7 @@ version: 2
 before:
   hooks:
     - scripts/release_precheck.sh
-    - >-
-      {{- if .IsSnapshot -}}
-           make readme
-      {{- else -}}
-           scripts/generate_readme.sh v{{ .Version }}
-      {{- end -}}
+    - make readme
 builds:
   - main: ./cmd/webhook
     env:
