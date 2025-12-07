@@ -2,7 +2,7 @@
 
 ⚠️ **This software is experimental.** ⚠️
 
-ℹ️ The latest version is **v0.8.1**.
+ℹ️ The latest version is **v0.9.0**.
 
 [ExternalDNS](https://github.com/kubernetes-sigs/external-dns) is a Kubernetes
 add-on for automatically DNS records for Kubernetes services using different
@@ -77,7 +77,7 @@ provider:
   webhook:
     image:
       repository: ghcr.io/mconfalonieri/external-dns-hetzner-webhook
-      tag: v0.8.1
+      tag: v0.9.0
     env:
       - name: HETZNER_API_KEY
         valueFrom:
@@ -134,7 +134,7 @@ extraArgs:
 
 sidecars:
   - name: hetzner-webhook
-    image: ghcr.io/mconfalonieri/external-dns-hetzner-webhook:v0.8.1
+    image: ghcr.io/mconfalonieri/external-dns-hetzner-webhook:v0.9.0
     ports:
       - containerPort: 8888
         name: webhook
@@ -211,6 +211,14 @@ This can be changed using the **SLASH_ESC_SEQ** environment variable.
 
 ## Upgrading from previous versions
 
+### 0.8.x to 0.9.x
+
+The configuration is fully compatible. A new configuration parameter
+**MAX_FAIL_COUNT** was added to control the webhook behavior in case of
+repeated failed attempts to retrieve the records. If this parameter is set to
+a value strictly greater than zero, the webhook will shut down after the
+configured number of attempts. The default is `-1` (shutdown disabled).
+
 ### 0.7.x to 0.8.x
 
 The configuration is still compatible, however some changes were introduced that
@@ -253,13 +261,14 @@ The following environment variables can be used for configuring the application.
 These variables control the behavior of the webhook when interacting with
 Hetzner DNS API.
 
-| Variable        | Description                           | Notes                      |
-| --------------- | ------------------------------------- | -------------------------- |
-| HETZNER_API_KEY | Hetzner API token                     | Mandatory                  |
-| BATCH_SIZE      | Number of zones per call              | Default: `100`, max: `100` |
-| DEFAULT_TTL     | Default record TTL                    | Default: `7200`            |
-| USE_CLOUD_API   | Use the new cloud API                 | Default: `false`           |
-| SLASH_ESC_SEQ   | Escape sequence for label annotations | Default: `--slash--`       |
+| Variable        | Description                            | Notes                      |
+| --------------- | -------------------------------------- | -------------------------- |
+| HETZNER_API_KEY | Hetzner API token                      | Mandatory                  |
+| BATCH_SIZE      | Number of zones per call               | Default: `100`, max: `100` |
+| DEFAULT_TTL     | Default record TTL                     | Default: `7200`            |
+| USE_CLOUD_API   | Use the new cloud API                  | Default: `false`           |
+| SLASH_ESC_SEQ   | Escape sequence for label annotations  | Default: `--slash--`       |
+| MAX_FAIL_COUNT  | Number of failed calls before shutdown | Default: `-1` (disabled)   |
 
 Please notice that when **USE_CLOUD_API** is set to `true`, the token stored in
 **HETZNER_API_KEY** must be a Hetzner Cloud token, NOT the classic DNS one.
