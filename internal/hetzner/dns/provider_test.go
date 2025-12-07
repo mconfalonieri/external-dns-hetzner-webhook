@@ -74,7 +74,7 @@ func Test_NewHetznerProvider(t *testing.T) {
 				provider HetznerProvider
 				err      error
 			}{
-				err: errors.New("cannot instantiate provider: nil API key provided"),
+				err: errors.New("cannot instantiate legacy DNS provider: nil API key provided"),
 			},
 		},
 		{

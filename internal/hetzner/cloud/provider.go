@@ -67,7 +67,7 @@ func NewHetznerProvider(config *hetzner.Configuration) (*HetznerProvider, error)
 
 	client, err := NewHetznerCloud(config.APIKey)
 	if err != nil {
-		return nil, fmt.Errorf("cannot instantiate provider: %s", err.Error())
+		return nil, fmt.Errorf("cannot instantiate cloud DNS provider: %s", err.Error())
 	}
 
 	var msg string
