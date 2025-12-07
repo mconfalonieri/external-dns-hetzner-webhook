@@ -51,6 +51,10 @@ type Configuration struct {
 	RegexDomainExclusion string `env:"REGEXP_DOMAIN_FILTER_EXCLUSION" default:""`
 	// Slash escape sequence for labels
 	SlashEscSeq string `env:"SLASH_ESC_SEQ" default:"--slash--"`
+	// Failed reads count before shutting down the container. It gets reset for
+	// every successful API access. A negative or 0 value disables the fail shut
+	// down.
+	MaxFailCount int `env:"MAX_FAIL_COUNT" default:"-1"`
 }
 
 // NewConfiguration creates a new configuration object.

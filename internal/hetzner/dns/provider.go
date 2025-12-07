@@ -36,6 +36,9 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// logFatalf is a mockable call to log.Fatalf
+var logFatalf = log.Fatalf
+
 // HetznerProvider implements ExternalDNS' provider.Provider interface for
 // Hetzner.
 type HetznerProvider struct {
@@ -47,6 +50,8 @@ type HetznerProvider struct {
 	defaultTTL       int
 	zoneIDNameMapper provider.ZoneIDName
 	domainFilter     *endpoint.DomainFilter
+	maxFailCount     int
+	failCount        int
 }
 
 // NewHetznerProvider creates a new HetznerProvider instance.
@@ -61,8 +66,16 @@ func NewHetznerProvider(config *hetzner.Configuration) (*HetznerProvider, error)
 
 	client, err := NewHetznerDNS(config.APIKey)
 	if err != nil {
-		return nil, fmt.Errorf("cannot instantiate provider: %s", err.Error())
+		return nil, fmt.Errorf("cannot instantiate legacy DNS provider: %s", err.Error())
 	}
+
+	var msg string
+	if config.MaxFailCount > 0 {
+		msg = fmt.Sprintf("Configuring legacy DNS provider with maximum fail count of %d", config.MaxFailCount)
+	} else {
+		msg = "Configuring legacy DNS provider without maximum fail count"
+	}
+	log.Info(msg)
 
 	return &HetznerProvider{
 		client:       client,
@@ -71,7 +84,27 @@ func NewHetznerProvider(config *hetzner.Configuration) (*HetznerProvider, error)
 		dryRun:       config.DryRun,
 		defaultTTL:   config.DefaultTTL,
 		domainFilter: hetzner.GetDomainFilter(*config),
+		maxFailCount: config.MaxFailCount,
 	}, nil
+}
+
+// incFailCount increments the fail count and exit if necessary.
+func (p *HetznerProvider) incFailCount() {
+	if p.maxFailCount <= 0 {
+		return
+	}
+	p.failCount++
+	if p.failCount >= p.maxFailCount {
+		logFatalf("Failure count reached %d. Shutting down container.", p.failCount)
+	}
+}
+
+// resetFailCount resets the fail count.
+func (p *HetznerProvider) resetFailCount() {
+	if p.maxFailCount <= 0 {
+		return
+	}
+	p.failCount = 0
 }
 
 // Zones returns the list of the hosted DNS zones.
@@ -131,8 +164,10 @@ func logDebugEndpoints(endpoints []*endpoint.Endpoint) {
 func (p *HetznerProvider) Records(ctx context.Context) ([]*endpoint.Endpoint, error) {
 	zones, err := p.Zones(ctx)
 	if err != nil {
+		p.incFailCount()
 		return nil, err
 	}
+	p.resetFailCount()
 
 	endpoints := []*endpoint.Endpoint{}
 	for _, zone := range zones {
