@@ -2,7 +2,6 @@ project_name: external-dns-hetzner-webhook
 version: 2
 before:
   hooks:
-    - make readme
     - scripts/release_precheck.sh
 builds:
   - main: ./cmd/webhook
