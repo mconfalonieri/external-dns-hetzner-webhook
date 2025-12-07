@@ -46,7 +46,3 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Save release changes
-        uses: stefanzweifel/git-auto-commit-action@v7
-        with:
-          commit_message: "Saving changes"

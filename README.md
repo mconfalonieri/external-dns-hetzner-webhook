@@ -2,7 +2,7 @@
 
 ⚠️ **This software is experimental.** ⚠️
 
-ℹ️ The latest version is **v0.9.0**.
+ℹ️ The latest version is **v0.8.2**.
 
 [ExternalDNS](https://github.com/kubernetes-sigs/external-dns) is a Kubernetes
 add-on for automatically DNS records for Kubernetes services using different
@@ -77,7 +77,7 @@ provider:
   webhook:
     image:
       repository: ghcr.io/mconfalonieri/external-dns-hetzner-webhook
-      tag: v0.9.0
+      tag: v0.8.2
     env:
       - name: HETZNER_API_KEY
         valueFrom:
@@ -134,7 +134,7 @@ extraArgs:
 
 sidecars:
   - name: hetzner-webhook
-    image: ghcr.io/mconfalonieri/external-dns-hetzner-webhook:v0.9.0
+    image: ghcr.io/mconfalonieri/external-dns-hetzner-webhook:v0.8.2
     ports:
       - containerPort: 8888
         name: webhook
