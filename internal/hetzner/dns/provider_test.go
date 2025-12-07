@@ -20,6 +20,7 @@ package hetznerdns
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"testing"
 
@@ -73,7 +74,7 @@ func Test_NewHetznerProvider(t *testing.T) {
 				provider HetznerProvider
 				err      error
 			}{
-				err: errors.New("cannot instantiate provider: nil API key provided"),
+				err: errors.New("cannot instantiate legacy DNS provider: nil API key provided"),
 			},
 		},
 		{
@@ -959,6 +960,157 @@ func Test_getRecordsByZoneID(t *testing.T) {
 			}{
 				err: errors.New("test records error"),
 			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			run(t, tc)
+		})
+	}
+}
+
+// Test_incFailCount tests incFailCount().
+func Test_incFailCount(t *testing.T) {
+	type testCase struct {
+		name     string
+		object   *HetznerProvider
+		expected struct {
+			failCount       int
+			logFatalfCalled bool
+			logFatalfMsg    string
+		}
+	}
+
+	run := func(t *testing.T, tc testCase) {
+		origLogFatalf := logFatalf
+		obj := tc.object
+		exp := tc.expected
+		logFatalfCalled := false
+		logFatalfMsg := ""
+
+		// Mock logFatalf
+		logFatalf = func(format string, a ...interface{}) {
+			logFatalfCalled = true
+			logFatalfMsg = fmt.Sprintf(format, a...)
+		}
+		// Do the call
+		obj.incFailCount()
+		// Restore logFatalf
+		logFatalf = origLogFatalf
+
+		assert.Equal(t, exp.failCount, obj.failCount)
+		assert.Equal(t, exp.logFatalfCalled, logFatalfCalled)
+		assert.Equal(t, exp.logFatalfMsg, logFatalfMsg)
+	}
+
+	testCases := []testCase{
+		{
+			name: "failCount is disabled",
+			object: &HetznerProvider{
+				maxFailCount: -1,
+				failCount:    -1, // impossible value, but will not be reset if disabled
+			},
+			expected: struct {
+				failCount       int
+				logFatalfCalled bool
+				logFatalfMsg    string
+			}{
+				failCount: -1,
+			},
+		},
+		{
+			name: "failCount is enabled and zero",
+			object: &HetznerProvider{
+				maxFailCount: 3,
+				failCount:    0,
+			},
+			expected: struct {
+				failCount       int
+				logFatalfCalled bool
+				logFatalfMsg    string
+			}{
+				failCount: 1,
+			},
+		},
+		{
+			name: "failCount is enabled and low",
+			object: &HetznerProvider{
+				maxFailCount: 3,
+				failCount:    1,
+			},
+			expected: struct {
+				failCount       int
+				logFatalfCalled bool
+				logFatalfMsg    string
+			}{
+				failCount: 2,
+			},
+		},
+		{
+			name: "failCount is enabled and high",
+			object: &HetznerProvider{
+				maxFailCount: 3,
+				failCount:    2,
+			},
+			expected: struct {
+				failCount       int
+				logFatalfCalled bool
+				logFatalfMsg    string
+			}{
+				failCount:       3,
+				logFatalfCalled: true,
+				logFatalfMsg:    "Failure count reached 3. Shutting down container.",
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			run(t, tc)
+		})
+	}
+}
+
+// Test_resetFailCount tests resetFailCount().
+func Test_resetFailCount(t *testing.T) {
+	type testCase struct {
+		name     string
+		object   *HetznerProvider
+		expected int
+	}
+
+	run := func(t *testing.T, tc testCase) {
+		obj := tc.object
+		exp := tc.expected
+		obj.resetFailCount()
+		assert.Equal(t, exp, obj.failCount)
+	}
+
+	testCases := []testCase{
+		{
+			name: "failCount is disabled",
+			object: &HetznerProvider{
+				maxFailCount: -1,
+				failCount:    -1, // impossible value, but will not be reset if disabled
+			},
+			expected: -1,
+		},
+		{
+			name: "failCount is enabled and zero",
+			object: &HetznerProvider{
+				maxFailCount: 3,
+				failCount:    0,
+			},
+			expected: 0,
+		},
+		{
+			name: "failCount is enabled and not zero",
+			object: &HetznerProvider{
+				maxFailCount: 3,
+				failCount:    2,
+			},
+			expected: 0,
 		},
 	}
 
