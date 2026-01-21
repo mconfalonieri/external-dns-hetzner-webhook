@@ -19,10 +19,19 @@ package hetznercloud
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"regexp"
+	"strconv"
+	"strings"
+
+	"external-dns-hetzner-webhook/internal/zonefile"
 
 	"github.com/hetznercloud/hcloud-go/v2/hcloud"
 	log "github.com/sirupsen/logrus"
 )
+
+var ttlMatcher = regexp.MustCompile(`\$TTL\s+(\d+)`)
 
 type zoneChanges struct {
 	creates []*hetznerChangeCreate
@@ -110,25 +119,173 @@ func (c *bulkChanges) AddChangeDelete(rrset *hcloud.ZoneRRSet) {
 	zc.deletes = append(zc.deletes, changeDelete)
 }
 
+func readTTL(zf string) (int, bool) {
+	matches := ttlMatcher.FindStringSubmatch(zf)
+	if len(matches) < 2 {
+		return 0, false
+	}
+	ttl, _ := strconv.Atoi(matches[1])
+	return ttl, true
+}
+
+// decodeRecords extracts the records as a string array, discarding the
+// comments.
+func decodeRecords(rrs []hcloud.ZoneRRSetRecord) []string {
+	rs := make([]string, len(rrs))
+	for i, rr := range rrs {
+		rs[i] = rr.Value
+	}
+	return rs
+}
+
+// createRecord adds a new record
+func createRecord(z *zonefile.Zonefile, c *hetznerChangeCreate) {
+	opts := c.opts
+	recType := opts.Type
+	ttl := z.GetTTL()
+	if opts.TTL != nil {
+		ttl = *opts.TTL
+	}
+	name := opts.Name
+	if name == "@" {
+		name = z.GetOrigin()
+	}
+	recs := decodeRecords(opts.Records)
+	var err error
+	switch recType {
+	case hcloud.ZoneRRSetTypeA:
+		err = z.AddARecord(name, ttl, recs)
+	case hcloud.ZoneRRSetTypeAAAA:
+		err = z.AddAAAARecord(name, ttl, recs)
+	case hcloud.ZoneRRSetTypeCNAME:
+		err = z.AddCNAMERecord(name, ttl, recs)
+	case hcloud.ZoneRRSetTypeMX:
+		err = z.AddMXRecord(name, ttl, recs)
+	case hcloud.ZoneRRSetTypeNS:
+		err = z.AddNSRecord(name, ttl, recs)
+	case hcloud.ZoneRRSetTypeSRV:
+		err = z.AddSRVRecord(name, ttl, recs)
+	case hcloud.ZoneRRSetTypeTXT:
+		err = z.AddTXTRecord(name, ttl, recs)
+	default:
+		err = errors.New("record type not supported")
+	}
+	if err != nil {
+		zn, _ := strings.CutSuffix(z.GetOrigin(), ".")
+		log.WithFields(log.Fields{
+			"zoneName":   zn,
+			"dnsName":    opts.Name,
+			"recordType": recType,
+		}).Warnf("Cannot create record: %v", err)
+	}
+}
+
+// updateRecord updates a recordset
+func updateRecord(z *zonefile.Zonefile, u *hetznerChangeUpdate) {
+	rset := u.rrset
+	rOpts := u.recordsOpts
+	ttlOpts := u.ttlOpts
+	recType := rset.Type
+	ttl := z.GetTTL()
+	if ttlOpts != nil && ttlOpts.TTL != nil {
+		ttl = *ttlOpts.TTL
+	} else if rset.TTL != nil {
+		ttl = *rset.TTL
+	}
+	name := rset.Name
+	if name == "@" {
+		name = z.GetOrigin()
+	}
+	var recs []string
+	if rOpts != nil {
+		recs = decodeRecords(rOpts.Records)
+	} else {
+		recs = decodeRecords(rset.Records)
+	}
+	var err error
+	switch recType {
+	case hcloud.ZoneRRSetTypeA:
+		err = z.ChangeARecord(name, ttl, recs)
+	case hcloud.ZoneRRSetTypeAAAA:
+		err = z.ChangeAAAARecord(name, ttl, recs)
+	case hcloud.ZoneRRSetTypeCNAME:
+		err = z.ChangeCNAMERecord(name, ttl, recs)
+	case hcloud.ZoneRRSetTypeMX:
+		err = z.ChangeMXRecord(name, ttl, recs)
+	case hcloud.ZoneRRSetTypeNS:
+		err = z.ChangeNSRecord(name, ttl, recs)
+	case hcloud.ZoneRRSetTypeSRV:
+		err = z.ChangeSRVRecord(name, ttl, recs)
+	case hcloud.ZoneRRSetTypeTXT:
+		err = z.ChangeTXTRecord(name, ttl, recs)
+	default:
+		err = errors.New("record type not supported")
+	}
+	if err != nil {
+		zn, _ := strings.CutSuffix(z.GetOrigin(), ".")
+		log.WithFields(log.Fields{
+			"zoneName":   zn,
+			"dnsName":    rset.Name,
+			"recordType": recType,
+		}).Warnf("Cannot update record: %v", err)
+	}
+}
+
+// runZoneCreates runs through the created recordset.
+func (c bulkChanges) runZoneCreates(zone *hcloud.Zone, z *zonefile.Zonefile) {
+	changes := c.changes[zone.ID]
+	for _, row := range changes.creates {
+		createRecord(z, row)
+	}
+}
+
+// runZoneUpdates runs through the created recordset.
+func (c bulkChanges) runZoneUpdates(zone *hcloud.Zone, z *zonefile.Zonefile) {
+	changes := c.changes[zone.ID]
+	for _, row := range changes.updates {
+		updateRecord(z, row)
+	}
+}
+
+func (c bulkChanges) runZoneChanges(zone *hcloud.Zone, zf string) (string, error) {
+	ttl, _ := readTTL(zf)
+	zn := zone.Name
+	z, err := zonefile.NewZonefile(strings.NewReader(zf), zn, ttl)
+	if err != nil {
+		return "", err
+	}
+	c.runZoneCreates(zone, z)
+	exp, err := z.Export()
+	if err != nil {
+		return "", fmt.Errorf("cannot export zonefile: %v", err)
+	}
+	return exp, nil
+}
+
 // applyChangesZone applies changes to a zone.
 func (c bulkChanges) applyChangesZone(ctx context.Context, zone *hcloud.Zone) {
-	/*
-		zfr, _, err := c.dnsClient.ExportZonefile(ctx, zone)
-		if err != nil {
-			log.WithFields(log.Fields{
-				"zoneName": zone.Name,
-			}).Errorf("Error while exporting zonefile: %w", err)
-			return
-		}
-
-		zp := dns.NewZoneParser(strings.NewReader(zfr.Zonefile), origin, file)
-		if err != nil {
-			log.WithFields(log.Fields{
-				"zoneName": zone.Name,
-			}).Errorf("Error while reading the exported zonefile: %w", err)
-			return
-		}*/
-
+	zfr, _, err := c.dnsClient.ExportZonefile(ctx, zone)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"zoneName": zone.Name,
+		}).Errorf("Error while exporting zonefile: %v", err)
+		return
+	}
+	nzf, err := c.runZoneChanges(zone, zfr.Zonefile)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"zoneName": zone.Name,
+		}).Errorf("Error while managing the zonefile: %v", err)
+	}
+	opts := hcloud.ZoneImportZonefileOpts{
+		Zonefile: nzf,
+	}
+	_, _, err = c.dnsClient.ImportZonefile(ctx, zone, opts)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"zoneName": zone.Name,
+		}).Errorf("Error while importing the zonefile: %v", err)
+	}
 }
 
 // ApplyChanges applies the planned changes.

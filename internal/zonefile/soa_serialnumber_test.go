@@ -273,7 +273,8 @@ func Test_Inc(t *testing.T) {
 					version: 46,
 				},
 			},
-		}}
+		},
+	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -352,7 +353,8 @@ func Test_Uint32(t *testing.T) {
 				version: 5,
 			},
 			expected: uint32(2020120105),
-		}}
+		},
+	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {

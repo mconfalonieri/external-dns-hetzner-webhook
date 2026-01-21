@@ -54,6 +54,8 @@ type apiClient interface {
 	DeleteRRSet(ctx context.Context, rrset *hcloud.ZoneRRSet) (hcloud.ZoneRRSetDeleteResult, *hcloud.Response, error)
 	// ExportZonefile exports a zonefile.
 	ExportZonefile(ctx context.Context, zone *hcloud.Zone) (hcloud.ZoneExportZonefileResult, *hcloud.Response, error)
+	// ImportZoneFile imports a zonefile
+	ImportZonefile(ctx context.Context, zone *hcloud.Zone, opts hcloud.ZoneImportZonefileOpts) (*hcloud.Action, *hcloud.Response, error)
 }
 
 // fetchRecords fetches all records for a given zone.

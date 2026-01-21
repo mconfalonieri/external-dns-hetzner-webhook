@@ -51,6 +51,16 @@ type Zonefile struct {
 	ttl      int
 }
 
+// GetOrigin returns the zonefile origin.
+func (z Zonefile) GetOrigin() string {
+	return z.origin
+}
+
+// GetTTL returns the zonefile TTL.
+func (z Zonefile) GetTTL() int {
+	return z.ttl
+}
+
 // getrrset gets or creates an rrset for the given key.
 func getrrset(k string, m map[string]rrset) rrset {
 	if r, ok := m[k]; ok {
@@ -165,7 +175,8 @@ func (z Zonefile) Export() (string, error) {
 		}
 		recs = append(recs, slice...)
 	}
-	return buildFile(recs, z.origin, ttl), nil
+	file := buildFile(recs, z.origin, ttl)
+	return file, nil
 }
 
 // AddARecord adds a new A recordset.
