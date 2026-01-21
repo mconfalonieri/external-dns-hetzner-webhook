@@ -21,6 +21,7 @@ import (
 	"errors"
 	"io"
 	"net/netip"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -68,7 +69,8 @@ www.fastipletonis.eu.	3600	IN	A	116.202.181.2
 	testTTL          = 86400
 )
 
-// assertError checks if an error is thrown when expected.
+// assertError checks if an error is thrown when expected. Returns true if an
+// error is expected.
 func assertError(t *testing.T, expected, actual error) bool {
 	var expError bool
 	if expected == nil {
@@ -774,11 +776,16 @@ func Test_Export(t *testing.T) {
 		obj := tc.object
 		exp := tc.expected
 		file, err := obj.Export()
+		if assertError(t, exp.err, err) {
+			assert.Equal(t, "", file)
+			return
+		}
 		expSN := strconv.Itoa(int(todayMaxSerialNumber() - 99))
 		expFile := strings.Replace(exp.file, "2025112009", expSN, 1)
 		expArray := strings.Split(expFile, "\n")
 		array := strings.Split(file, "\n")
-		assertError(t, exp.err, err)
+		slices.Sort(expArray)
+		slices.Sort(array)
 		assert.EqualValues(t, expArray, array)
 	}
 

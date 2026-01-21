@@ -120,7 +120,7 @@ func updateSOASerialNumber(sn uint32) (uint32, error) {
 
 // updateSOA finds the SOA record, updates its serial number and returns it.
 func (z Zonefile) updateSOA() (*dns.SOA, error) {
-	rs := make([]dns.RR, 1)
+	var rs rrset
 
 	if soas, ok := z.records[z.soaKey]; ok && len(soas) == 1 {
 		rs = soas
