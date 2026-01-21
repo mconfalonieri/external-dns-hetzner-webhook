@@ -55,6 +55,8 @@ type Configuration struct {
 	// every successful API access. A negative or 0 value disables the fail shut
 	// down.
 	MaxFailCount int `env:"MAX_FAIL_COUNT" default:"-1"`
+	// Enable bulk mode
+	BulkMode bool `env:"BULK_MODE" default:"false"`
 }
 
 // NewConfiguration creates a new configuration object.

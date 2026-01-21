@@ -166,7 +166,7 @@ func adjustEndpointTargets(targets endpoint.Targets) (endpoint.Targets, error) {
 func getHetznerLabels(slash string, ep *endpoint.Endpoint) (map[string]string, error) {
 	ps := ep.ProviderSpecific
 	if len(ps) == 0 {
-		return map[string]string{}, nil
+		return nil, nil
 	}
 	return extractHetznerLabels(slash, ps)
 }

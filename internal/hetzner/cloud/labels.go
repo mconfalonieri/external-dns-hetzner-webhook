@@ -110,9 +110,9 @@ func extractHetznerLabels(slash string, ps endpoint.ProviderSpecific) (map[strin
 			label = strings.ReplaceAll(label, slash, "/")
 			value := p.Value
 			if err := checkLabel(label); err != nil {
-				return nil, fmt.Errorf("cannot process label for [%s: \"%s\"]: %s", label, value, err.Error())
+				return nil, fmt.Errorf("cannot process label for [%s: \"%s\"]: %w", label, value, err)
 			} else if err := checkValue(value); err != nil {
-				return nil, fmt.Errorf("cannot process value for [%s: \"%s\"]: %s", label, value, err.Error())
+				return nil, fmt.Errorf("cannot process value for [%s: \"%s\"]: %w", label, value, err)
 			}
 			labels[label] = value
 		} else {

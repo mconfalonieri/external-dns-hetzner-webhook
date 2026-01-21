@@ -29,6 +29,7 @@ import (
 
 // hetznerChange contains all changes to apply to DNS.
 type hetznerChanges struct {
+	dnsClient  apiClient
 	dryRun     bool
 	defaultTTL int
 	slash      string
@@ -38,9 +39,25 @@ type hetznerChanges struct {
 	deletes []*hetznerChangeDelete
 }
 
+// NewHetznerChanges creates a new hetznerChanges object.
+func NewHetznerChanges(dnsClient apiClient, dryRun bool, defaultTTL int, slash string) *hetznerChanges {
+	return &hetznerChanges{
+		dnsClient:  dnsClient,
+		dryRun:     dryRun,
+		defaultTTL: defaultTTL,
+		slash:      slash,
+	}
+}
+
 // empty returns true if there are no changes left.
-func (c *hetznerChanges) empty() bool {
+func (c hetznerChanges) empty() bool {
 	return len(c.creates) == 0 && len(c.updates) == 0 && len(c.deletes) == 0
+}
+
+// GetSlash returns the escape sequence for slash and true (labels supported)
+// as the second parameter.
+func (c hetznerChanges) GetSlash() (string, bool) {
+	return c.slash, true
 }
 
 // AddChangeCreate adds a new creation entry to the current object.
@@ -72,7 +89,8 @@ func (c *hetznerChanges) AddChangeDelete(rrset *hcloud.ZoneRRSet) {
 }
 
 // applyDeletes processes the records to be deleted.
-func (c hetznerChanges) applyDeletes(ctx context.Context, client apiClient) error {
+func (c hetznerChanges) applyDeletes(ctx context.Context) error {
+	client := c.dnsClient
 	metrics := metrics.GetOpenMetricsInstance()
 	for _, e := range c.deletes {
 		log.WithFields(e.GetLogFields()).Debug("Deleting domain record")
@@ -93,7 +111,8 @@ func (c hetznerChanges) applyDeletes(ctx context.Context, client apiClient) erro
 }
 
 // applyCreates processes the records to be created.
-func (c hetznerChanges) applyCreates(ctx context.Context, client apiClient) error {
+func (c hetznerChanges) applyCreates(ctx context.Context) error {
+	client := c.dnsClient
 	metrics := metrics.GetOpenMetricsInstance()
 	for _, e := range c.creates {
 		zone := e.zone
@@ -121,7 +140,8 @@ func (c hetznerChanges) applyCreates(ctx context.Context, client apiClient) erro
 }
 
 // applyUpdates processes the records to be updated.
-func (c hetznerChanges) applyUpdates(ctx context.Context, client apiClient) error {
+func (c hetznerChanges) applyUpdates(ctx context.Context) error {
+	client := c.dnsClient
 	metrics := metrics.GetOpenMetricsInstance()
 	for _, e := range c.updates {
 		rrset := e.rrset
@@ -184,22 +204,22 @@ func (c hetznerChanges) applyUpdates(ctx context.Context, client apiClient) erro
 }
 
 // ApplyChanges applies the planned changes using dnsClient.
-func (c hetznerChanges) ApplyChanges(ctx context.Context, dnsClient apiClient) error {
+func (c hetznerChanges) ApplyChanges(ctx context.Context) error {
 	// No changes = nothing to do.
 	if c.empty() {
 		log.Debug("No changes to be applied found.")
 		return nil
 	}
 	// Process records to be deleted.
-	if err := c.applyDeletes(ctx, dnsClient); err != nil {
+	if err := c.applyDeletes(ctx); err != nil {
 		return err
 	}
 	// Process record creations.
-	if err := c.applyCreates(ctx, dnsClient); err != nil {
+	if err := c.applyCreates(ctx); err != nil {
 		return err
 	}
 	// Process record updates.
-	if err := c.applyUpdates(ctx, dnsClient); err != nil {
+	if err := c.applyUpdates(ctx); err != nil {
 		return err
 	}
 	return nil

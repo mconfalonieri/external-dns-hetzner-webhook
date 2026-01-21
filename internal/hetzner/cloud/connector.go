@@ -52,6 +52,8 @@ type apiClient interface {
 	UpdateRRSetLabels(ctx context.Context, rrset *hcloud.ZoneRRSet, opts hcloud.ZoneRRSetUpdateOpts) (*hcloud.ZoneRRSet, *hcloud.Response, error)
 	// DeleteRRSet deletes an RRSet.
 	DeleteRRSet(ctx context.Context, rrset *hcloud.ZoneRRSet) (hcloud.ZoneRRSetDeleteResult, *hcloud.Response, error)
+	// ExportZonefile exports a zonefile.
+	ExportZonefile(ctx context.Context, zone *hcloud.Zone) (hcloud.ZoneExportZonefileResult, *hcloud.Response, error)
 }
 
 // fetchRecords fetches all records for a given zone.

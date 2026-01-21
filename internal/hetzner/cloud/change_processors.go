@@ -59,7 +59,7 @@ func extractRRSetRecords(zoneName string, ep *endpoint.Endpoint) []hcloud.ZoneRR
 }
 
 // processCreateActionsByZone processes the create actions for one zone.
-func processCreateActionsByZone(zone *hcloud.Zone, rrsets []*hcloud.ZoneRRSet, endpoints []*endpoint.Endpoint, changes *hetznerChanges) {
+func processCreateActionsByZone(zone *hcloud.Zone, rrsets []*hcloud.ZoneRRSet, endpoints []*endpoint.Endpoint, changes changesRunner) {
 	zoneName := zone.Name
 	for _, ep := range endpoints {
 		// If there is an existing record we refuse to act.
@@ -70,16 +70,21 @@ func processCreateActionsByZone(zone *hcloud.Zone, rrsets []*hcloud.ZoneRRSet, e
 				"recordType": ep.RecordType,
 			}).Warn("Planning a creation but an existing record was found.")
 		} else {
-			labels, err := getHetznerLabels(changes.slash, ep)
-			if err != nil {
+			var err error
+			var labels map[string]string
+			slash, labelsSupported := changes.GetSlash()
+			if labels, err = getHetznerLabels(slash, ep); err != nil {
 				log.WithFields(log.Fields{
 					"zoneName":   zoneName,
 					"dnsName":    ep.DNSName,
 					"recordType": ep.RecordType,
 				}).Warnf("Labels will be ignored due to a parsing error: %s", err.Error())
-			}
-			if len(labels) == 0 {
-				labels = nil
+			} else if !labelsSupported && len(labels) > 0 {
+				log.WithFields(log.Fields{
+					"zoneName":   zoneName,
+					"dnsName":    ep.DNSName,
+					"recordType": ep.RecordType,
+				}).Warn("Labels are ignored in BULK_MODE.")
 			}
 			opts := hcloud.ZoneRRSetCreateOpts{
 				Name:    makeEndpointName(zoneName, ep.DNSName),
@@ -98,7 +103,7 @@ func processCreateActions(
 	zoneIDNameMapper zoneIDName,
 	rrSetsByZoneID map[int64][]*hcloud.ZoneRRSet,
 	createsByZoneID map[int64][]*endpoint.Endpoint,
-	changes *hetznerChanges,
+	changes changesRunner,
 ) {
 	// Process endpoints that need to be created.
 	for zoneID, endpoints := range createsByZoneID {
@@ -170,7 +175,7 @@ func equalStringMaps(first, second map[string]string) bool {
 	return true
 }
 
-func processUpdateEndpoint(mRRSet *hcloud.ZoneRRSet, ep *endpoint.Endpoint, changes *hetznerChanges) {
+func processUpdateEndpoint(mRRSet *hcloud.ZoneRRSet, ep *endpoint.Endpoint, changes changesRunner) {
 	zone := mRRSet.Zone
 	zoneName := zone.Name
 
@@ -199,8 +204,9 @@ func processUpdateEndpoint(mRRSet *hcloud.ZoneRRSet, ep *endpoint.Endpoint, chan
 		}
 	}
 
+	slash, labelsSupported := changes.GetSlash()
 	// Check if we need to update the labels
-	labels, err := getHetznerLabels(changes.slash, ep)
+	labels, err := getHetznerLabels(slash, ep)
 
 	if err != nil {
 		log.WithFields(log.Fields{
@@ -208,6 +214,12 @@ func processUpdateEndpoint(mRRSet *hcloud.ZoneRRSet, ep *endpoint.Endpoint, chan
 			"dnsName":    ep.DNSName,
 			"recordType": ep.RecordType,
 		}).Warnf("Labels will be ignored for a parsing error: %s", err.Error())
+	} else if !labelsSupported && len(labels) > 0 {
+		log.WithFields(log.Fields{
+			"zoneName":   zoneName,
+			"dnsName":    ep.DNSName,
+			"recordType": ep.RecordType,
+		}).Warn("Labels are ignored in BULK_MODE.")
 	} else if !equalStringMaps(labels, mRRSet.Labels) {
 		log.Debugf("Updating labels to %s", formatLabels(labels))
 		updateOpts = &hcloud.ZoneRRSetUpdateOpts{
@@ -219,7 +231,7 @@ func processUpdateEndpoint(mRRSet *hcloud.ZoneRRSet, ep *endpoint.Endpoint, chan
 }
 
 // processUpdateActionsByZone processes update actions for a single zone.
-func processUpdateActionsByZone(zone *hcloud.Zone, rrsets []*hcloud.ZoneRRSet, endpoints []*endpoint.Endpoint, changes *hetznerChanges) {
+func processUpdateActionsByZone(zone *hcloud.Zone, rrsets []*hcloud.ZoneRRSet, endpoints []*endpoint.Endpoint, changes changesRunner) {
 	zoneName := zone.Name
 	for _, ep := range endpoints {
 		mRRSet, found := getMatchingDomainRRSet(rrsets, zoneName, ep)
@@ -242,7 +254,7 @@ func processUpdateActions(
 	zoneIDNameMapper zoneIDName,
 	rrSetsByZoneID map[int64][]*hcloud.ZoneRRSet,
 	updatesByZoneID map[int64][]*endpoint.Endpoint,
-	changes *hetznerChanges,
+	changes changesRunner,
 ) {
 	// Generate creates and updates based on existing
 	for zoneID, endpoints := range updatesByZoneID {
@@ -261,7 +273,7 @@ func processUpdateActions(
 }
 
 // processDeleteActionsByZone processes delete actions for a single zone.
-func processDeleteActionsByZone(zone *hcloud.Zone, rrsets []*hcloud.ZoneRRSet, endpoints []*endpoint.Endpoint, changes *hetznerChanges) {
+func processDeleteActionsByZone(zone *hcloud.Zone, rrsets []*hcloud.ZoneRRSet, endpoints []*endpoint.Endpoint, changes changesRunner) {
 	zoneName := zone.Name
 	for _, ep := range endpoints {
 		mRRSet, found := getMatchingDomainRRSet(rrsets, zoneName, ep)
@@ -284,7 +296,7 @@ func processDeleteActions(
 	zoneIDNameMapper zoneIDName,
 	rrSetsByZoneID map[int64][]*hcloud.ZoneRRSet,
 	deletesByZoneID map[int64][]*endpoint.Endpoint,
-	changes *hetznerChanges,
+	changes changesRunner,
 ) {
 	for zoneID, endpoints := range deletesByZoneID {
 		zone := zoneIDNameMapper[zoneID]
