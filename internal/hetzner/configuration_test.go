@@ -92,3 +92,33 @@ func Test_GetDomainFilter(t *testing.T) {
 		})
 	}
 }
+
+// Test_IsSupportedRecordType tests that the supported record types are correctly
+// identified, including MX which is not supported by the external-dns SDK.
+func Test_IsSupportedRecordType(t *testing.T) {
+	type testCase struct {
+		recordType string
+		expected   bool
+	}
+
+	testCases := []testCase{
+		{recordType: "A", expected: true},
+		{recordType: "AAAA", expected: true},
+		{recordType: "CNAME", expected: true},
+		{recordType: "TXT", expected: true},
+		{recordType: "MX", expected: true}, // MX is supported by this webhook
+		{recordType: "NS", expected: true},
+		{recordType: "SRV", expected: true},
+		{recordType: "PTR", expected: false},
+		{recordType: "CAA", expected: false},
+		{recordType: "SOA", expected: false},
+		{recordType: "", expected: false},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.recordType, func(t *testing.T) {
+			actual := IsSupportedRecordType(tc.recordType)
+			assert.Equal(t, tc.expected, actual)
+		})
+	}
+}
