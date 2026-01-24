@@ -147,9 +147,6 @@ func createRecord(z *zonefile.Zonefile, c *hetznerChangeCreate) {
 		ttl = *opts.TTL
 	}
 	name := opts.Name
-	if name == "@" {
-		name = z.GetOrigin()
-	}
 	recs := decodeRecords(opts.Records)
 	var err error
 	switch recType {
@@ -193,9 +190,6 @@ func updateRecord(z *zonefile.Zonefile, u *hetznerChangeUpdate) {
 		ttl = *rset.TTL
 	}
 	name := rset.Name
-	if name == "@" {
-		name = z.GetOrigin()
-	}
 	var recs []string
 	if rOpts != nil {
 		recs = decodeRecords(rOpts.Records)
@@ -205,19 +199,19 @@ func updateRecord(z *zonefile.Zonefile, u *hetznerChangeUpdate) {
 	var err error
 	switch recType {
 	case hcloud.ZoneRRSetTypeA:
-		err = z.ChangeARecord(name, ttl, recs)
+		err = z.UpdateARecord(name, ttl, recs)
 	case hcloud.ZoneRRSetTypeAAAA:
-		err = z.ChangeAAAARecord(name, ttl, recs)
+		err = z.UpdateAAAARecord(name, ttl, recs)
 	case hcloud.ZoneRRSetTypeCNAME:
-		err = z.ChangeCNAMERecord(name, ttl, recs)
+		err = z.UpdateCNAMERecord(name, ttl, recs)
 	case hcloud.ZoneRRSetTypeMX:
-		err = z.ChangeMXRecord(name, ttl, recs)
+		err = z.UpdateMXRecord(name, ttl, recs)
 	case hcloud.ZoneRRSetTypeNS:
-		err = z.ChangeNSRecord(name, ttl, recs)
+		err = z.UpdateNSRecord(name, ttl, recs)
 	case hcloud.ZoneRRSetTypeSRV:
-		err = z.ChangeSRVRecord(name, ttl, recs)
+		err = z.UpdateSRVRecord(name, ttl, recs)
 	case hcloud.ZoneRRSetTypeTXT:
-		err = z.ChangeTXTRecord(name, ttl, recs)
+		err = z.UpdateTXTRecord(name, ttl, recs)
 	default:
 		err = errors.New("record type not supported")
 	}
