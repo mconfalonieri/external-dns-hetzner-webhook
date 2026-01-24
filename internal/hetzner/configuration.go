@@ -101,3 +101,15 @@ func GetDomainFilter(config Configuration) *endpoint.DomainFilter {
 	log.Info(createMsg)
 	return domainFilter
 }
+
+// IsSupportedRecordType checks if a record type is supported by this webhook.
+// This function replaces provider.SupportedRecordType() from external-dns SDK,
+// which doesn't include MX in its hardcoded list.
+func IsSupportedRecordType(recordType string) bool {
+	switch recordType {
+	case "A", "AAAA", "CNAME", "SRV", "TXT", "NS", "MX":
+		return true
+	default:
+		return false
+	}
+}

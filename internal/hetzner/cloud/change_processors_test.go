@@ -106,6 +106,143 @@ func Test_adjustCNAMETarget(t *testing.T) {
 	}
 }
 
+// Test_adjustMXTarget tests adjustMXTarget()
+func Test_adjustMXTarget(t *testing.T) {
+	type testCase struct {
+		name  string
+		input struct {
+			domain string
+			target string
+		}
+		expected string
+	}
+
+	run := func(t *testing.T, tc testCase) {
+		inp := tc.input
+		actual := adjustMXTarget(inp.domain, inp.target)
+		assert.Equal(t, tc.expected, actual)
+	}
+
+	testCases := []testCase{
+		{
+			name: "MX target with local hostname",
+			input: struct {
+				domain string
+				target string
+			}{
+				domain: "alpha.com",
+				target: "10 mail.alpha.com",
+			},
+			expected: "10 mail",
+		},
+		{
+			name: "MX target with local hostname and trailing dot",
+			input: struct {
+				domain string
+				target string
+			}{
+				domain: "alpha.com",
+				target: "10 mail.alpha.com.",
+			},
+			expected: "10 mail",
+		},
+		{
+			name: "MX target with external hostname",
+			input: struct {
+				domain string
+				target string
+			}{
+				domain: "alpha.com",
+				target: "10 mail.beta.com",
+			},
+			expected: "10 mail.beta.com.",
+		},
+		{
+			name: "MX target with external hostname and trailing dot",
+			input: struct {
+				domain string
+				target string
+			}{
+				domain: "alpha.com",
+				target: "10 mail.beta.com.",
+			},
+			expected: "10 mail.beta.com.",
+		},
+		{
+			name: "MX target with apex record",
+			input: struct {
+				domain string
+				target string
+			}{
+				domain: "alpha.com",
+				target: "10 alpha.com",
+			},
+			expected: "10 @",
+		},
+		{
+			name: "MX target with apex record and trailing dot",
+			input: struct {
+				domain string
+				target string
+			}{
+				domain: "alpha.com",
+				target: "10 alpha.com.",
+			},
+			expected: "10 @",
+		},
+		{
+			name: "MX target with deep local subdomain",
+			input: struct {
+				domain string
+				target string
+			}{
+				domain: "alpha.com",
+				target: "10 smtp.mail.alpha.com",
+			},
+			expected: "10 smtp.mail",
+		},
+		{
+			name: "MX target with invalid format (no space)",
+			input: struct {
+				domain string
+				target string
+			}{
+				domain: "alpha.com",
+				target: "mail.alpha.com",
+			},
+			expected: "mail.alpha.com", // returned unchanged
+		},
+		{
+			name: "MX target with non-numeric priority",
+			input: struct {
+				domain string
+				target string
+			}{
+				domain: "alpha.com",
+				target: "high mail.alpha.com",
+			},
+			expected: "high mail.alpha.com", // returned unchanged
+		},
+		{
+			name: "MX target with priority leading zeros",
+			input: struct {
+				domain string
+				target string
+			}{
+				domain: "alpha.com",
+				target: "010 mail.alpha.com",
+			},
+			expected: "010 mail", // strconv.Atoi accepts leading zeros
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			run(t, tc)
+		})
+	}
+}
+
 // Test_extractRRSetRecords tests extractRRSetRecords().
 func Test_extractRRSetRecords(t *testing.T) {
 	type testCase struct {
@@ -165,6 +302,63 @@ func Test_extractRRSetRecords(t *testing.T) {
 			expected: []hcloud.ZoneRRSetRecord{
 				{
 					Value: "ftp",
+				},
+			},
+		},
+		{
+			name: "record type MX local hostname",
+			input: struct {
+				zoneName string
+				ep       *endpoint.Endpoint
+			}{
+				zoneName: "alpha.com",
+				ep: &endpoint.Endpoint{
+					DNSName:    "alpha.com",
+					Targets:    endpoint.Targets{"10 mail.alpha.com"},
+					RecordType: endpoint.RecordTypeMX,
+				},
+			},
+			expected: []hcloud.ZoneRRSetRecord{
+				{
+					Value: "10 mail",
+				},
+			},
+		},
+		{
+			name: "record type MX external hostname",
+			input: struct {
+				zoneName string
+				ep       *endpoint.Endpoint
+			}{
+				zoneName: "alpha.com",
+				ep: &endpoint.Endpoint{
+					DNSName:    "alpha.com",
+					Targets:    endpoint.Targets{"20 mail.external.com"},
+					RecordType: endpoint.RecordTypeMX,
+				},
+			},
+			expected: []hcloud.ZoneRRSetRecord{
+				{
+					Value: "20 mail.external.com.",
+				},
+			},
+		},
+		{
+			name: "record type MX apex hostname",
+			input: struct {
+				zoneName string
+				ep       *endpoint.Endpoint
+			}{
+				zoneName: "alpha.com",
+				ep: &endpoint.Endpoint{
+					DNSName:    "alpha.com",
+					Targets:    endpoint.Targets{"10 alpha.com"},
+					RecordType: endpoint.RecordTypeMX,
+				},
+			},
+			expected: []hcloud.ZoneRRSetRecord{
+				{
+					Value: "10 @",
 				},
 			},
 		},

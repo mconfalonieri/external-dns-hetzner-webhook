@@ -26,69 +26,62 @@ import (
 	"sigs.k8s.io/external-dns/endpoint"
 )
 
-// Test_makeEndpointName tests makeEndpointName().
-func Test_makeEndpointName(t *testing.T) {
+// Test_fromHetznerHostname tests fromHetznerHostname().
+func Test_fromHetznerHostname(t *testing.T) {
 	type testCase struct {
-		name  string
-		input struct {
-			domain    string
-			entryName string
-			epType    string
-		}
+		name     string
+		zone     string
+		host     string
 		expected string
 	}
 
-	run := func(t *testing.T, tc testCase) {
-		inp := tc.input
-		actual := makeEndpointName(inp.domain, inp.entryName)
-		assert.Equal(t, actual, tc.expected)
-	}
-
 	testCases := []testCase{
+		// Apex record
 		{
-			name: "no adjustment required",
-			input: struct {
-				domain    string
-				entryName string
-				epType    string
-			}{
-				domain:    "alpha.com",
-				entryName: "test",
-				epType:    "A",
-			},
-			expected: "test",
+			name:     "apex record @",
+			zone:     "alpha.com",
+			host:     "@",
+			expected: "alpha.com",
+		},
+		// Local subdomains (no dots)
+		{
+			name:     "local subdomain",
+			zone:     "alpha.com",
+			host:     "mail",
+			expected: "mail.alpha.com",
 		},
 		{
-			name: "stripping domain from name",
-			input: struct {
-				domain    string
-				entryName string
-				epType    string
-			}{
-				domain:    "alpha.com",
-				entryName: "test.alpha.com",
-				epType:    "A",
-			},
-			expected: "test",
+			name:     "local subdomain www",
+			zone:     "alpha.com",
+			host:     "www",
+			expected: "www.alpha.com",
+		},
+		// External hostnames with trailing dot (Hetzner returns these for external)
+		{
+			name:     "external hostname with trailing dot",
+			zone:     "alpha.com",
+			host:     "mail.beta.com.",
+			expected: "mail.beta.com",
 		},
 		{
-			name: "top entry adjustment",
-			input: struct {
-				domain    string
-				entryName string
-				epType    string
-			}{
-				domain:    "alpha.com",
-				entryName: "alpha.com",
-				epType:    "A",
-			},
-			expected: "@",
+			name:     "external hostname deeper with trailing dot",
+			zone:     "alpha.com",
+			host:     "a.b.c.beta.com.",
+			expected: "a.b.c.beta.com",
+		},
+		// Deep local subdomains (dots but no trailing dot)
+		{
+			name:     "deep local subdomain",
+			zone:     "alpha.com",
+			host:     "a.b.c",
+			expected: "a.b.c.alpha.com",
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			run(t, tc)
+			actual := fromHetznerHostname(tc.zone, tc.host)
+			assert.Equal(t, tc.expected, actual)
 		})
 	}
 }
@@ -241,6 +234,159 @@ func Test_createEndpointFromRecord(t *testing.T) {
 				RecordTTL:  endpoint.TTL(defaultTTL),
 				Labels:     endpoint.Labels{},
 			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			run(t, tc)
+		})
+	}
+}
+
+// Test_extractEndpointTargets tests extractEndpointTargets().
+func Test_extractEndpointTargets(t *testing.T) {
+	type testCase struct {
+		name     string
+		input    *hcloud.ZoneRRSet
+		expected []string
+	}
+
+	run := func(t *testing.T, tc testCase) {
+		actual := extractEndpointTargets(tc.input)
+		assert.Equal(t, tc.expected, actual)
+	}
+
+	testCases := []testCase{
+		{
+			name: "A record",
+			input: &hcloud.ZoneRRSet{
+				Zone: &hcloud.Zone{
+					ID:   1,
+					Name: "alpha.com",
+				},
+				Type: hcloud.ZoneRRSetTypeA,
+				Records: []hcloud.ZoneRRSetRecord{
+					{Value: "1.1.1.1"},
+					{Value: "2.2.2.2"},
+				},
+			},
+			expected: []string{"1.1.1.1", "2.2.2.2"},
+		},
+		{
+			name: "CNAME with local hostname",
+			input: &hcloud.ZoneRRSet{
+				Zone: &hcloud.Zone{
+					ID:   1,
+					Name: "alpha.com",
+				},
+				Type: hcloud.ZoneRRSetTypeCNAME,
+				Records: []hcloud.ZoneRRSetRecord{
+					{Value: "www"},
+				},
+			},
+			expected: []string{"www.alpha.com"},
+		},
+		{
+			name: "MX with local hostname",
+			input: &hcloud.ZoneRRSet{
+				Zone: &hcloud.Zone{
+					ID:   1,
+					Name: "alpha.com",
+				},
+				Type: hcloud.ZoneRRSetTypeMX,
+				Records: []hcloud.ZoneRRSetRecord{
+					{Value: "10 mail"},
+				},
+			},
+			expected: []string{"10 mail.alpha.com"},
+		},
+		{
+			name: "MX with deep local subdomain",
+			input: &hcloud.ZoneRRSet{
+				Zone: &hcloud.Zone{
+					ID:   1,
+					Name: "alpha.com",
+				},
+				Type: hcloud.ZoneRRSetTypeMX,
+				Records: []hcloud.ZoneRRSetRecord{
+					{Value: "10 smtp.mail"},
+				},
+			},
+			expected: []string{"10 smtp.mail.alpha.com"},
+		},
+		{
+			name: "MX with external hostname with trailing dot",
+			input: &hcloud.ZoneRRSet{
+				Zone: &hcloud.Zone{
+					ID:   1,
+					Name: "alpha.com",
+				},
+				Type: hcloud.ZoneRRSetTypeMX,
+				Records: []hcloud.ZoneRRSetRecord{
+					{Value: "10 mail.beta.com."},
+				},
+			},
+			expected: []string{"10 mail.beta.com"},
+		},
+		{
+			name: "MX with external hostname without trailing dot (API edge case)",
+			input: &hcloud.ZoneRRSet{
+				Zone: &hcloud.Zone{
+					ID:   1,
+					Name: "alpha.com",
+				},
+				Type: hcloud.ZoneRRSetTypeMX,
+				Records: []hcloud.ZoneRRSetRecord{
+					{Value: "10 mail.beta.com"}, // No trailing dot
+				},
+			},
+			// Per Hetzner convention: no trailing dot = local subdomain
+			// This documents the expected behavior for this edge case
+			expected: []string{"10 mail.beta.com.alpha.com"},
+		},
+		{
+			name: "MX multiple records",
+			input: &hcloud.ZoneRRSet{
+				Zone: &hcloud.Zone{
+					ID:   1,
+					Name: "alpha.com",
+				},
+				Type: hcloud.ZoneRRSetTypeMX,
+				Records: []hcloud.ZoneRRSetRecord{
+					{Value: "10 mail"},
+					{Value: "20 mail2.beta.com."},
+				},
+			},
+			expected: []string{"10 mail.alpha.com", "20 mail2.beta.com"},
+		},
+		{
+			name: "MX with apex record @",
+			input: &hcloud.ZoneRRSet{
+				Zone: &hcloud.Zone{
+					ID:   1,
+					Name: "alpha.com",
+				},
+				Type: hcloud.ZoneRRSetTypeMX,
+				Records: []hcloud.ZoneRRSetRecord{
+					{Value: "10 @"},
+				},
+			},
+			expected: []string{"10 alpha.com"},
+		},
+		{
+			name: "CNAME with apex record @",
+			input: &hcloud.ZoneRRSet{
+				Zone: &hcloud.Zone{
+					ID:   1,
+					Name: "alpha.com",
+				},
+				Type: hcloud.ZoneRRSetTypeCNAME,
+				Records: []hcloud.ZoneRRSetRecord{
+					{Value: "@"},
+				},
+			},
+			expected: []string{"alpha.com"},
 		},
 	}
 

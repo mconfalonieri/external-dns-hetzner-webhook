@@ -27,10 +27,45 @@ import (
 	"sigs.k8s.io/external-dns/endpoint"
 )
 
+// fromHetznerHostname converts Hetzner DNS hostname format back to FQDN for ExternalDNS.
+// This is the inverse of adjustCNAMETarget() and adjustMXTarget() in change_processors.go.
+// Hetzner uses zone-relative hostnames: "mail" for local, "external.com." for external.
+// ExternalDNS works WITHOUT trailing dot internally, so we return names without it.
+//
+// Key insight: Hetzner convention is that EXTERNAL hostnames have trailing dot,
+// while LOCAL hostnames (within the zone) do NOT have trailing dot.
+//
+// References:
+//   - Hetzner DNS docs: "When there is no period at the end, the zone itself is appended automatically"
+//     https://docs.hetzner.com/dns-console/dns/record-types/mx-record/
+//   - DNS trailing dot convention: https://docs.dnscontrol.org/language-reference/why-the-dot
+//
+// Examples (zone = "alpha.com"):
+//
+//	"@"              → "alpha.com"       (apex record)
+//	"mail"           → "mail.alpha.com"  (local subdomain)
+//	"a.b"            → "a.b.alpha.com"   (deep local subdomain)
+//	"external.com."  → "external.com"    (external, has trailing dot → strip it)
+//	"mail.beta.com." → "mail.beta.com"   (external, has trailing dot → strip it)
+func fromHetznerHostname(zone string, host string) string {
+	// Handle apex record
+	if host == "@" {
+		return zone
+	}
+
+	// Hetzner convention: trailing dot means EXTERNAL hostname (outside of zone)
+	// No trailing dot means LOCAL hostname (within zone)
+	if strings.HasSuffix(host, ".") {
+		// External hostname - just strip the trailing dot
+		return strings.TrimSuffix(host, ".")
+	}
+
+	// Local hostname (no trailing dot) - append zone
+	return host + "." + zone
+}
+
 // makeEndpointName makes a endpoint name that conforms to Hetzner DNS
-// requirements:
-//   - the adjusted name must be without domain,
-//   - records at root of the zone have `@` as the name.
+// requirements. It converts an FQDN to a zone-relative name.
 func makeEndpointName(domain, entryName string) string {
 	// Trim the domain off the name if present.
 	adjustedName := strings.TrimSuffix(entryName, "."+domain)
@@ -63,8 +98,23 @@ func extractEndpointTargets(rrset *hcloud.ZoneRRSet) []string {
 	targets := make([]string, len(rrset.Records))
 	for idx, record := range rrset.Records {
 		target := record.Value
-		if rrset.Type == hcloud.ZoneRRSetTypeCNAME && !strings.HasSuffix(target, ".") {
-			target = fmt.Sprintf("%s.%s.", target, rrset.Zone.Name)
+		switch rrset.Type {
+		case hcloud.ZoneRRSetTypeCNAME:
+			target = fromHetznerHostname(rrset.Zone.Name, target)
+		case hcloud.ZoneRRSetTypeMX:
+			// MX records in Hetzner: "10 mail" (local) or "10 mail.beta.com." (external)
+			// Convert to ExternalDNS format: "10 mail.zone.com" (FQDN without trailing dot)
+			parts := strings.SplitN(target, " ", 2)
+			if len(parts) == 2 {
+				priority := parts[0]
+				host := fromHetznerHostname(rrset.Zone.Name, parts[1])
+				target = priority + " " + host
+			} else {
+				log.WithFields(log.Fields{
+					"zone":   rrset.Zone.Name,
+					"target": target,
+				}).Warn("MX record from Hetzner API has unexpected format (expected 'priority hostname')")
+			}
 		}
 		targets[idx] = target
 	}
