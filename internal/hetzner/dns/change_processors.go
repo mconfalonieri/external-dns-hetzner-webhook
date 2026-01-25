@@ -20,6 +20,7 @@
 package hetznerdns
 
 import (
+	"strconv"
 	"strings"
 
 	"sigs.k8s.io/external-dns/endpoint"
@@ -32,6 +33,9 @@ import (
 // adjustCNAMETarget fixes local CNAME targets. It ensures that targets
 // matching the domain are stripped of the domain parts and that "external"
 // targets end with a dot.
+//
+// Hetzner DNS convention: local hostnames have NO trailing dot, external DO.
+// See: https://docs.hetzner.com/dns-console/dns/record-types/mx-record/
 func adjustCNAMETarget(domain string, target string) string {
 	adjustedTarget := target
 	if strings.HasSuffix(target, "."+domain) {
@@ -42,6 +46,50 @@ func adjustCNAMETarget(domain string, target string) string {
 		adjustedTarget += "."
 	}
 	return adjustedTarget
+}
+
+// adjustMXTarget adjusts MX record target to Hetzner DNS format.
+// MX target format from ExternalDNS: "10 mail.example.com"
+// Hetzner expects: "10 mail" (local) or "10 mail.other.com." (external with dot)
+func adjustMXTarget(domain string, target string) string {
+	parts := strings.SplitN(target, " ", 2)
+	if len(parts) != 2 {
+		log.WithFields(log.Fields{
+			"target": target,
+		}).Warn("MX target has invalid format (expected 'priority hostname')")
+		return target
+	}
+	priority := parts[0]
+	host := parts[1]
+
+	// Validate priority is numeric
+	if _, err := strconv.Atoi(priority); err != nil {
+		log.WithFields(log.Fields{
+			"target":   target,
+			"priority": priority,
+		}).Warn("MX priority is not a valid integer")
+		return target
+	}
+
+	// Handle apex record (host equals domain)
+	hostNoDot := strings.TrimSuffix(host, ".")
+	if hostNoDot == domain {
+		return priority + " @"
+	}
+
+	// Use existing CNAME logic for hostname
+	return priority + " " + adjustCNAMETarget(domain, host)
+}
+
+// adjustTarget adjusts the target depending on its type
+func adjustTarget(domain, recordType, target string) string {
+	switch recordType {
+	case "CNAME":
+		target = adjustCNAMETarget(domain, target)
+	case "MX":
+		target = adjustMXTarget(domain, target)
+	}
+	return target
 }
 
 // processCreateActionsByZone processes the create actions for one zone.
@@ -58,9 +106,7 @@ func processCreateActionsByZone(zoneID, zoneName string, records []hdns.Record, 
 		}
 
 		for _, target := range ep.Targets {
-			if ep.RecordType == "CNAME" {
-				target = adjustCNAMETarget(zoneName, target)
-			}
+			target = adjustTarget(zoneName, ep.RecordType, target)
 			opts := &hdns.RecordCreateOpts{
 				Name:  makeEndpointName(zoneName, ep.DNSName),
 				Ttl:   getEndpointTTL(ep),
@@ -97,12 +143,11 @@ func processCreateActions(
 	}
 }
 
+// processUpdateEndpoint processes the update requests for an endpoint.
 func processUpdateEndpoint(zoneID, zoneName string, matchingRecordsByTarget map[string]hdns.Record, ep *endpoint.Endpoint, changes *hetznerChanges) {
 	// Generate create and delete actions based on existence of a record for each target.
 	for _, target := range ep.Targets {
-		if ep.RecordType == "CNAME" {
-			target = adjustCNAMETarget(zoneName, target)
-		}
+		target = adjustTarget(zoneName, ep.RecordType, target)
 		if record, ok := matchingRecordsByTarget[target]; ok {
 			opts := &hdns.RecordUpdateOpts{
 				Name:  makeEndpointName(zoneName, ep.DNSName),
@@ -200,12 +245,9 @@ func processUpdateActions(
 // targetsMatch determines if a record matches one of the endpoint's targets.
 func targetsMatch(record hdns.Record, ep *endpoint.Endpoint) bool {
 	for _, t := range ep.Targets {
-		endpointTarget := t
 		recordTarget := record.Value
-		if ep.RecordType == endpoint.RecordTypeCNAME {
-			domain := record.Zone.Name
-			endpointTarget = adjustCNAMETarget(domain, t)
-		}
+		domain := record.Zone.Name
+		endpointTarget := adjustTarget(domain, ep.RecordType, t)
 		if endpointTarget == recordTarget {
 			return true
 		}

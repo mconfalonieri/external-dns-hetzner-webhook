@@ -27,6 +27,66 @@ import (
 	"sigs.k8s.io/external-dns/provider"
 )
 
+// Test_fromHetznerHostname tests fromHetznerHostname().
+func Test_fromHetznerHostname(t *testing.T) {
+	type testCase struct {
+		name     string
+		zone     string
+		host     string
+		expected string
+	}
+
+	testCases := []testCase{
+		// Apex record
+		{
+			name:     "apex record @",
+			zone:     "alpha.com",
+			host:     "@",
+			expected: "alpha.com",
+		},
+		// Local subdomains (no dots)
+		{
+			name:     "local subdomain",
+			zone:     "alpha.com",
+			host:     "mail",
+			expected: "mail.alpha.com",
+		},
+		{
+			name:     "local subdomain www",
+			zone:     "alpha.com",
+			host:     "www",
+			expected: "www.alpha.com",
+		},
+		// External hostnames with trailing dot (Hetzner returns these for external)
+		{
+			name:     "external hostname with trailing dot",
+			zone:     "alpha.com",
+			host:     "mail.beta.com.",
+			expected: "mail.beta.com",
+		},
+		{
+			name:     "external hostname deeper with trailing dot",
+			zone:     "alpha.com",
+			host:     "a.b.c.beta.com.",
+			expected: "a.b.c.beta.com",
+		},
+		// Deep local subdomains (dots but no trailing dot)
+		{
+			name:     "deep local subdomain",
+			zone:     "alpha.com",
+			host:     "a.b.c",
+			expected: "a.b.c.alpha.com",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			actual := fromHetznerHostname(tc.zone, tc.host)
+			assert.Equal(t, tc.expected, actual)
+		})
+	}
+}
+
 // Test_makeEndpointName tests makeEndpointName().
 func Test_makeEndpointName(t *testing.T) {
 	type testCase struct {
@@ -244,6 +304,7 @@ func Test_mergeEndpointsByNameType(t *testing.T) {
 	}
 }
 
+// Test_createEndpointFromRecord tests createEndpointFromRecord().
 func Test_createEndpointFromRecord(t *testing.T) {
 	type testCase struct {
 		name     string
@@ -279,7 +340,28 @@ func Test_createEndpointFromRecord(t *testing.T) {
 			},
 		},
 		{
-			name: "record",
+			name: "a record",
+			input: hdns.Record{
+				ID:    "id_1",
+				Name:  "ftp",
+				Type:  hdns.RecordTypeA,
+				Value: "10.0.0.1",
+				Zone: &hdns.Zone{
+					ID:   "zoneIDBeta",
+					Name: "beta.com",
+				},
+				Ttl: 7200,
+			},
+			expected: &endpoint.Endpoint{
+				DNSName:    "ftp.beta.com",
+				RecordType: "A",
+				Targets:    endpoint.Targets{"10.0.0.1"},
+				RecordTTL:  7200,
+				Labels:     endpoint.Labels{},
+			},
+		},
+		{
+			name: "cname record",
 			input: hdns.Record{
 				ID:    "id_1",
 				Name:  "ftp",
@@ -295,6 +377,27 @@ func Test_createEndpointFromRecord(t *testing.T) {
 				DNSName:    "ftp.beta.com",
 				RecordType: "CNAME",
 				Targets:    endpoint.Targets{"www.alpha.com"},
+				RecordTTL:  7200,
+				Labels:     endpoint.Labels{},
+			},
+		},
+		{
+			name: "mx record",
+			input: hdns.Record{
+				ID:    "id_1",
+				Name:  "@",
+				Type:  hdns.RecordTypeMX,
+				Value: "10 mail.alpha.com.",
+				Zone: &hdns.Zone{
+					ID:   "zoneIDBeta",
+					Name: "beta.com",
+				},
+				Ttl: 7200,
+			},
+			expected: &endpoint.Endpoint{
+				DNSName:    "beta.com",
+				RecordType: "MX",
+				Targets:    endpoint.Targets{"10 mail.alpha.com"},
 				RecordTTL:  7200,
 				Labels:     endpoint.Labels{},
 			},
