@@ -181,7 +181,9 @@ func (p *HetznerProvider) Records(ctx context.Context) ([]*endpoint.Endpoint, er
 		for _, r := range records {
 			// Ensure the record has all the required zone information
 			r.Zone = &zone
-			if provider.SupportedRecordType(string(r.Type)) {
+			// Use our own IsSupportedRecordType instead of provider.SupportedRecordType
+			// because the SDK function doesn't include MX in its hardcoded list.
+			if hetzner.IsSupportedRecordType(string(r.Type)) {
 				ep := createEndpointFromRecord(r)
 				endpoints = append(endpoints, ep)
 			} else {

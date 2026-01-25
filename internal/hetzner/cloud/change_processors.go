@@ -20,6 +20,7 @@
 package hetznercloud
 
 import (
+	"strconv"
 	"strings"
 
 	"sigs.k8s.io/external-dns/endpoint"
@@ -31,6 +32,9 @@ import (
 // adjustCNAMETarget fixes local CNAME targets. It ensures that targets
 // matching the domain are stripped of the domain parts and that "external"
 // targets end with a dot.
+//
+// Hetzner DNS convention: local hostnames have NO trailing dot, external DO.
+// See: https://docs.hetzner.com/dns-console/dns/record-types/mx-record/
 func adjustCNAMETarget(domain string, target string) string {
 	adjustedTarget := target
 	if strings.HasSuffix(target, "."+domain) {
@@ -43,13 +47,49 @@ func adjustCNAMETarget(domain string, target string) string {
 	return adjustedTarget
 }
 
+// adjustMXTarget adjusts MX record target to Hetzner DNS format.
+// MX target format from ExternalDNS: "10 mail.example.com"
+// Hetzner expects: "10 mail" (local) or "10 mail.other.com." (external with dot)
+func adjustMXTarget(domain string, target string) string {
+	parts := strings.SplitN(target, " ", 2)
+	if len(parts) != 2 {
+		log.WithFields(log.Fields{
+			"target": target,
+		}).Warn("MX target has invalid format (expected 'priority hostname')")
+		return target
+	}
+	priority := parts[0]
+	host := parts[1]
+
+	// Validate priority is numeric
+	if _, err := strconv.Atoi(priority); err != nil {
+		log.WithFields(log.Fields{
+			"target":   target,
+			"priority": priority,
+		}).Warn("MX priority is not a valid integer")
+		return target
+	}
+
+	// Handle apex record (host equals domain)
+	hostNoDot := strings.TrimSuffix(host, ".")
+	if hostNoDot == domain {
+		return priority + " @"
+	}
+
+	// Use existing CNAME logic for hostname
+	return priority + " " + adjustCNAMETarget(domain, host)
+}
+
 // extractRRSetRecords extracts the records from an endpoint.
 func extractRRSetRecords(zoneName string, ep *endpoint.Endpoint) []hcloud.ZoneRRSetRecord {
 	targets := []string(ep.Targets)
 	records := make([]hcloud.ZoneRRSetRecord, len(targets))
 	for idx, target := range targets {
-		if ep.RecordType == "CNAME" {
+		switch ep.RecordType {
+		case "CNAME":
 			target = adjustCNAMETarget(zoneName, target)
+		case "MX":
+			target = adjustMXTarget(zoneName, target)
 		}
 		records[idx] = hcloud.ZoneRRSetRecord{
 			Value: target,
