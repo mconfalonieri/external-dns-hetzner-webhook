@@ -359,7 +359,8 @@ func Test_createEndpointFromRecord(t *testing.T) {
 				RecordTTL:  7200,
 				Labels:     endpoint.Labels{},
 			},
-		}, {
+		},
+		{
 			name: "cname record",
 			input: hdns.Record{
 				ID:    "id_1",
