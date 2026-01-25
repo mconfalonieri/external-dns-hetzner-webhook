@@ -245,10 +245,9 @@ func processUpdateActions(
 // targetsMatch determines if a record matches one of the endpoint's targets.
 func targetsMatch(record hdns.Record, ep *endpoint.Endpoint) bool {
 	for _, t := range ep.Targets {
-		endpointTarget := t
 		recordTarget := record.Value
 		domain := record.Zone.Name
-		endpointTarget = adjustTarget(domain, ep.RecordType, t)
+		endpointTarget := adjustTarget(domain, ep.RecordType, t)
 		if endpointTarget == recordTarget {
 			return true
 		}
