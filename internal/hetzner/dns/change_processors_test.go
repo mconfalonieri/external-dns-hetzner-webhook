@@ -110,6 +110,209 @@ func Test_adjustCNAMETarget(t *testing.T) {
 	}
 }
 
+// Test_adjustMXTarget tests adjustMXTarget()
+func Test_adjustMXTarget(t *testing.T) {
+	type testCase struct {
+		name  string
+		input struct {
+			domain string
+			target string
+		}
+		expected string
+	}
+
+	run := func(t *testing.T, tc testCase) {
+		inp := tc.input
+		actual := adjustMXTarget(inp.domain, inp.target)
+		assert.Equal(t, tc.expected, actual)
+	}
+
+	testCases := []testCase{
+		{
+			name: "MX target with local hostname",
+			input: struct {
+				domain string
+				target string
+			}{
+				domain: "alpha.com",
+				target: "10 mail.alpha.com",
+			},
+			expected: "10 mail",
+		},
+		{
+			name: "MX target with local hostname and trailing dot",
+			input: struct {
+				domain string
+				target string
+			}{
+				domain: "alpha.com",
+				target: "10 mail.alpha.com.",
+			},
+			expected: "10 mail",
+		},
+		{
+			name: "MX target with external hostname",
+			input: struct {
+				domain string
+				target string
+			}{
+				domain: "alpha.com",
+				target: "10 mail.beta.com",
+			},
+			expected: "10 mail.beta.com.",
+		},
+		{
+			name: "MX target with external hostname and trailing dot",
+			input: struct {
+				domain string
+				target string
+			}{
+				domain: "alpha.com",
+				target: "10 mail.beta.com.",
+			},
+			expected: "10 mail.beta.com.",
+		},
+		{
+			name: "MX target with apex record",
+			input: struct {
+				domain string
+				target string
+			}{
+				domain: "alpha.com",
+				target: "10 alpha.com",
+			},
+			expected: "10 @",
+		},
+		{
+			name: "MX target with apex record and trailing dot",
+			input: struct {
+				domain string
+				target string
+			}{
+				domain: "alpha.com",
+				target: "10 alpha.com.",
+			},
+			expected: "10 @",
+		},
+		{
+			name: "MX target with deep local subdomain",
+			input: struct {
+				domain string
+				target string
+			}{
+				domain: "alpha.com",
+				target: "10 smtp.mail.alpha.com",
+			},
+			expected: "10 smtp.mail",
+		},
+		{
+			name: "MX target with invalid format (no space)",
+			input: struct {
+				domain string
+				target string
+			}{
+				domain: "alpha.com",
+				target: "mail.alpha.com",
+			},
+			expected: "mail.alpha.com", // returned unchanged
+		},
+		{
+			name: "MX target with non-numeric priority",
+			input: struct {
+				domain string
+				target string
+			}{
+				domain: "alpha.com",
+				target: "high mail.alpha.com",
+			},
+			expected: "high mail.alpha.com", // returned unchanged
+		},
+		{
+			name: "MX target with priority leading zeros",
+			input: struct {
+				domain string
+				target string
+			}{
+				domain: "alpha.com",
+				target: "010 mail.alpha.com",
+			},
+			expected: "010 mail", // strconv.Atoi accepts leading zeros
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			run(t, tc)
+		})
+	}
+}
+
+func Test_adjustTarget(t *testing.T) {
+	type testCase struct {
+		name  string
+		input struct {
+			domain     string
+			recordType string
+			target     string
+		}
+		expected string
+	}
+
+	run := func(t *testing.T, tc testCase) {
+		inp := tc.input
+		actual := adjustTarget(inp.domain, inp.recordType, inp.target)
+		assert.Equal(t, tc.expected, actual)
+	}
+
+	testCases := []testCase{
+		{
+			name: "cname target",
+			input: struct {
+				domain     string
+				recordType string
+				target     string
+			}{
+				domain:     "alpha.com",
+				recordType: "CNAME",
+				target:     "www.alpha.com",
+			},
+			expected: "www",
+		},
+		{
+			name: "mx target",
+			input: struct {
+				domain     string
+				recordType string
+				target     string
+			}{
+				domain:     "alpha.com",
+				recordType: "MX",
+				target:     "10 mail.alpha.com.",
+			},
+			expected: "10 mail",
+		},
+		{
+			name: "other target",
+			input: struct {
+				domain     string
+				recordType string
+				target     string
+			}{
+				domain:     "alpha.com",
+				recordType: "A",
+				target:     "10.0.0.1",
+			},
+			expected: "10.0.0.1",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			run(t, tc)
+		})
+	}
+}
+
 // Test_processCreateActionsByZone tests processCreateActionsByZone().
 func Test_processCreateActionsByZone(t *testing.T) {
 	type testCase struct {
