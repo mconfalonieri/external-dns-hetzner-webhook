@@ -19,7 +19,6 @@ package hetznercloud
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -119,6 +118,7 @@ func (c *bulkChanges) AddChangeDelete(rrset *hcloud.ZoneRRSet) {
 	zc.deletes = append(zc.deletes, changeDelete)
 }
 
+// readTTL reads the TTL if available.
 func readTTL(zf string) (int, bool) {
 	matches := ttlMatcher.FindStringSubmatch(zf)
 	if len(matches) < 2 {
@@ -148,26 +148,7 @@ func createRecord(z *zonefile.Zonefile, c *hetznerChangeCreate) {
 	}
 	name := opts.Name
 	recs := decodeRecords(opts.Records)
-	var err error
-	switch recType {
-	case hcloud.ZoneRRSetTypeA:
-		err = z.AddARecord(name, ttl, recs)
-	case hcloud.ZoneRRSetTypeAAAA:
-		err = z.AddAAAARecord(name, ttl, recs)
-	case hcloud.ZoneRRSetTypeCNAME:
-		err = z.AddCNAMERecord(name, ttl, recs)
-	case hcloud.ZoneRRSetTypeMX:
-		err = z.AddMXRecord(name, ttl, recs)
-	case hcloud.ZoneRRSetTypeNS:
-		err = z.AddNSRecord(name, ttl, recs)
-	case hcloud.ZoneRRSetTypeSRV:
-		err = z.AddSRVRecord(name, ttl, recs)
-	case hcloud.ZoneRRSetTypeTXT:
-		err = z.AddTXTRecord(name, ttl, recs)
-	default:
-		err = errors.New("record type not supported")
-	}
-	if err != nil {
+	if err := z.AddRecord(string(recType), name, ttl, recs); err != nil {
 		zn, _ := strings.CutSuffix(z.GetOrigin(), ".")
 		log.WithFields(log.Fields{
 			"zoneName":   zn,
@@ -196,26 +177,8 @@ func updateRecord(z *zonefile.Zonefile, u *hetznerChangeUpdate) {
 	} else {
 		recs = decodeRecords(rset.Records)
 	}
-	var err error
-	switch recType {
-	case hcloud.ZoneRRSetTypeA:
-		err = z.UpdateARecord(name, ttl, recs)
-	case hcloud.ZoneRRSetTypeAAAA:
-		err = z.UpdateAAAARecord(name, ttl, recs)
-	case hcloud.ZoneRRSetTypeCNAME:
-		err = z.UpdateCNAMERecord(name, ttl, recs)
-	case hcloud.ZoneRRSetTypeMX:
-		err = z.UpdateMXRecord(name, ttl, recs)
-	case hcloud.ZoneRRSetTypeNS:
-		err = z.UpdateNSRecord(name, ttl, recs)
-	case hcloud.ZoneRRSetTypeSRV:
-		err = z.UpdateSRVRecord(name, ttl, recs)
-	case hcloud.ZoneRRSetTypeTXT:
-		err = z.UpdateTXTRecord(name, ttl, recs)
-	default:
-		err = errors.New("record type not supported")
-	}
-	if err != nil {
+
+	if err := z.UpdateRecord(string(recType), name, ttl, recs); err != nil {
 		zn, _ := strings.CutSuffix(z.GetOrigin(), ".")
 		log.WithFields(log.Fields{
 			"zoneName":   zn,

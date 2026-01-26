@@ -35,7 +35,10 @@ const (
 )
 
 // Splitter for string components.
-var splitter = regexp.MustCompile(`\s+`)
+var (
+	splitter = regexp.MustCompile(`\s+`)
+	txtSplit = regexp.MustCompile(`"([^"\\]|(\\.))*"`)
+)
 
 // rrset is an array of RRs
 type rrset []dns.RR
@@ -179,490 +182,235 @@ func (z Zonefile) Export() (string, error) {
 	return file, nil
 }
 
-// AddARecord adds a new A recordset.
-func (z *Zonefile) AddARecord(name string, ttl int, records []string) error {
+// expandName expands a name to its FQDN.
+func (z Zonefile) expandName(name string) string {
 	if name == "@" {
-		name = z.GetOrigin()
+		name = z.origin
 	} else if !strings.HasSuffix(name, ".") {
-		name += "." + z.GetOrigin()
+		name += "." + z.origin
 	}
-	key := fmt.Sprintf(fmtKey, name, dns.TypeA)
-	if _, ok := z.records[key]; ok {
-		return fmt.Errorf("cannot add a recordset for A record %s because it already exists", name)
-	}
-	rr := make(rrset, len(records))
-	for i, addr := range records {
-		ip, err := netip.ParseAddr(addr)
-		if err != nil {
-			return fmt.Errorf("cannot parse address %s: %w", addr, err)
-		}
-		if !ip.Is4() {
-			return fmt.Errorf("Address %s is not IPv4, unsupported for record type A", addr)
-		}
-		r := &dns.A{
-			Hdr: dns.Header{
-				Name:  name,
-				TTL:   uint32(ttl),
-				Class: dns.ClassINET,
-			},
-			A: rdata.A{
-				Addr: ip,
-			},
-		}
-		rr[i] = r
-	}
-	z.records[key] = rr
-	return nil
+	return name
 }
 
-// UpdateARecord updates an existing A recordset
-func (z *Zonefile) UpdateARecord(name string, ttl int, records []string) error {
-	if name == "@" {
-		name = z.GetOrigin()
-	} else if !strings.HasSuffix(name, ".") {
-		name += "." + z.GetOrigin()
+// expandTarget expands a target to its FQDN.
+func (z Zonefile) expandTarget(name string) string {
+	if !strings.HasSuffix(name, ".") {
+		name += "." + z.origin
 	}
-	key := fmt.Sprintf(fmtKey, name, dns.TypeA)
-	if _, ok := z.records[key]; !ok {
-		return fmt.Errorf("cannot change recordset for A record %s because it does not exist", name)
-	}
-	rr := make(rrset, len(records))
-	for i, addr := range records {
-		ip, err := netip.ParseAddr(addr)
-		if err != nil {
-			return fmt.Errorf("cannot parse address %s, %w", addr, err)
-		}
-		if !ip.Is4() {
-			return fmt.Errorf("Address %s is not IPv4, unsupported for record type A", addr)
-		}
-		r := &dns.A{
-			Hdr: dns.Header{
-				Name:  name,
-				TTL:   uint32(ttl),
-				Class: dns.ClassINET,
-			},
-			A: rdata.A{
-				Addr: ip,
-			},
-		}
-		rr[i] = r
-	}
-	return nil
+	return name
 }
 
-// AddAAAARecord adds a new AAAA recordset.
-func (z *Zonefile) AddAAAARecord(name string, ttl int, records []string) error {
-	if name == "@" {
-		name = z.GetOrigin()
-	} else if !strings.HasSuffix(name, ".") {
-		name += "." + z.GetOrigin()
+// parseARecord parses an A record.
+func (z Zonefile) parseARecord(name string, ttl int, arg string) (*dns.A, error) {
+	ip, err := netip.ParseAddr(arg)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse address %s: %w", arg, err)
 	}
-	key := fmt.Sprintf(fmtKey, name, dns.TypeAAAA)
-	if _, ok := z.records[key]; ok {
-		return fmt.Errorf("cannot add a recordset for AAAA record %s because it already exists", name)
+	if !ip.Is4() {
+		return nil, fmt.Errorf("Address %s is not IPv4, unsupported for record type A", arg)
 	}
-	rr := make(rrset, len(records))
-	for i, addr := range records {
-		ip, err := netip.ParseAddr(addr)
-		if err != nil {
-			return fmt.Errorf("cannot parse address %s: %w", addr, err)
-		}
-		if !ip.Is6() {
-			return fmt.Errorf("Address %s is not IPv6, unsupported for record type AAAA", addr)
-		}
-		r := &dns.AAAA{
-			Hdr: dns.Header{
-				Name:  name,
-				TTL:   uint32(ttl),
-				Class: dns.ClassINET,
-			},
-			AAAA: rdata.AAAA{
-				Addr: ip,
-			},
-		}
-		rr[i] = r
-	}
-	z.records[key] = rr
-	return nil
-}
-
-// UpdateAAAARecord updates an existing recordset.
-func (z *Zonefile) UpdateAAAARecord(name string, ttl int, records []string) error {
-	if name == "@" {
-		name = z.GetOrigin()
-	} else if !strings.HasSuffix(name, ".") {
-		name += "." + z.GetOrigin()
-	}
-	key := fmt.Sprintf(fmtKey, name, dns.TypeAAAA)
-	if _, ok := z.records[key]; !ok {
-		return fmt.Errorf("cannot change recordset for AAAA record %s because it does not exist", name)
-	}
-	rr := make(rrset, len(records))
-	for i, addr := range records {
-		ip, err := netip.ParseAddr(addr)
-		if err != nil {
-			return fmt.Errorf("cannot parse address %s, %w", addr, err)
-		}
-		if !ip.Is6() {
-			return fmt.Errorf("Address %s is not IPv6, unsupported for record type AAAA", addr)
-		}
-		r := &dns.AAAA{
-			Hdr: dns.Header{
-				Name:  name,
-				TTL:   uint32(ttl),
-				Class: dns.ClassINET,
-			},
-			AAAA: rdata.AAAA{
-				Addr: ip,
-			},
-		}
-		rr[i] = r
-	}
-	return nil
-}
-
-// AddCNAMERecord adds a new CNAME recordset.
-func (z *Zonefile) AddCNAMERecord(name string, ttl int, records []string) error {
-	origin := z.GetOrigin()
-	if name == "@" {
-		name = origin
-	} else if !strings.HasSuffix(name, ".") {
-		name += "." + origin
-	}
-	key := fmt.Sprintf(fmtKey, name, dns.TypeCNAME)
-	if _, ok := z.records[key]; ok {
-		return fmt.Errorf("cannot add a recordset for CNAME record %s because it already exists", name)
-	}
-	rr := make(rrset, len(records))
-	for i, target := range records {
-		if !strings.HasSuffix(target, ".") {
-			target += "." + origin
-		}
-		r := &dns.CNAME{
-			Hdr: dns.Header{
-				Name:  name,
-				TTL:   uint32(ttl),
-				Class: dns.ClassINET,
-			},
-			CNAME: rdata.CNAME{
-				Target: target,
-			},
-		}
-		rr[i] = r
-	}
-	z.records[key] = rr
-	return nil
-}
-
-// UpdateCNAMERecord updates an existing CNAME recordset
-func (z *Zonefile) UpdateCNAMERecord(name string, ttl int, records []string) error {
-	origin := z.GetOrigin()
-	if name == "@" {
-		name = origin
-	} else if !strings.HasSuffix(name, ".") {
-		name += "." + origin
-	}
-	key := fmt.Sprintf(fmtKey, name, dns.TypeCNAME)
-	if _, ok := z.records[key]; !ok {
-		return fmt.Errorf("cannot change recordset for CNAME record %s because it does not exist", name)
-	}
-	rr := make(rrset, len(records))
-	for i, target := range records {
-		if !strings.HasSuffix(target, ".") {
-			target += "." + origin
-		}
-		r := &dns.CNAME{
-			Hdr: dns.Header{
-				Name:  name,
-				TTL:   uint32(ttl),
-				Class: dns.ClassINET,
-			},
-			CNAME: rdata.CNAME{
-				Target: target,
-			},
-		}
-		rr[i] = r
-	}
-	return nil
-}
-
-// AddTXTRecord adds a new TXT recordset.
-func (z *Zonefile) AddTXTRecord(name string, ttl int, records []string) error {
-	if name == "@" {
-		name = z.GetOrigin()
-	} else if !strings.HasSuffix(name, ".") {
-		name += "." + z.GetOrigin()
-	}
-	key := fmt.Sprintf(fmtKey, name, dns.TypeTXT)
-	if _, ok := z.records[key]; ok {
-		return fmt.Errorf("cannot add a recordset for TXT record %s because it already exists", name)
-	}
-	z.records[key] = rrset{
-		&dns.TXT{
-			Hdr: dns.Header{
-				Name:  name,
-				TTL:   uint32(ttl),
-				Class: dns.ClassINET,
-			},
-			TXT: rdata.TXT{
-				Txt: records,
-			},
+	return &dns.A{
+		Hdr: dns.Header{
+			Name:  name,
+			TTL:   uint32(ttl),
+			Class: dns.ClassINET,
 		},
-	}
-	return nil
-}
-
-// UpdateTXTRecord updates an existing TXT recordset
-func (z *Zonefile) UpdateTXTRecord(name string, ttl int, records []string) error {
-	if name == "@" {
-		name = z.GetOrigin()
-	} else if !strings.HasSuffix(name, ".") {
-		name += "." + z.GetOrigin()
-	}
-	key := fmt.Sprintf(fmtKey, name, dns.TypeTXT)
-	if _, ok := z.records[key]; !ok {
-		return fmt.Errorf("cannot change recordset for TXT record %s because it does not exist", name)
-	}
-	z.records[key] = rrset{
-		&dns.TXT{
-			Hdr: dns.Header{
-				Name:  name,
-				TTL:   uint32(ttl),
-				Class: dns.ClassINET,
-			},
-			TXT: rdata.TXT{
-				Txt: records,
-			},
+		A: rdata.A{
+			Addr: ip,
 		},
-	}
-	return nil
+	}, nil
 }
 
-// AddNSRecord adds a new NS recordset.
-func (z *Zonefile) AddNSRecord(name string, ttl int, records []string) error {
-	if name == "@" {
-		name = z.GetOrigin()
-	} else if !strings.HasSuffix(name, ".") {
-		name += "." + z.GetOrigin()
+// parseAAAARecord parses an AAAA record.
+func (z Zonefile) parseAAAARecord(name string, ttl int, arg string) (*dns.AAAA, error) {
+	ip, err := netip.ParseAddr(arg)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse address %s: %w", arg, err)
 	}
-	key := fmt.Sprintf(fmtKey, name, dns.TypeNS)
+	if !ip.Is6() {
+		return nil, fmt.Errorf("Address %s is not IPv6, unsupported for record type AAAA", arg)
+	}
+	return &dns.AAAA{
+		Hdr: dns.Header{
+			Name:  name,
+			TTL:   uint32(ttl),
+			Class: dns.ClassINET,
+		},
+		AAAA: rdata.AAAA{
+			Addr: ip,
+		},
+	}, nil
+}
+
+// parseCNAMERecord parses a CNAME record.
+func (z Zonefile) parseCNAMERecord(name string, ttl int, arg string) (*dns.CNAME, error) {
+	target := z.expandTarget(arg)
+	return &dns.CNAME{
+		Hdr: dns.Header{
+			Name:  name,
+			TTL:   uint32(ttl),
+			Class: dns.ClassINET,
+		},
+		CNAME: rdata.CNAME{
+			Target: target,
+		},
+	}, nil
+}
+
+// parseTXTRecord parses a TXT record.
+func (z Zonefile) parseTXTRecord(name string, ttl int, arg string) (*dns.TXT, error) {
+	rows := txtSplit.FindAllString(arg, -1)
+	if rows == nil {
+		return nil, fmt.Errorf("invalid TXT record: %s", arg)
+	}
+	return &dns.TXT{
+		Hdr: dns.Header{
+			Name:  name,
+			TTL:   uint32(ttl),
+			Class: dns.ClassINET,
+		},
+		TXT: rdata.TXT{
+			Txt: rows,
+		},
+	}, nil
+}
+
+// parseNSRecord parses a NS record.
+func (z Zonefile) parseNSRecord(name string, ttl int, arg string) (*dns.NS, error) {
+	ns := z.expandTarget(arg)
+	return &dns.NS{
+		Hdr: dns.Header{
+			Name:  name,
+			TTL:   uint32(ttl),
+			Class: dns.ClassINET,
+		},
+		NS: rdata.NS{
+			Ns: ns,
+		},
+	}, nil
+}
+
+// parseSRVRecord parses an SRV record.
+func (z Zonefile) parseSRVRecord(name string, ttl int, arg string) (*dns.SRV, error) {
+	srv := splitter.Split(arg, 5)
+	if len(srv) != 4 {
+		return nil, fmt.Errorf("values for SRV record %s cannot be decoded from \"%s\"", name, arg)
+	}
+	p, err := strconv.Atoi(srv[0])
+	if err != nil {
+		return nil, fmt.Errorf("cannot decode priority for SRV record %s from \"%s\"", name, srv[0])
+	}
+	w, err := strconv.Atoi(srv[1])
+	if err != nil {
+		return nil, fmt.Errorf("cannot decode weight for SRV record %s from \"%s\"", name, srv[1])
+	}
+	pt, err := strconv.Atoi(srv[2])
+	if err != nil {
+		return nil, fmt.Errorf("cannot decode port for SRV record %s from \"%s\"", name, srv[2])
+	}
+	target := z.expandTarget(srv[3])
+	return &dns.SRV{
+		Hdr: dns.Header{
+			Name:  name,
+			TTL:   uint32(ttl),
+			Class: dns.ClassINET,
+		},
+		SRV: rdata.SRV{
+			Priority: uint16(p),
+			Weight:   uint16(w),
+			Port:     uint16(pt),
+			Target:   target,
+		},
+	}, nil
+}
+
+// parseMXRecord parses an MX record.
+func (z Zonefile) parseMXRecord(name string, ttl int, arg string) (*dns.MX, error) {
+	mx := splitter.Split(arg, 3)
+	if len(mx) != 2 {
+		return nil, fmt.Errorf("Values for MX record %s cannot be decoded from \"%s\"", name, arg)
+	}
+	p, err := strconv.Atoi(mx[0])
+	if err != nil {
+		return nil, fmt.Errorf("Cannot read preference for MX record %s from \"%s\"", name, mx[0])
+	}
+	exchange := z.expandTarget(mx[1])
+	return &dns.MX{
+		Hdr: dns.Header{
+			Name:  name,
+			TTL:   uint32(ttl),
+			Class: dns.ClassINET,
+		},
+		MX: rdata.MX{
+			Preference: uint16(p),
+			Mx:         exchange,
+		},
+	}, nil
+}
+
+// parseRecord invokes the correct handler depending on the dnsType.
+func (z Zonefile) parseRecord(dnsType uint16, name string, ttl int, arg string) (dns.RR, error) {
+	switch dnsType {
+	case dns.TypeA:
+		return z.parseARecord(name, ttl, arg)
+	case dns.TypeAAAA:
+		return z.parseAAAARecord(name, ttl, arg)
+	case dns.TypeCNAME:
+		return z.parseCNAMERecord(name, ttl, arg)
+	case dns.TypeTXT:
+		return z.parseTXTRecord(name, ttl, arg)
+	case dns.TypeNS:
+		return z.parseNSRecord(name, ttl, arg)
+	case dns.TypeSRV:
+		return z.parseSRVRecord(name, ttl, arg)
+	case dns.TypeMX:
+		return z.parseMXRecord(name, ttl, arg)
+	}
+	return nil, errors.New("type not supported")
+}
+
+// AddRecord adds a new recordset.
+func (z *Zonefile) AddRecord(recordType string, name string, ttl int, records []string) error {
+	name = z.expandName(name)
+	dnsType, ok := dns.StringToType[recordType]
+	if !ok {
+		return fmt.Errorf("record type %s is not recognized", recordType)
+	}
+	key := fmt.Sprintf(fmtKey, name, dnsType)
 	if _, ok := z.records[key]; ok {
-		return fmt.Errorf("cannot add a recordset for NS record %s because it already exists", name)
+		return fmt.Errorf("cannot add a recordset for %s because it already exists", name)
 	}
 	rr := make(rrset, len(records))
-	for i, ns := range records {
-		r := &dns.NS{
-			Hdr: dns.Header{
-				Name:  name,
-				TTL:   uint32(ttl),
-				Class: dns.ClassINET,
-			},
-			NS: rdata.NS{
-				Ns: ns,
-			},
+	for i, rec := range records {
+		a, err := z.parseRecord(dnsType, name, ttl, rec)
+		if err != nil {
+			return err
 		}
-		rr[i] = r
+		rr[i] = a
 	}
 	z.records[key] = rr
 	return nil
 }
 
-// UpdateNSRecord updates an existing NS recordset
-func (z *Zonefile) UpdateNSRecord(name string, ttl int, records []string) error {
-	if name == "@" {
-		name = z.GetOrigin()
-	} else if !strings.HasSuffix(name, ".") {
-		name += "." + z.GetOrigin()
+// UpdateRecord updates an existing recordset
+func (z *Zonefile) UpdateRecord(recordType string, name string, ttl int, records []string) error {
+	name = z.expandName(name)
+	dnsType, ok := dns.StringToType[recordType]
+	if !ok {
+		return fmt.Errorf("record type %s is not recognized", recordType)
 	}
-	key := fmt.Sprintf(fmtKey, name, dns.TypeNS)
+	key := fmt.Sprintf(fmtKey, name, dnsType)
 	if _, ok := z.records[key]; !ok {
-		return fmt.Errorf("cannot change recordset for NS record %s because it does not exist", name)
+		return fmt.Errorf("cannot update recordset for %s because it does not exist", name)
 	}
 	rr := make(rrset, len(records))
-	for i, ns := range records {
-		r := &dns.NS{
-			Hdr: dns.Header{
-				Name:  name,
-				TTL:   uint32(ttl),
-				Class: dns.ClassINET,
-			},
-			NS: rdata.NS{
-				Ns: ns,
-			},
-		}
-		rr[i] = r
-	}
-	return nil
-}
-
-// AddSRVRecord adds a new SRV recordset.
-func (z *Zonefile) AddSRVRecord(name string, ttl int, records []string) error {
-	if name == "@" {
-		name = z.GetOrigin()
-	} else if !strings.HasSuffix(name, ".") {
-		name += "." + z.GetOrigin()
-	}
-	key := fmt.Sprintf(fmtKey, name, dns.TypeSRV)
-	if _, ok := z.records[key]; ok {
-		return fmt.Errorf("cannot add a recordset for SRV record %s because it already exists", name)
-	}
-	rr := make(rrset, len(records))
-	for i, v := range records {
-		srv := splitter.Split(v, -1)
-		if len(srv) != 4 {
-			return fmt.Errorf("Values for SRV record %s cannot be decoded from \"%s\"", name, v)
-		}
-		p, err := strconv.Atoi(srv[0])
+	for i, rec := range records {
+		a, err := z.parseRecord(dnsType, name, ttl, rec)
 		if err != nil {
-			return fmt.Errorf("Cannot decode priority for SRV record %s from \"%s\"", name, srv[0])
+			return err
 		}
-		w, err := strconv.Atoi(srv[1])
-		if err != nil {
-			return fmt.Errorf("Cannot decode weight for SRV record %s from \"%s\"", name, srv[1])
-		}
-		pt, err := strconv.Atoi(srv[2])
-		if err != nil {
-			return fmt.Errorf("Cannot decode port for SRV record %s from \"%s\"", name, srv[2])
-		}
-		target := srv[3]
-		r := &dns.SRV{
-			Hdr: dns.Header{
-				Name:  name,
-				TTL:   uint32(ttl),
-				Class: dns.ClassINET,
-			},
-			SRV: rdata.SRV{
-				Priority: uint16(p),
-				Weight:   uint16(w),
-				Port:     uint16(pt),
-				Target:   target,
-			},
-		}
-		rr[i] = r
+		rr[i] = a
 	}
 	z.records[key] = rr
-	return nil
-}
-
-// UpdateSRVRecord updates an existing SRV recordset
-func (z *Zonefile) UpdateSRVRecord(name string, ttl int, records []string) error {
-	if name == "@" {
-		name = z.GetOrigin()
-	} else if !strings.HasSuffix(name, ".") {
-		name += "." + z.GetOrigin()
-	}
-	key := fmt.Sprintf(fmtKey, name, dns.TypeSRV)
-	if _, ok := z.records[key]; !ok {
-		return fmt.Errorf("cannot change recordset for SRV record %s because it does not exist", name)
-	}
-	rr := make(rrset, len(records))
-	for i, v := range records {
-		srv := splitter.Split(v, -1)
-		if len(srv) != 4 {
-			return fmt.Errorf("Values for SRV record %s cannot be decoded from \"%s\"", name, v)
-		}
-		p, err := strconv.Atoi(srv[0])
-		if err != nil {
-			return fmt.Errorf("Cannot decode priority for SRV record %s from \"%s\"", name, srv[0])
-		}
-		w, err := strconv.Atoi(srv[1])
-		if err != nil {
-			return fmt.Errorf("Cannot decode weight for SRV record %s from \"%s\"", name, srv[1])
-		}
-		pt, err := strconv.Atoi(srv[2])
-		if err != nil {
-			return fmt.Errorf("Cannot decode port for SRV record %s from \"%s\"", name, srv[2])
-		}
-		target := srv[3]
-		r := &dns.SRV{
-			Hdr: dns.Header{
-				Name:  name,
-				TTL:   uint32(ttl),
-				Class: dns.ClassINET,
-			},
-			SRV: rdata.SRV{
-				Priority: uint16(p),
-				Weight:   uint16(w),
-				Port:     uint16(pt),
-				Target:   target,
-			},
-		}
-		rr[i] = r
-	}
-	return nil
-}
-
-// AddMXRecord adds a new MX recordset.
-func (z *Zonefile) AddMXRecord(name string, ttl int, records []string) error {
-	if name == "@" {
-		name = z.GetOrigin()
-	} else if !strings.HasSuffix(name, ".") {
-		name += "." + z.GetOrigin()
-	}
-	key := fmt.Sprintf(fmtKey, name, dns.TypeMX)
-	if _, ok := z.records[key]; ok {
-		return fmt.Errorf("cannot add a recordset for CNAME record %s because it already exists", name)
-	}
-	rr := make(rrset, len(records))
-	for i, v := range records {
-		mx := splitter.Split(v, -1)
-		if len(mx) != 2 {
-			return fmt.Errorf("Values for MX record %s cannot be decoded from \"%s\"", name, v)
-		}
-		p, err := strconv.Atoi(mx[0])
-		if err != nil {
-			return fmt.Errorf("Cannot read preference for MX record %s from \"%s\"", name, v)
-		}
-		r := &dns.MX{
-			Hdr: dns.Header{
-				Name:  name,
-				TTL:   uint32(ttl),
-				Class: dns.ClassINET,
-			},
-			MX: rdata.MX{
-				Preference: uint16(p),
-				Mx:         mx[1],
-			},
-		}
-		rr[i] = r
-	}
-	z.records[key] = rr
-	return nil
-}
-
-// UpdateMXRecord updates an existing MX recordset
-func (z *Zonefile) UpdateMXRecord(name string, ttl int, records []string) error {
-	if name == "@" {
-		name = z.GetOrigin()
-	} else if !strings.HasSuffix(name, ".") {
-		name += "." + z.GetOrigin()
-	}
-	key := fmt.Sprintf(fmtKey, name, dns.TypeCNAME)
-	if _, ok := z.records[key]; !ok {
-		return fmt.Errorf("cannot change recordset for MX record %s because it does not exist", name)
-	}
-	rr := make(rrset, len(records))
-	for i, v := range records {
-		mx := splitter.Split(v, -1)
-		if len(mx) != 2 {
-			return fmt.Errorf("Values for MX record %s cannot be decoded from \"%s\"", name, v)
-		}
-		p, err := strconv.Atoi(mx[0])
-		if err != nil {
-			return fmt.Errorf("Cannot read preference for MX record %s from \"%s\"", name, v)
-		}
-		r := &dns.MX{
-			Hdr: dns.Header{
-				Name:  name,
-				TTL:   uint32(ttl),
-				Class: dns.ClassINET,
-			},
-			MX: rdata.MX{
-				Preference: uint16(p),
-				Mx:         mx[1],
-			},
-		}
-		rr[i] = r
-	}
 	return nil
 }
