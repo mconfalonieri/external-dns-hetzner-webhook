@@ -4,7 +4,7 @@
  * This file was MODIFIED from the original provider to be used as a standalone
  * webhook server.
  *
- * Copyright 2023 Marco Confalonieri.
+ * Copyright 2026 Marco Confalonieri.
  * Copyright 2017 The Kubernetes Authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
