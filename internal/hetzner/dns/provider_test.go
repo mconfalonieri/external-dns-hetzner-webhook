@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"net/http"
 	"testing"
+	"time"
 
 	"external-dns-hetzner-webhook/internal/hetzner"
 
@@ -158,11 +159,13 @@ func Test_Zones(t *testing.T) {
 						},
 					},
 				},
-				batchSize:    100,
-				debug:        true,
-				dryRun:       false,
-				defaultTTL:   7200,
-				domainFilter: &endpoint.DomainFilter{},
+				batchSize:          100,
+				debug:              true,
+				dryRun:             false,
+				defaultTTL:         7200,
+				domainFilter:       &endpoint.DomainFilter{},
+				zonesCacheDuration: time.Duration(int64(3600) * int64(time.Second)),
+				zonesCacheUpdate:   time.Now(),
 			},
 			expected: struct {
 				zones []hdns.Zone
@@ -229,6 +232,71 @@ func Test_Zones(t *testing.T) {
 					{
 						ID:   "zoneIDGamma",
 						Name: "gamma.com",
+					},
+				},
+			},
+		},
+		{
+			name: "cached zones returned",
+			provider: HetznerProvider{
+				client: &mockClient{
+					getZones: zonesResponse{
+						zones: []*hdns.Zone{
+							{
+								ID:   "zoneIDAlpha",
+								Name: "alpha.com",
+							},
+							{
+								ID:   "zoneIDBeta",
+								Name: "beta.com",
+							},
+							{
+								ID:   "zoneIDGamma",
+								Name: "gamma.com",
+							},
+						},
+						resp: &hdns.Response{
+							Meta: hdns.Meta{
+								Pagination: &hdns.Pagination{
+									Page:         1,
+									PerPage:      100,
+									LastPage:     1,
+									TotalEntries: 2,
+								},
+							},
+						},
+					},
+				},
+				batchSize:          100,
+				debug:              true,
+				dryRun:             false,
+				defaultTTL:         7200,
+				domainFilter:       &endpoint.DomainFilter{},
+				zonesCacheDuration: time.Duration(int64(3600) * int64(time.Second)),
+				zonesCacheUpdate:   time.Now().Add(time.Duration(int64(3600) * int64(time.Second))),
+				zonesCache: []hdns.Zone{
+					{
+						ID:   "zoneIDAlpha",
+						Name: "alpha.com",
+					},
+					{
+						ID:   "zoneIDBeta",
+						Name: "beta.com",
+					},
+				},
+			},
+			expected: struct {
+				zones []hdns.Zone
+				err   error
+			}{
+				zones: []hdns.Zone{
+					{
+						ID:   "zoneIDAlpha",
+						Name: "alpha.com",
+					},
+					{
+						ID:   "zoneIDBeta",
+						Name: "beta.com",
 					},
 				},
 			},

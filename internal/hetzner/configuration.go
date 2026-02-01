@@ -55,6 +55,8 @@ type Configuration struct {
 	// every successful API access. A negative or 0 value disables the fail shut
 	// down.
 	MaxFailCount int `env:"MAX_FAIL_COUNT" default:"-1"`
+	// Zones cache TTL in seconds.
+	ZonesCacheTTL int `env:"ZONES_CACHE_TTL" default:"0"`
 }
 
 // NewConfiguration creates a new configuration object.
