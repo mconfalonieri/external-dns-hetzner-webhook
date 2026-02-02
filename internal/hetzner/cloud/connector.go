@@ -34,6 +34,8 @@ const (
 	actUpdateRRSetRecords = "update_rrset_records"
 	actUpdateRRSet        = "update_rrset"
 	actDeleteRRSet        = "delete_rrset"
+	actExportZonefile     = "export_zonefile"
+	actImportZonefile     = "import_zonefile"
 )
 
 // apiClient is an abstraction of the REST API client.

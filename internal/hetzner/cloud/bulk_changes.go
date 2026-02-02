@@ -23,7 +23,9 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
+	"external-dns-hetzner-webhook/internal/metrics"
 	"external-dns-hetzner-webhook/internal/zonefile"
 
 	"github.com/hetznercloud/hcloud-go/v2/hcloud"
@@ -76,15 +78,17 @@ func (c bulkChanges) GetSlash() (string, bool) {
 // getZoneChanges returns or creates the appropriate zoneChanges object for the
 // zone.
 func (c *bulkChanges) getZoneChanges(zone *hcloud.Zone) *zoneChanges {
-	var zc *zoneChanges
 	if _, ok := c.zones[zone.ID]; !ok {
-		zc := &zoneChanges{}
+		zc := &zoneChanges{
+			creates: make([]*hetznerChangeCreate, 0),
+			updates: make([]*hetznerChangeUpdate, 0),
+			deletes: make([]*hetznerChangeDelete, 0),
+		}
 		c.zones[zone.ID] = zone
 		c.changes[zone.ID] = zc
-	} else {
-		zc = c.changes[zone.ID]
+		return zc
 	}
-	return zc
+	return c.changes[zone.ID]
 }
 
 // AddChangeCreate adds a new creation entry to the current object.
@@ -222,13 +226,19 @@ func (c bulkChanges) runZoneChanges(zone *hcloud.Zone, zf string) (string, error
 
 // applyChangesZone applies changes to a zone.
 func (c bulkChanges) applyChangesZone(ctx context.Context, zone *hcloud.Zone) {
+	metrics := metrics.GetOpenMetricsInstance()
+	startExport := time.Now()
 	zfr, _, err := c.dnsClient.ExportZonefile(ctx, zone)
 	if err != nil {
+		metrics.IncFailedApiCallsTotal(actExportZonefile)
 		log.WithFields(log.Fields{
 			"zoneName": zone.Name,
 		}).Errorf("Error while exporting zonefile: %v", err)
 		return
 	}
+	delayExport := time.Since(startExport)
+	metrics.IncSuccessfulApiCallsTotal(actExportZonefile)
+	metrics.AddApiDelayHist(actExportZonefile, delayExport.Milliseconds())
 	nzf, err := c.runZoneChanges(zone, zfr.Zonefile)
 	if err != nil {
 		log.WithFields(log.Fields{
@@ -238,12 +248,18 @@ func (c bulkChanges) applyChangesZone(ctx context.Context, zone *hcloud.Zone) {
 	opts := hcloud.ZoneImportZonefileOpts{
 		Zonefile: nzf,
 	}
+	startImport := time.Now()
 	_, _, err = c.dnsClient.ImportZonefile(ctx, zone, opts)
 	if err != nil {
+		metrics.IncFailedApiCallsTotal(actImportZonefile)
 		log.WithFields(log.Fields{
 			"zoneName": zone.Name,
 		}).Errorf("Error while importing the zonefile: %v", err)
+		return
 	}
+	delayImport := time.Since(startImport)
+	metrics.IncSuccessfulApiCallsTotal(actImportZonefile)
+	metrics.AddApiDelayHist(actImportZonefile, delayImport.Milliseconds())
 }
 
 // ApplyChanges applies the planned changes.

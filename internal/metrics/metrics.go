@@ -24,6 +24,7 @@ import (
 // metrics instance
 var metrics *OpenMetrics
 
+// OpenMetrics is the instance that holds all the metrics infromation.
 type OpenMetrics struct {
 	registry *prometheus.Registry
 

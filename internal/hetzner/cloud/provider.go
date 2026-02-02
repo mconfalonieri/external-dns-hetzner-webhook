@@ -262,8 +262,14 @@ func (p *HetznerProvider) getRRSetsByZoneID(ctx context.Context) (map[int64][]*h
 	return rrSetsByZoneID, nil
 }
 
+// getChangesRunner returns the appropriate changesRunner depending on the
+// BULK_MODE flag.
 func (p HetznerProvider) getChangesRunner() changesRunner {
-	return NewHetznerChanges(p.client, p.dryRun, p.defaultTTL, p.slashEscSeq)
+	if p.bulkMode {
+		return NewBulkChanges(p.client, p.dryRun, p.defaultTTL, p.slashEscSeq)
+	} else {
+		return NewHetznerChanges(p.client, p.dryRun, p.defaultTTL, p.slashEscSeq)
+	}
 }
 
 // ApplyChanges applies the given set of generic changes to the provider.

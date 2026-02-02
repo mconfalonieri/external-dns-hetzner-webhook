@@ -517,7 +517,7 @@ func Test_updateSOASerialNumber(t *testing.T) {
 	}
 }
 
-func Test_updateSOA(t *testing.T) {
+func Test_Zonefile_updateSOA(t *testing.T) {
 	type testCase struct {
 		name     string
 		object   *Zonefile
@@ -762,7 +762,7 @@ func Test_buildFile(t *testing.T) {
 	}
 }
 
-func Test_Export(t *testing.T) {
+func Test_Zonefile_Export(t *testing.T) {
 	type testCase struct {
 		name     string
 		object   Zonefile
@@ -1011,7 +1011,7 @@ func Test_Export(t *testing.T) {
 	}
 }
 
-func Test_expandName(t *testing.T) {
+func Test_Zonefile_expandName(t *testing.T) {
 	type testCase struct {
 		name     string
 		object   Zonefile
@@ -1059,7 +1059,7 @@ func Test_expandName(t *testing.T) {
 	}
 }
 
-func Test_expandTarget(t *testing.T) {
+func Test_Zonefile_expandTarget(t *testing.T) {
 	type testCase struct {
 		name     string
 		object   Zonefile
@@ -1099,7 +1099,7 @@ func Test_expandTarget(t *testing.T) {
 	}
 }
 
-func Test_parseARecord(t *testing.T) {
+func Test_Zonefile_parseARecord(t *testing.T) {
 	type testCase struct {
 		name   string
 		object Zonefile
@@ -1208,7 +1208,7 @@ func Test_parseARecord(t *testing.T) {
 	}
 }
 
-func Test_parseAAAARecord(t *testing.T) {
+func Test_Zonefile_parseAAAARecord(t *testing.T) {
 	type testCase struct {
 		name   string
 		object Zonefile
@@ -1317,7 +1317,7 @@ func Test_parseAAAARecord(t *testing.T) {
 	}
 }
 
-func Test_parseCNAMERecord(t *testing.T) {
+func Test_Zonefile_parseCNAMERecord(t *testing.T) {
 	type testCase struct {
 		name   string
 		object Zonefile
@@ -1413,7 +1413,7 @@ func Test_parseCNAMERecord(t *testing.T) {
 	}
 }
 
-func Test_parseTXTRecord(t *testing.T) {
+func Test_Zonefile_parseTXTRecord(t *testing.T) {
 	type testCase struct {
 		name   string
 		object Zonefile
@@ -1540,7 +1540,7 @@ func Test_parseTXTRecord(t *testing.T) {
 	}
 }
 
-func Test_parseNSRecord(t *testing.T) {
+func Test_Zonefile_parseNSRecord(t *testing.T) {
 	type testCase struct {
 		name   string
 		object Zonefile
@@ -1636,7 +1636,7 @@ func Test_parseNSRecord(t *testing.T) {
 	}
 }
 
-func Test_parseSRVRecord(t *testing.T) {
+func Test_Zonefile_parseSRVRecord(t *testing.T) {
 	type testCase struct {
 		name   string
 		object Zonefile
@@ -1820,7 +1820,7 @@ func Test_parseSRVRecord(t *testing.T) {
 	}
 }
 
-func Test_parseMXRecord(t *testing.T) {
+func Test_Zonefile_parseMXRecord(t *testing.T) {
 	type testCase struct {
 		name   string
 		object Zonefile
@@ -1958,7 +1958,7 @@ func Test_parseMXRecord(t *testing.T) {
 	}
 }
 
-func Test_AddRecord(t *testing.T) {
+func Test_Zonefile_AddRecord(t *testing.T) {
 	type testCase struct {
 		name   string
 		object Zonefile
@@ -3252,7 +3252,7 @@ func Test_AddRecord(t *testing.T) {
 	}
 }
 
-func Test_UpdateRecord(t *testing.T) {
+func Test_Zonefile_UpdateRecord(t *testing.T) {
 	type testCase struct {
 		name   string
 		object Zonefile

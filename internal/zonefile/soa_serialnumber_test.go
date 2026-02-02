@@ -205,7 +205,7 @@ func Test_CreateSOASerialNumber(t *testing.T) {
 	}
 }
 
-func Test_Inc(t *testing.T) {
+func Test_SOASerialNumber_Inc(t *testing.T) {
 	type testCase struct {
 		name     string
 		object   SOASerialNumber
@@ -283,7 +283,7 @@ func Test_Inc(t *testing.T) {
 	}
 }
 
-func Test_String(t *testing.T) {
+func Test_SOASerialNumber_String(t *testing.T) {
 	type testCase struct {
 		name     string
 		object   SOASerialNumber
@@ -323,7 +323,7 @@ func Test_String(t *testing.T) {
 	}
 }
 
-func Test_Uint32(t *testing.T) {
+func Test_SOASerialNumber_Uint32(t *testing.T) {
 	type testCase struct {
 		name     string
 		object   SOASerialNumber
