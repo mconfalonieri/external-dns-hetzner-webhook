@@ -220,7 +220,7 @@ This can be changed using the **SLASH_ESC_SEQ** environment variable.
 ### 0.9.x to 0.10.x
 
 The configuration is fully compatible. There is a new configuration parameter
-**ZONES_CACHE_TTL** that controls the TTL of the newly implemented zones
+**ZONE_CACHE_TTL** that controls the TTL of the newly implemented zones
 cache, that is aimed to reduce API calls. The parameter is expressed in
 seconds.
 
@@ -285,7 +285,7 @@ Hetzner DNS API.
 | USE_CLOUD_API   | Use the new cloud API                  | Default: `false`           |
 | SLASH_ESC_SEQ   | Escape sequence for label annotations  | Default: `--slash--`       |
 | MAX_FAIL_COUNT  | Number of failed calls before shutdown | Default: `-1` (disabled)   |
-| ZONES_CACHE_TTL | TTL for the zone cache in seconds      | Default: `0` (disabled)    |
+| ZONE_CACHE_TTL | TTL for the zone cache in seconds      | Default: `0` (disabled)    |
 
 > [!IMPORTANT]
 > Please notice that when **USE_CLOUD_API** is set to `true`, the token stored 

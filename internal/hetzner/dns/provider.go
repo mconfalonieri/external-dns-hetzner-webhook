@@ -44,18 +44,18 @@ var logFatalf = log.Fatalf
 // Hetzner.
 type HetznerProvider struct {
 	provider.BaseProvider
-	client             apiClient
-	batchSize          int
-	debug              bool
-	dryRun             bool
-	defaultTTL         int
-	zoneIDNameMapper   provider.ZoneIDName
-	domainFilter       *endpoint.DomainFilter
-	maxFailCount       int
-	failCount          int
-	zonesCacheDuration time.Duration
-	zonesCacheUpdate   time.Time
-	zonesCache         []hdns.Zone
+	client            apiClient
+	batchSize         int
+	debug             bool
+	dryRun            bool
+	defaultTTL        int
+	zoneIDNameMapper  provider.ZoneIDName
+	domainFilter      *endpoint.DomainFilter
+	maxFailCount      int
+	failCount         int
+	zoneCacheDuration time.Duration
+	zoneCacheUpdate   time.Time
+	zoneCache         []hdns.Zone
 }
 
 // NewHetznerProvider creates a new HetznerProvider instance.
@@ -81,19 +81,25 @@ func NewHetznerProvider(config *hetzner.Configuration) (*HetznerProvider, error)
 	}
 	log.Info(msg)
 
-	zcTTL := time.Duration(int64(config.ZonesCacheTTL) * int64(time.Second))
+	zcTTL := time.Duration(int64(config.ZoneCacheTTL) * int64(time.Second))
 	zcUpdate := time.Now()
 
+	if zcTTL > 0 {
+		log.Infof("Zone cache enabled. TTL=%ds.", config.ZoneCacheTTL)
+	} else {
+		log.Info("Zone cache disabled in configuration.")
+	}
+
 	return &HetznerProvider{
-		client:             client,
-		batchSize:          config.BatchSize,
-		debug:              config.Debug,
-		dryRun:             config.DryRun,
-		defaultTTL:         config.DefaultTTL,
-		domainFilter:       hetzner.GetDomainFilter(*config),
-		maxFailCount:       config.MaxFailCount,
-		zonesCacheDuration: zcTTL,
-		zonesCacheUpdate:   zcUpdate,
+		client:            client,
+		batchSize:         config.BatchSize,
+		debug:             config.Debug,
+		dryRun:            config.DryRun,
+		defaultTTL:        config.DefaultTTL,
+		domainFilter:      hetzner.GetDomainFilter(*config),
+		maxFailCount:      config.MaxFailCount,
+		zoneCacheDuration: zcTTL,
+		zoneCacheUpdate:   zcUpdate,
 	}, nil
 }
 
@@ -120,10 +126,10 @@ func (p *HetznerProvider) resetFailCount() {
 // If a domain filter is set, it only returns the zones that match it.
 func (p *HetznerProvider) Zones(ctx context.Context) ([]hdns.Zone, error) {
 	now := time.Now()
-	if now.Before(p.zonesCacheUpdate) && p.zonesCache != nil {
-		nextUpdate := int(p.zonesCacheUpdate.Sub(now).Seconds())
+	if now.Before(p.zoneCacheUpdate) && p.zoneCache != nil {
+		nextUpdate := int(p.zoneCacheUpdate.Sub(now).Seconds())
 		log.Debugf("Using cached zones. The cache expires in %d seconds.", nextUpdate)
-		return p.zonesCache, nil
+		return p.zoneCache, nil
 	}
 	metrics := metrics.GetOpenMetricsInstance()
 	result := []hdns.Zone{}

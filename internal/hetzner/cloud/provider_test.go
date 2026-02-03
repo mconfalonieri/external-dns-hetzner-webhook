@@ -52,11 +52,11 @@ func assertEqualDomainFilter(t *testing.T, expected, actual *endpoint.DomainFilt
 //   - slashEscSeq
 //   - maxFailCount
 //   - failCount
-//   - zonesCacheDuration
-//   - zonesCacheUpdate
-//   - zonesCache
+//   - zoneCacheDuration
+//   - zoneCacheUpdate
+//   - zoneCache
 //
-// For zonesCacheUpdate, a delta up to maxDelta is taken into consideration.
+// For zoneCacheUpdate, a delta up to maxDelta is taken into consideration.
 func assertEqualProviders(t *testing.T, expected, actual *HetznerProvider, maxDelta time.Duration) {
 	if expected == nil && actual == nil {
 		return
@@ -80,10 +80,10 @@ func assertEqualProviders(t *testing.T, expected, actual *HetznerProvider, maxDe
 	assert.Equal(t, expected.slashEscSeq, actual.slashEscSeq)
 	assert.Equal(t, expected.maxFailCount, actual.maxFailCount)
 	assert.Equal(t, expected.failCount, actual.failCount)
-	assert.Equal(t, expected.zonesCacheDuration, actual.zonesCacheDuration)
-	delta := expected.zonesCacheUpdate.Sub(actual.zonesCacheUpdate)
+	assert.Equal(t, expected.zoneCacheDuration, actual.zoneCacheDuration)
+	delta := expected.zoneCacheUpdate.Sub(actual.zoneCacheUpdate)
 	assert.LessOrEqual(t, delta, maxDelta)
-	assert.Equal(t, expected.zonesCache, actual.zonesCache)
+	assert.Equal(t, expected.zoneCache, actual.zoneCache)
 }
 
 // Test_NewHetznerProvider tests NewHetznerProvider().
@@ -126,31 +126,31 @@ func Test_NewHetznerProvider(t *testing.T) {
 		{
 			name: "some api key",
 			input: &hetzner.Configuration{
-				APIKey:        "TEST_API_KEY",
-				DryRun:        true,
-				Debug:         true,
-				BatchSize:     50,
-				DefaultTTL:    3600,
-				DomainFilter:  []string{"alpha.com, beta.com"},
-				SlashEscSeq:   "--slash--",
-				MaxFailCount:  10,
-				ZonesCacheTTL: 3600,
+				APIKey:       "TEST_API_KEY",
+				DryRun:       true,
+				Debug:        true,
+				BatchSize:    50,
+				DefaultTTL:   3600,
+				DomainFilter: []string{"alpha.com, beta.com"},
+				SlashEscSeq:  "--slash--",
+				MaxFailCount: 10,
+				ZoneCacheTTL: 3600,
 			},
 			expected: struct {
 				provider *HetznerProvider
 				err      error
 			}{
 				provider: &HetznerProvider{
-					client:             &mockClient{},
-					batchSize:          50,
-					debug:              true,
-					dryRun:             true,
-					defaultTTL:         3600,
-					domainFilter:       endpoint.NewDomainFilter([]string{"alpha.com, beta.com"}),
-					slashEscSeq:        "--slash--",
-					maxFailCount:       10,
-					zonesCacheDuration: time.Duration(int64(3600) * int64(time.Second)),
-					zonesCacheUpdate:   time.Now(),
+					client:            &mockClient{},
+					batchSize:         50,
+					debug:             true,
+					dryRun:            true,
+					defaultTTL:        3600,
+					domainFilter:      endpoint.NewDomainFilter([]string{"alpha.com, beta.com"}),
+					slashEscSeq:       "--slash--",
+					maxFailCount:      10,
+					zoneCacheDuration: time.Duration(int64(3600) * int64(time.Second)),
+					zoneCacheUpdate:   time.Now(),
 				},
 			},
 		},
@@ -212,13 +212,13 @@ func Test_Zones(t *testing.T) {
 						},
 					},
 				},
-				batchSize:          100,
-				debug:              true,
-				dryRun:             false,
-				defaultTTL:         7200,
-				domainFilter:       &endpoint.DomainFilter{},
-				zonesCacheDuration: time.Duration(0),
-				zonesCacheUpdate:   time.Now(),
+				batchSize:         100,
+				debug:             true,
+				dryRun:            false,
+				defaultTTL:        7200,
+				domainFilter:      &endpoint.DomainFilter{},
+				zoneCacheDuration: time.Duration(0),
+				zoneCacheUpdate:   time.Now(),
 			},
 			expected: struct {
 				zones []*hcloud.Zone
@@ -321,14 +321,14 @@ func Test_Zones(t *testing.T) {
 						},
 					},
 				},
-				batchSize:          100,
-				debug:              true,
-				dryRun:             false,
-				defaultTTL:         7200,
-				domainFilter:       &endpoint.DomainFilter{},
-				zonesCacheDuration: time.Duration(int64(3600) * int64(time.Second)),
-				zonesCacheUpdate:   time.Now().Add(time.Duration(int64(3600) * int64(time.Second))),
-				zonesCache: []*hcloud.Zone{
+				batchSize:         100,
+				debug:             true,
+				dryRun:            false,
+				defaultTTL:        7200,
+				domainFilter:      &endpoint.DomainFilter{},
+				zoneCacheDuration: time.Duration(int64(3600) * int64(time.Second)),
+				zoneCacheUpdate:   time.Now().Add(time.Duration(int64(3600) * int64(time.Second))),
+				zoneCache: []*hcloud.Zone{
 					{
 						ID:   1,
 						Name: "alpha.com",

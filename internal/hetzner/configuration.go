@@ -56,7 +56,7 @@ type Configuration struct {
 	// down.
 	MaxFailCount int `env:"MAX_FAIL_COUNT" default:"-1"`
 	// Zones cache TTL in seconds.
-	ZonesCacheTTL int `env:"ZONES_CACHE_TTL" default:"0"`
+	ZoneCacheTTL int `env:"ZONE_CACHE_TTL" default:"0"`
 }
 
 // NewConfiguration creates a new configuration object.
