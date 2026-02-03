@@ -149,7 +149,10 @@ func (p *HetznerProvider) Zones(ctx context.Context) ([]hdns.Zone, error) {
 	}
 	metrics.SetFilteredOutZones(filteredOutZones)
 
+	log.Debugf("Got %d zones, filtered out %d zones.", len(zones), filteredOutZones)
 	p.ensureZoneIDMappingPresent(zones)
+	p.zoneCache = result
+	p.zoneCacheUpdate = now.Add(p.zoneCacheDuration)
 
 	return result, nil
 }
