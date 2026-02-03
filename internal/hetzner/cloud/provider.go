@@ -4,7 +4,7 @@
  * This file was MODIFIED from the original provider to be used as a standalone
  * webhook server.
  *
- * Copyright 2023 Marco Confalonieri.
+ * Copyright 2026 Marco Confalonieri.
  * Copyright 2017 The Kubernetes Authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,6 +24,7 @@ package hetznercloud
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"external-dns-hetzner-webhook/internal/hetzner"
 	"external-dns-hetzner-webhook/internal/metrics"
@@ -43,16 +44,19 @@ var logFatalf = log.Fatalf
 // Hetzner.
 type HetznerProvider struct {
 	provider.BaseProvider
-	client           apiClient
-	batchSize        int
-	debug            bool
-	dryRun           bool
-	defaultTTL       int
-	zoneIDNameMapper zoneIDName
-	domainFilter     *endpoint.DomainFilter
-	slashEscSeq      string
-	maxFailCount     int
-	failCount        int
+	client            apiClient
+	batchSize         int
+	debug             bool
+	dryRun            bool
+	defaultTTL        int
+	zoneIDNameMapper  zoneIDName
+	domainFilter      *endpoint.DomainFilter
+	slashEscSeq       string
+	maxFailCount      int
+	failCount         int
+	zoneCacheDuration time.Duration
+	zoneCacheUpdate   time.Time
+	zoneCache         []*hcloud.Zone
 }
 
 // NewHetznerProvider creates a new HetznerProvider instance.
@@ -78,15 +82,26 @@ func NewHetznerProvider(config *hetzner.Configuration) (*HetznerProvider, error)
 	}
 	log.Info(msg)
 
+	zcTTL := time.Duration(int64(config.ZoneCacheTTL) * int64(time.Second))
+	zcUpdate := time.Now()
+
+	if zcTTL > 0 {
+		log.Infof("Zone cache enabled. TTL=%ds.", config.ZoneCacheTTL)
+	} else {
+		log.Info("Zone cache disabled in configuration.")
+	}
+
 	return &HetznerProvider{
-		client:       client,
-		batchSize:    config.BatchSize,
-		debug:        config.Debug,
-		dryRun:       config.DryRun,
-		defaultTTL:   config.DefaultTTL,
-		domainFilter: hetzner.GetDomainFilter(*config),
-		slashEscSeq:  config.SlashEscSeq,
-		maxFailCount: config.MaxFailCount,
+		client:            client,
+		batchSize:         config.BatchSize,
+		debug:             config.Debug,
+		dryRun:            config.DryRun,
+		defaultTTL:        config.DefaultTTL,
+		domainFilter:      hetzner.GetDomainFilter(*config),
+		slashEscSeq:       config.SlashEscSeq,
+		maxFailCount:      config.MaxFailCount,
+		zoneCacheDuration: zcTTL,
+		zoneCacheUpdate:   zcUpdate,
 	}, nil
 }
 
@@ -112,6 +127,12 @@ func (p *HetznerProvider) resetFailCount() {
 // Zones returns the list of the hosted DNS zones.
 // If a domain filter is set, it only returns the zones that match it.
 func (p *HetznerProvider) Zones(ctx context.Context) ([]*hcloud.Zone, error) {
+	now := time.Now()
+	if now.Before(p.zoneCacheUpdate) && p.zoneCache != nil {
+		nextUpdate := int(p.zoneCacheUpdate.Sub(now).Seconds())
+		log.Debugf("Using cached zones. The cache expires in %d seconds.", nextUpdate)
+		return p.zoneCache, nil
+	}
 	metrics := metrics.GetOpenMetricsInstance()
 	result := []*hcloud.Zone{}
 
@@ -133,6 +154,8 @@ func (p *HetznerProvider) Zones(ctx context.Context) ([]*hcloud.Zone, error) {
 
 	log.Debugf("Got %d zones, filtered out %d zones.", len(zones), filteredOutZones)
 	p.ensureZoneIDMappingPresent(zones)
+	p.zoneCache = result
+	p.zoneCacheUpdate = now.Add(p.zoneCacheDuration)
 
 	return result, nil
 }

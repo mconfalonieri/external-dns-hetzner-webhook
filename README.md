@@ -4,7 +4,7 @@
 > **This software is experimental.**
 
 > [!NOTE]
-> The latest version is **v0.9.2**.
+> The latest version is **v0.10.0**.
 
 [ExternalDNS](https://github.com/kubernetes-sigs/external-dns) is a Kubernetes
 add-on for automatically DNS records for Kubernetes services using different
@@ -80,7 +80,7 @@ provider:
   webhook:
     image:
       repository: ghcr.io/mconfalonieri/external-dns-hetzner-webhook
-      tag: v0.9.2
+      tag: v0.10.0
     env:
       - name: HETZNER_API_KEY
         valueFrom:
@@ -140,7 +140,7 @@ extraArgs:
 
 sidecars:
   - name: hetzner-webhook
-    image: ghcr.io/mconfalonieri/external-dns-hetzner-webhook:v0.9.2
+    image: ghcr.io/mconfalonieri/external-dns-hetzner-webhook:v0.10.0
     ports:
       - containerPort: 8888
         name: webhook
@@ -217,6 +217,13 @@ This can be changed using the **SLASH_ESC_SEQ** environment variable.
 
 ## Upgrading from previous versions
 
+### 0.9.x to 0.10.x
+
+The configuration is fully compatible. There is a new configuration parameter
+**ZONE_CACHE_TTL** that controls the TTL of the newly implemented zones
+cache, that is aimed to reduce API calls. The parameter is expressed in
+seconds.
+
 ### 0.8.x to 0.9.x
 
 The configuration is fully compatible. A new configuration parameter
@@ -278,6 +285,7 @@ Hetzner DNS API.
 | USE_CLOUD_API   | Use the new cloud API                  | Default: `false`           |
 | SLASH_ESC_SEQ   | Escape sequence for label annotations  | Default: `--slash--`       |
 | MAX_FAIL_COUNT  | Number of failed calls before shutdown | Default: `-1` (disabled)   |
+| ZONE_CACHE_TTL | TTL for the zone cache in seconds      | Default: `0` (disabled)    |
 
 > [!IMPORTANT]
 > Please notice that when **USE_CLOUD_API** is set to `true`, the token stored 
