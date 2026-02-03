@@ -1,8 +1,10 @@
 # ExternalDNS - UNOFFICIAL Hetzner Webhook
 
-⚠️ **This software is experimental.** ⚠️
+> [!WARNING]
+> **This software is experimental.**
 
-ℹ️ The latest version is **{{ .Version }}**.
+> [!NOTE]
+> The latest version is **{{ .Version }}**.
 
 [ExternalDNS](https://github.com/kubernetes-sigs/external-dns) is a Kubernetes
 add-on for automatically DNS records for Kubernetes services using different
@@ -13,8 +15,9 @@ you to manage your Hetzner domains inside your kubernetes cluster.
 
 This webhook supports both the old DNS API and the new Cloud DNS interface.
 
-ℹ️ If you are upgrading to **0.8.x** from previous versions read the
-[Upgrading from previous versions](#upgrading-from-previous-versions) section.
+> [!TIP]
+> If you are upgrading to **0.8.x** from previous versions read the
+> [Upgrading from previous versions](#upgrading-from-previous-versions) section.
 
 
 ## Requirements
@@ -105,10 +108,13 @@ And then:
 
 ```shell
 # install external-dns with helm
-helm install external-dns-hetzner external-dns/external-dns -f external-dns-hetzner-values.yaml --version 0.15.0 -n external-dns
+helm install external-dns-hetzner external-dns/external-dns -f external-dns-hetzner-values.yaml -n external-dns
 ```
 
 ### Using the Bitnami chart
+
+> [!NOTE]
+> The Bitnami distribution model changed and most features are now paid for.
 
 Skip this step if you already have the Bitnami repository added:
 
@@ -211,6 +217,13 @@ This can be changed using the **SLASH_ESC_SEQ** environment variable.
 
 ## Upgrading from previous versions
 
+### 0.9.x to 0.10.x
+
+The configuration is fully compatible. There is a new configuration parameter
+**ZONE_CACHE_TTL** that controls the TTL of the newly implemented zones
+cache, that is aimed to reduce API calls. The parameter is expressed in
+seconds.
+
 ### 0.8.x to 0.9.x
 
 The configuration is fully compatible. A new configuration parameter
@@ -218,6 +231,9 @@ The configuration is fully compatible. A new configuration parameter
 repeated failed attempts to retrieve the records. If this parameter is set to
 a value strictly greater than zero, the webhook will shut down after the
 configured number of attempts. The default is `-1` (shutdown disabled).
+
+MX records are now supported for both the Cloud API (since **v0.9.1**) and the
+Legacy DNS API (since **v0.9.2**).
 
 ### 0.7.x to 0.8.x
 
@@ -269,9 +285,11 @@ Hetzner DNS API.
 | USE_CLOUD_API   | Use the new cloud API                  | Default: `false`           |
 | SLASH_ESC_SEQ   | Escape sequence for label annotations  | Default: `--slash--`       |
 | MAX_FAIL_COUNT  | Number of failed calls before shutdown | Default: `-1` (disabled)   |
+| ZONE_CACHE_TTL | TTL for the zone cache in seconds      | Default: `0` (disabled)    |
 
-Please notice that when **USE_CLOUD_API** is set to `true`, the token stored in
-**HETZNER_API_KEY** must be a Hetzner Cloud token, NOT the classic DNS one.
+> [!IMPORTANT]
+> Please notice that when **USE_CLOUD_API** is set to `true`, the token stored 
+> in **HETZNER_API_KEY** must be a Hetzner Cloud token, NOT the classic DNS one.
 
 ### Test and debug
 

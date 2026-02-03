@@ -1,7 +1,7 @@
 /*
  * Configuration - provider configuration
  *
- * Copyright 2023 Marco Confalonieri.
+ * Copyright 2026 Marco Confalonieri.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -55,6 +55,8 @@ type Configuration struct {
 	// every successful API access. A negative or 0 value disables the fail shut
 	// down.
 	MaxFailCount int `env:"MAX_FAIL_COUNT" default:"-1"`
+  // Zones cache TTL in seconds.
+	ZoneCacheTTL int `env:"ZONE_CACHE_TTL" default:"0"`
 	// Enable bulk mode
 	BulkMode bool `env:"BULK_MODE" default:"false"`
 }

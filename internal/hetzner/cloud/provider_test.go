@@ -1,7 +1,7 @@
 /*
  * Provider - unit tests.
  *
- * Copyright 2023 Marco Confalonieri.
+ * Copyright 2026 Marco Confalonieri.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"net/http"
 	"testing"
+	"time"
 
 	"external-dns-hetzner-webhook/internal/hetzner"
 
@@ -32,30 +33,75 @@ import (
 	"sigs.k8s.io/external-dns/endpoint"
 )
 
+// assertEqualDomainFilter checks that the domain filters have the same information.
+func assertEqualDomainFilter(t *testing.T, expected, actual *endpoint.DomainFilter) {
+	actualJSON, _ := actual.MarshalJSON()
+	expectedJSON, _ := expected.MarshalJSON()
+	assert.Equal(t, expectedJSON, actualJSON)
+}
+
+// assertEqualProviders checks that the fields in the actual provider match the ones
+// in the expected provider, except the API client. The checked fields are:
+//
+//   - batchSize
+//   - debug
+//   - dryRun
+//   - defaultTTL
+//   - zoneIDNameMapper
+//   - domainFilter
+//   - slashEscSeq
+//   - maxFailCount
+//   - failCount
+//   - zoneCacheDuration
+//   - zoneCacheUpdate
+//   - zoneCache
+//
+// For zoneCacheUpdate, a delta up to maxDelta is taken into consideration.
+func assertEqualProviders(t *testing.T, expected, actual *HetznerProvider, maxDelta time.Duration) {
+	if expected == nil && actual == nil {
+		return
+	} else if expected == nil && actual != nil {
+		assert.Fail(t, "Expected nil provider, but it was not nil")
+	} else if expected != nil && actual == nil {
+		assert.Fail(t, "Expected not-nil provider, but it was nil")
+	}
+
+	if expected.client != nil {
+		assert.NotNil(t, actual.client)
+	} else {
+		assert.Nil(t, actual.client)
+	}
+	assert.Equal(t, expected.batchSize, actual.batchSize)
+	assert.Equal(t, expected.debug, actual.debug)
+	assert.Equal(t, expected.dryRun, actual.dryRun)
+	assert.Equal(t, expected.defaultTTL, actual.defaultTTL)
+	assert.Equal(t, expected.zoneIDNameMapper, actual.zoneIDNameMapper)
+	assertEqualDomainFilter(t, expected.domainFilter, actual.domainFilter)
+	assert.Equal(t, expected.slashEscSeq, actual.slashEscSeq)
+	assert.Equal(t, expected.maxFailCount, actual.maxFailCount)
+	assert.Equal(t, expected.failCount, actual.failCount)
+	assert.Equal(t, expected.zoneCacheDuration, actual.zoneCacheDuration)
+	delta := expected.zoneCacheUpdate.Sub(actual.zoneCacheUpdate)
+	assert.LessOrEqual(t, delta, maxDelta)
+	assert.Equal(t, expected.zoneCache, actual.zoneCache)
+}
+
 // Test_NewHetznerProvider tests NewHetznerProvider().
 func Test_NewHetznerProvider(t *testing.T) {
 	type testCase struct {
 		name     string
 		input    *hetzner.Configuration
 		expected struct {
-			provider HetznerProvider
+			provider *HetznerProvider
 			err      error
 		}
 	}
 
 	run := func(t *testing.T, tc testCase) {
 		exp := tc.expected
-		p, err := NewHetznerProvider(tc.input)
-		if !assertError(t, exp.err, err) {
-			assert.NotNil(t, p.client)
-			assert.Equal(t, exp.provider.dryRun, p.dryRun)
-			assert.Equal(t, exp.provider.debug, p.debug)
-			assert.Equal(t, exp.provider.batchSize, p.batchSize)
-			assert.Equal(t, exp.provider.defaultTTL, p.defaultTTL)
-			actualJSON, _ := p.domainFilter.MarshalJSON()
-			expectedJSON, _ := exp.provider.domainFilter.MarshalJSON()
-			assert.Equal(t, actualJSON, expectedJSON)
-		}
+		provider, err := NewHetznerProvider(tc.input)
+		assertError(t, exp.err, err)
+		assertEqualProviders(t, exp.provider, provider, time.Second)
 	}
 
 	testCases := []testCase{
@@ -68,9 +114,10 @@ func Test_NewHetznerProvider(t *testing.T) {
 				BatchSize:    50,
 				DefaultTTL:   3600,
 				DomainFilter: []string{"alpha.com, beta.com"},
+				SlashEscSeq:  "--slash--",
 			},
 			expected: struct {
-				provider HetznerProvider
+				provider *HetznerProvider
 				err      error
 			}{
 				err: errors.New("cannot instantiate cloud DNS provider: nil API key provided"),
@@ -85,18 +132,25 @@ func Test_NewHetznerProvider(t *testing.T) {
 				BatchSize:    50,
 				DefaultTTL:   3600,
 				DomainFilter: []string{"alpha.com, beta.com"},
+				SlashEscSeq:  "--slash--",
+				MaxFailCount: 10,
+				ZoneCacheTTL: 3600,
 			},
 			expected: struct {
-				provider HetznerProvider
+				provider *HetznerProvider
 				err      error
 			}{
-				provider: HetznerProvider{
-					client:       nil, // This will be ignored
-					batchSize:    50,
-					debug:        true,
-					dryRun:       true,
-					defaultTTL:   3600,
-					domainFilter: endpoint.NewDomainFilter([]string{"alpha.com, beta.com"}),
+				provider: &HetznerProvider{
+					client:            &mockClient{},
+					batchSize:         50,
+					debug:             true,
+					dryRun:            true,
+					defaultTTL:        3600,
+					domainFilter:      endpoint.NewDomainFilter([]string{"alpha.com, beta.com"}),
+					slashEscSeq:       "--slash--",
+					maxFailCount:      10,
+					zoneCacheDuration: time.Duration(int64(3600) * int64(time.Second)),
+					zoneCacheUpdate:   time.Now(),
 				},
 			},
 		},
@@ -113,7 +167,7 @@ func Test_NewHetznerProvider(t *testing.T) {
 func Test_Zones(t *testing.T) {
 	type testCase struct {
 		name     string
-		provider HetznerProvider
+		object   HetznerProvider
 		expected struct {
 			zones []*hcloud.Zone
 			err   error
@@ -121,7 +175,7 @@ func Test_Zones(t *testing.T) {
 	}
 
 	run := func(t *testing.T, tc testCase) {
-		obj := tc.provider
+		obj := tc.object
 		exp := tc.expected
 		actual, err := obj.Zones(context.Background())
 		if !assertError(t, exp.err, err) {
@@ -132,7 +186,7 @@ func Test_Zones(t *testing.T) {
 	testCases := []testCase{
 		{
 			name: "all zones returned",
-			provider: HetznerProvider{
+			object: HetznerProvider{
 				client: &mockClient{
 					getZones: zonesResponse{
 						zones: []*hcloud.Zone{
@@ -158,11 +212,13 @@ func Test_Zones(t *testing.T) {
 						},
 					},
 				},
-				batchSize:    100,
-				debug:        true,
-				dryRun:       false,
-				defaultTTL:   7200,
-				domainFilter: &endpoint.DomainFilter{},
+				batchSize:         100,
+				debug:             true,
+				dryRun:            false,
+				defaultTTL:        7200,
+				domainFilter:      &endpoint.DomainFilter{},
+				zoneCacheDuration: time.Duration(0),
+				zoneCacheUpdate:   time.Now(),
 			},
 			expected: struct {
 				zones []*hcloud.Zone
@@ -182,7 +238,7 @@ func Test_Zones(t *testing.T) {
 		},
 		{
 			name: "filtered zones returned",
-			provider: HetznerProvider{
+			object: HetznerProvider{
 				client: &mockClient{
 					getZones: zonesResponse{
 						zones: []*hcloud.Zone{
@@ -234,8 +290,74 @@ func Test_Zones(t *testing.T) {
 			},
 		},
 		{
+			name: "cached zones returned",
+			object: HetznerProvider{
+				client: &mockClient{
+					getZones: zonesResponse{
+						zones: []*hcloud.Zone{
+							{
+								ID:   1,
+								Name: "alpha.com",
+							},
+							{
+								ID:   2,
+								Name: "beta.com",
+							},
+							{
+								ID:   3,
+								Name: "gamma.com",
+							},
+						},
+						resp: &hcloud.Response{
+							Response: &http.Response{StatusCode: http.StatusOK},
+							Meta: hcloud.Meta{
+								Pagination: &hcloud.Pagination{
+									Page:         1,
+									PerPage:      100,
+									LastPage:     1,
+									TotalEntries: 3,
+								},
+							},
+						},
+					},
+				},
+				batchSize:         100,
+				debug:             true,
+				dryRun:            false,
+				defaultTTL:        7200,
+				domainFilter:      &endpoint.DomainFilter{},
+				zoneCacheDuration: time.Duration(int64(3600) * int64(time.Second)),
+				zoneCacheUpdate:   time.Now().Add(time.Duration(int64(3600) * int64(time.Second))),
+				zoneCache: []*hcloud.Zone{
+					{
+						ID:   1,
+						Name: "alpha.com",
+					},
+					{
+						ID:   2,
+						Name: "beta.com",
+					},
+				},
+			},
+			expected: struct {
+				zones []*hcloud.Zone
+				err   error
+			}{
+				zones: []*hcloud.Zone{
+					{
+						ID:   1,
+						Name: "alpha.com",
+					},
+					{
+						ID:   2,
+						Name: "beta.com",
+					},
+				},
+			},
+		},
+		{
 			name: "error returned",
-			provider: HetznerProvider{
+			object: HetznerProvider{
 				client: &mockClient{
 					getZones: zonesResponse{
 						err: errors.New("test zones error"),

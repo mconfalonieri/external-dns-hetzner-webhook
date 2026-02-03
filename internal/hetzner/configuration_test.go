@@ -1,7 +1,7 @@
 /*
  * Configuration - unit tests
  *
- * Copyright 2023 Marco Confalonieri.
+ * Copyright 2026 Marco Confalonieri.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,6 +25,13 @@ import (
 	"sigs.k8s.io/external-dns/endpoint"
 )
 
+// assertEqualDomainFilter checks that the domain filters have the same information.
+func assertEqualDomainFilter(t *testing.T, expected, actual *endpoint.DomainFilter) {
+	actualJSON, _ := actual.MarshalJSON()
+	expectedJSON, _ := expected.MarshalJSON()
+	assert.Equal(t, expectedJSON, actualJSON)
+}
+
 // Test_GetDomainFilter tests that the domain filter is correctly set for all
 // cases.
 func Test_GetDomainFilter(t *testing.T) {
@@ -37,9 +44,7 @@ func Test_GetDomainFilter(t *testing.T) {
 
 	run := func(t *testing.T, tc testCase) {
 		actual := GetDomainFilter(tc.config)
-		actualJSON, _ := actual.MarshalJSON()
-		expectedJSON, _ := tc.expected.MarshalJSON()
-		assert.Equal(t, actualJSON, expectedJSON)
+		assertEqualDomainFilter(t, tc.expected, actual)
 	}
 
 	testCases := []testCase{
