@@ -72,7 +72,7 @@ type HetznerProvider struct {
 	zoneCacheDuration time.Duration
 	zoneCacheUpdate   time.Time
 	zoneCache         []*hcloud.Zone
-	bulkMode         bool
+	bulkMode          bool
 }
 
 // NewHetznerProvider creates a new HetznerProvider instance.
@@ -122,7 +122,7 @@ func NewHetznerProvider(config *hetzner.Configuration) (*HetznerProvider, error)
 		maxFailCount:      config.MaxFailCount,
 		zoneCacheDuration: zcTTL,
 		zoneCacheUpdate:   zcUpdate,
-    bulkMode:     config.BulkMode,
+		bulkMode:          config.BulkMode,
 	}, nil
 }
 

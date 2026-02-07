@@ -18,9 +18,10 @@
 package hetznercloud
 
 import (
-	"external-dns-hetzner-webhook/internal/zonefile"
 	"strings"
 	"testing"
+
+	"external-dns-hetzner-webhook/internal/zonefile"
 
 	"github.com/hetznercloud/hcloud-go/v2/hcloud"
 	"github.com/stretchr/testify/assert"
