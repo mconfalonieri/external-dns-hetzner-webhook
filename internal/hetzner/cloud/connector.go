@@ -34,6 +34,8 @@ const (
 	actUpdateRRSetRecords = "update_rrset_records"
 	actUpdateRRSet        = "update_rrset"
 	actDeleteRRSet        = "delete_rrset"
+	actExportZonefile     = "export_zonefile"
+	actImportZonefile     = "import_zonefile"
 )
 
 // apiClient is an abstraction of the REST API client.
@@ -52,6 +54,10 @@ type apiClient interface {
 	UpdateRRSetLabels(ctx context.Context, rrset *hcloud.ZoneRRSet, opts hcloud.ZoneRRSetUpdateOpts) (*hcloud.ZoneRRSet, *hcloud.Response, error)
 	// DeleteRRSet deletes an RRSet.
 	DeleteRRSet(ctx context.Context, rrset *hcloud.ZoneRRSet) (hcloud.ZoneRRSetDeleteResult, *hcloud.Response, error)
+	// ExportZonefile exports a zonefile.
+	ExportZonefile(ctx context.Context, zone *hcloud.Zone) (hcloud.ZoneExportZonefileResult, *hcloud.Response, error)
+	// ImportZoneFile imports a zonefile
+	ImportZonefile(ctx context.Context, zone *hcloud.Zone, opts hcloud.ZoneImportZonefileOpts) (*hcloud.Action, *hcloud.Response, error)
 }
 
 // fetchRecords fetches all records for a given zone.

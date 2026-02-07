@@ -1,7 +1,8 @@
 # ExternalDNS - UNOFFICIAL Hetzner Webhook
 
-> [!WARNING]
-> **This software is experimental.**
+> [!IMPORTANT]
+> Support for the legacy DNS is going to be discontinued by Hetzner in May 2026.
+> The legacy provider will be pulled from this provider in version 1.0.0.
 
 > [!NOTE]
 > The latest version is **{{ .Version }}**.
@@ -16,7 +17,7 @@ you to manage your Hetzner domains inside your kubernetes cluster.
 This webhook supports both the old DNS API and the new Cloud DNS interface.
 
 > [!TIP]
-> If you are upgrading to **0.8.x** from previous versions read the
+> If you are upgrading to **0.11.x** from previous versions read the
 > [Upgrading from previous versions](#upgrading-from-previous-versions) section.
 
 
@@ -217,6 +218,14 @@ This can be changed using the **SLASH_ESC_SEQ** environment variable.
 
 ## Upgrading from previous versions
 
+### 0.10.x to 0.11.x
+
+The configuration is fully compatible with previous versions. A **BULK_MODE**
+parameter was added. When set to `true`, the webhook will export and manipulate
+the zonefiles instead of the single recordsets. This will reduce the API calls
+when updating zones with lots of changes and a relatively long interval.
+
+
 ### 0.9.x to 0.10.x
 
 The configuration is fully compatible. There is a new configuration parameter
@@ -285,7 +294,8 @@ Hetzner DNS API.
 | USE_CLOUD_API   | Use the new cloud API                  | Default: `false`           |
 | SLASH_ESC_SEQ   | Escape sequence for label annotations  | Default: `--slash--`       |
 | MAX_FAIL_COUNT  | Number of failed calls before shutdown | Default: `-1` (disabled)   |
-| ZONE_CACHE_TTL | TTL for the zone cache in seconds      | Default: `0` (disabled)    |
+| ZONE_CACHE_TTL  | TTL for the zone cache in seconds      | Default: `0` (disabled)    |
+| BULK_MODE       | Enables bulk mode                      | Default: `false`           |
 
 > [!IMPORTANT]
 > Please notice that when **USE_CLOUD_API** is set to `true`, the token stored 

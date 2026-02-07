@@ -313,8 +313,8 @@ func Test_hetznerChanges_AddChangeDelete(t *testing.T) {
 func Test_hetznerChanges_applyDeletes(t *testing.T) {
 	type testCase struct {
 		name     string
+		mock     *mockClient
 		changes  *hetznerChanges
-		input    *mockClient
 		expected struct {
 			state mockClientState
 			err   error
@@ -322,11 +322,12 @@ func Test_hetznerChanges_applyDeletes(t *testing.T) {
 	}
 
 	run := func(t *testing.T, tc testCase) {
-		inp := tc.input
+		changes := tc.changes
+		changes.dnsClient = tc.mock
 		exp := tc.expected
-		err := tc.changes.applyDeletes(context.Background(), inp)
+		err := changes.applyDeletes(context.Background())
 		assertError(t, exp.err, err)
-		assert.Equal(t, exp.state, inp.GetState())
+		assert.Equal(t, exp.state, tc.mock.GetState())
 	}
 
 	testCases := []testCase{
@@ -353,7 +354,7 @@ func Test_hetznerChanges_applyDeletes(t *testing.T) {
 					},
 				},
 			},
-			input: &mockClient{},
+			mock: &mockClient{},
 			expected: struct {
 				state mockClientState
 				err   error
@@ -384,7 +385,7 @@ func Test_hetznerChanges_applyDeletes(t *testing.T) {
 					},
 				},
 			},
-			input: &mockClient{
+			mock: &mockClient{
 				deleteRRSet: deleteRRSetResponse{
 					err: errors.New("test delete error"),
 				},
@@ -421,7 +422,7 @@ func Test_hetznerChanges_applyDeletes(t *testing.T) {
 				},
 				dryRun: true,
 			},
-			input: &mockClient{},
+			mock: &mockClient{},
 			expected: struct {
 				state mockClientState
 				err   error
@@ -443,7 +444,7 @@ func Test_hetznerChanges_applyCreates(t *testing.T) {
 	type testCase struct {
 		name     string
 		changes  *hetznerChanges
-		input    *mockClient
+		mock     *mockClient
 		expected struct {
 			state mockClientState
 			err   error
@@ -451,11 +452,12 @@ func Test_hetznerChanges_applyCreates(t *testing.T) {
 	}
 
 	run := func(t *testing.T, tc testCase) {
-		inp := tc.input
+		changes := tc.changes
+		changes.dnsClient = tc.mock
 		exp := tc.expected
-		err := tc.changes.applyCreates(context.Background(), inp)
+		err := tc.changes.applyCreates(context.Background())
 		assertError(t, exp.err, err)
-		assert.Equal(t, exp.state, inp.GetState())
+		assert.Equal(t, exp.state, tc.mock.GetState())
 	}
 
 	testCases := []testCase{
@@ -484,7 +486,7 @@ func Test_hetznerChanges_applyCreates(t *testing.T) {
 					},
 				},
 			},
-			input: &mockClient{},
+			mock: &mockClient{},
 			expected: struct {
 				state mockClientState
 				err   error
@@ -514,7 +516,7 @@ func Test_hetznerChanges_applyCreates(t *testing.T) {
 					},
 				},
 			},
-			input: &mockClient{
+			mock: &mockClient{
 				createRRSet: createRRSetResponse{
 					err: errors.New("test creation error"),
 				},
@@ -529,7 +531,7 @@ func Test_hetznerChanges_applyCreates(t *testing.T) {
 		},
 		{
 			name: "creation dry run",
-			input: &mockClient{
+			mock: &mockClient{
 				createRRSet: createRRSetResponse{
 					err: errors.New("test creation error"),
 				},
@@ -576,7 +578,7 @@ func Test_hetznerChanges_applyUpdates(t *testing.T) {
 	type testCase struct {
 		name     string
 		changes  *hetznerChanges
-		input    *mockClient
+		mock     *mockClient
 		expected struct {
 			state mockClientState
 			err   error
@@ -584,17 +586,18 @@ func Test_hetznerChanges_applyUpdates(t *testing.T) {
 	}
 
 	run := func(t *testing.T, tc testCase) {
-		inp := tc.input
+		changes := tc.changes
+		changes.dnsClient = tc.mock
 		exp := tc.expected
-		err := tc.changes.applyUpdates(context.Background(), inp)
+		err := tc.changes.applyUpdates(context.Background())
 		assertError(t, exp.err, err)
-		assert.Equal(t, exp.state, inp.GetState())
+		assert.Equal(t, exp.state, tc.mock.GetState())
 	}
 
 	testCases := []testCase{
 		{
-			name:  "update TTL",
-			input: &mockClient{},
+			name: "update TTL",
+			mock: &mockClient{},
 			changes: &hetznerChanges{
 				updates: []*hetznerChangeUpdate{
 					{
@@ -632,8 +635,8 @@ func Test_hetznerChanges_applyUpdates(t *testing.T) {
 			},
 		},
 		{
-			name:  "update records",
-			input: &mockClient{},
+			name: "update records",
+			mock: &mockClient{},
 			changes: &hetznerChanges{
 				updates: []*hetznerChangeUpdate{
 					{
@@ -676,8 +679,8 @@ func Test_hetznerChanges_applyUpdates(t *testing.T) {
 			},
 		},
 		{
-			name:  "update all",
-			input: &mockClient{},
+			name: "update all",
+			mock: &mockClient{},
 			changes: &hetznerChanges{
 				slash: "--slash--",
 				updates: []*hetznerChangeUpdate{
@@ -734,7 +737,7 @@ func Test_hetznerChanges_applyUpdates(t *testing.T) {
 		},
 		{
 			name: "update TTL error",
-			input: &mockClient{
+			mock: &mockClient{
 				updateRRSetTTL: actionResponse{
 					err: errors.New("test update error"),
 				},
@@ -776,7 +779,7 @@ func Test_hetznerChanges_applyUpdates(t *testing.T) {
 		},
 		{
 			name: "update records error",
-			input: &mockClient{
+			mock: &mockClient{
 				updateRRSetRecords: actionResponse{
 					err: errors.New("test update error"),
 				},
@@ -824,8 +827,8 @@ func Test_hetznerChanges_applyUpdates(t *testing.T) {
 			},
 		},
 		{
-			name:  "update dry run",
-			input: &mockClient{},
+			name: "update dry run",
+			mock: &mockClient{},
 			changes: &hetznerChanges{
 				slash: "--slash--",
 				updates: []*hetznerChangeUpdate{
@@ -891,7 +894,7 @@ func Test_hetznerChanges_ApplyChanges(t *testing.T) {
 	type testCase struct {
 		name     string
 		changes  *hetznerChanges
-		input    *mockClient
+		mock     *mockClient
 		expected struct {
 			state mockClientState
 			err   error
@@ -899,18 +902,19 @@ func Test_hetznerChanges_ApplyChanges(t *testing.T) {
 	}
 
 	run := func(t *testing.T, tc testCase) {
-		inp := tc.input
+		changes := tc.changes
+		changes.dnsClient = tc.mock
 		exp := tc.expected
-		err := tc.changes.ApplyChanges(context.Background(), inp)
+		err := tc.changes.ApplyChanges(context.Background())
 		assertError(t, exp.err, err)
-		assert.Equal(t, exp.state, inp.GetState())
+		assert.Equal(t, exp.state, tc.mock.GetState())
 	}
 
 	testCases := []testCase{
 		{
 			name:    "no changes",
 			changes: &hetznerChanges{},
-			input:   &mockClient{},
+			mock:    &mockClient{},
 			expected: struct {
 				state mockClientState
 				err   error
@@ -1000,7 +1004,7 @@ func Test_hetznerChanges_ApplyChanges(t *testing.T) {
 					},
 				},
 			},
-			input: &mockClient{},
+			mock: &mockClient{},
 			expected: struct {
 				state mockClientState
 				err   error
@@ -1037,7 +1041,7 @@ func Test_hetznerChanges_ApplyChanges(t *testing.T) {
 					},
 				},
 			},
-			input: &mockClient{
+			mock: &mockClient{
 				deleteRRSet: deleteRRSetResponse{
 					err: errors.New("test delete error"),
 				},
@@ -1074,7 +1078,7 @@ func Test_hetznerChanges_ApplyChanges(t *testing.T) {
 					},
 				},
 			},
-			input: &mockClient{
+			mock: &mockClient{
 				createRRSet: createRRSetResponse{
 					err: errors.New("test creation error"),
 				},
@@ -1091,7 +1095,7 @@ func Test_hetznerChanges_ApplyChanges(t *testing.T) {
 		},
 		{
 			name: "update TTL error",
-			input: &mockClient{
+			mock: &mockClient{
 				updateRRSetTTL: actionResponse{
 					err: errors.New("test update error"),
 				},
@@ -1135,7 +1139,7 @@ func Test_hetznerChanges_ApplyChanges(t *testing.T) {
 		},
 		{
 			name: "update records error",
-			input: &mockClient{
+			mock: &mockClient{
 				updateRRSetRecords: actionResponse{
 					err: errors.New("test update error"),
 				},

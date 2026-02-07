@@ -70,7 +70,7 @@ func NewHetznerProvider(config *hetzner.Configuration) (*HetznerProvider, error)
 
 	client, err := NewHetznerDNS(config.APIKey)
 	if err != nil {
-		return nil, fmt.Errorf("cannot instantiate legacy DNS provider: %s", err.Error())
+		return nil, fmt.Errorf("cannot instantiate legacy DNS provider: %w", err)
 	}
 
 	var msg string
@@ -270,7 +270,7 @@ func (p *HetznerProvider) getRecordsByZoneID(ctx context.Context) (map[string][]
 }
 
 // ApplyChanges applies the given set of generic changes to the provider.
-func (p *HetznerProvider) ApplyChanges(ctx context.Context, planChanges *plan.Changes) error {
+func (p HetznerProvider) ApplyChanges(ctx context.Context, planChanges *plan.Changes) error {
 	if !planChanges.HasChanges() {
 		return nil
 	}
@@ -297,4 +297,9 @@ func (p *HetznerProvider) ApplyChanges(ctx context.Context, planChanges *plan.Ch
 	processDeleteActions(p.zoneIDNameMapper, recordsByZoneID, deletesByZoneID, &changes)
 
 	return changes.ApplyChanges(ctx, p.client)
+}
+
+// GetDomainFilter returns the domain filter
+func (p HetznerProvider) GetDomainFilter() endpoint.DomainFilterInterface {
+	return p.domainFilter
 }

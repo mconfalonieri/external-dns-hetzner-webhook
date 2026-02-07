@@ -50,7 +50,7 @@ func (s MetricsSocket) livenessHandler(w http.ResponseWriter, r *http.Request) {
 		_, err = w.Write([]byte(http.StatusText(http.StatusServiceUnavailable)))
 	}
 	if err != nil {
-		log.Warn("Could not answer to a liveness probe: ", err.Error())
+		log.Warnf("Could not answer to a liveness probe: %s", err.Error())
 	}
 }
 
@@ -66,7 +66,7 @@ func (s MetricsSocket) readinessHandler(w http.ResponseWriter, r *http.Request) 
 		_, err = w.Write([]byte(http.StatusText(http.StatusServiceUnavailable)))
 	}
 	if err != nil {
-		log.Warn("Could not answer to a readiness probe: ", err.Error())
+		log.Warnf("Could not answer to a readiness probe: %s", err.Error())
 	}
 }
 
@@ -85,7 +85,7 @@ func (s MetricsSocket) healthzHandler(w http.ResponseWriter, r *http.Request) {
 		_, err = w.Write([]byte(http.StatusText(http.StatusServiceUnavailable)))
 	}
 	if err != nil {
-		log.Warn("Could not answer to a healthz probe: ", err.Error())
+		log.Warnf("Could not answer to a healthz probe: %s", err.Error())
 	}
 }
 
@@ -93,6 +93,7 @@ func (s MetricsSocket) healthzHandler(w http.ResponseWriter, r *http.Request) {
 func (s *MetricsSocket) Start(startedChan chan struct{}, options SocketOptions) {
 	metrics := metrics.GetOpenMetricsInstance()
 	reg := metrics.GetRegistry()
+	metricsFuncHandler := promhttp.HandlerFor(reg, promhttp.HandlerOpts{Registry: reg})
 
 	mux := http.NewServeMux()
 
@@ -100,10 +101,7 @@ func (s *MetricsSocket) Start(startedChan chan struct{}, options SocketOptions) 
 	mux.HandleFunc("/ready", s.readinessHandler)
 	mux.HandleFunc("/health", s.livenessHandler)
 	mux.HandleFunc("/healthz", s.healthzHandler)
-	mux.Handle(
-		"/metrics",
-		promhttp.HandlerFor(reg, promhttp.HandlerOpts{Registry: reg}),
-	)
+	mux.Handle("/metrics", metricsFuncHandler)
 
 	address := options.GetMetricsAddress()
 

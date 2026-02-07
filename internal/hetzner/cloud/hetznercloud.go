@@ -80,3 +80,14 @@ func (h hetznerCloud) DeleteRRSet(ctx context.Context, rrset *hcloud.ZoneRRSet) 
 	zoneClient := h.client.Zone
 	return zoneClient.DeleteRRSet(ctx, rrset)
 }
+
+// ExportZonefile exports a zonefile.
+func (h hetznerCloud) ExportZonefile(ctx context.Context, zone *hcloud.Zone) (hcloud.ZoneExportZonefileResult, *hcloud.Response, error) {
+	zoneClient := h.client.Zone
+	return zoneClient.ExportZonefile(ctx, zone)
+}
+
+func (h hetznerCloud) ImportZonefile(ctx context.Context, zone *hcloud.Zone, opts hcloud.ZoneImportZonefileOpts) (*hcloud.Action, *hcloud.Response, error) {
+	zoneClient := h.client.Zone
+	return zoneClient.ImportZonefile(ctx, zone, opts)
+}

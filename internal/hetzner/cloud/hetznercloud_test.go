@@ -71,6 +71,13 @@ type deleteRRSetResponse struct {
 	err    error
 }
 
+// exportZonefileResponse simulates a response to a zonefile export request.
+type exportZonefileResponse struct {
+	result hcloud.ZoneExportZonefileResult
+	resp   *hcloud.Response
+	err    error
+}
+
 // mockClientState keeps track of which methods were called.
 type mockClientState struct {
 	GetZonesCalled           bool
@@ -80,6 +87,8 @@ type mockClientState struct {
 	UpdateRRSetRecordsCalled bool
 	UpdateRRSetLabelsCalled  bool
 	DeleteRRSetCalled        bool
+	ExportZonefileCalled     bool
+	ImportZonefileCalled     bool
 }
 
 // mockClient represents the mock client used to simulate calls to the DNS API.
@@ -91,6 +100,8 @@ type mockClient struct {
 	updateRRSetRecords actionResponse
 	updateRRSetLabels  rrSetResponse
 	deleteRRSet        deleteRRSetResponse
+	exportZonefile     exportZonefileResponse
+	importZonefile     actionResponse
 	filterRRSetsByZone bool
 	state              mockClientState
 }
@@ -165,6 +176,20 @@ func (m *mockClient) DeleteRRSet(ctx context.Context, rrset *hcloud.ZoneRRSet) (
 	r := m.deleteRRSet
 	m.state.DeleteRRSetCalled = true
 	return r.result, r.resp, r.err
+}
+
+// ExportZonefile simulates a request to export a zone file.
+func (m *mockClient) ExportZonefile(ctx context.Context, zone *hcloud.Zone) (hcloud.ZoneExportZonefileResult, *hcloud.Response, error) {
+	r := m.exportZonefile
+	m.state.ExportZonefileCalled = true
+	return r.result, r.resp, r.err
+}
+
+// ImportZonefile simulates a rrequest to import a zone file.
+func (m *mockClient) ImportZonefile(ctx context.Context, zone *hcloud.Zone, opts hcloud.ZoneImportZonefileOpts) (*hcloud.Action, *hcloud.Response, error) {
+	r := m.importZonefile
+	m.state.ImportZonefileCalled = true
+	return r.action, r.resp, r.err
 }
 
 // assertError checks if an error is thrown when expected.
