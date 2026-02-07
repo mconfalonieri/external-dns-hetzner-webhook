@@ -414,3 +414,18 @@ func (z *Zonefile) UpdateRecord(recordType string, name string, ttl int, records
 	z.records[key] = rr
 	return nil
 }
+
+// DeleteRecord deletes an existing recordset
+func (z *Zonefile) DeleteRecord(recordType string, name string) error {
+	name = z.expandName(name)
+	dnsType, ok := dns.StringToType[recordType]
+	if !ok {
+		return fmt.Errorf("record type %s is not recognized", recordType)
+	}
+	key := fmt.Sprintf(fmtKey, name, dnsType)
+	if _, ok := z.records[key]; !ok {
+		return fmt.Errorf("cannot delete recordset %s of type %s because it does not exist", name, recordType)
+	}
+	delete(z.records, key)
+	return nil
+}

@@ -34,6 +34,7 @@ import (
 
 var ttlMatcher = regexp.MustCompile(`\$TTL\s+(\d+)`)
 
+// zoneChanges stores the changes for a zone.
 type zoneChanges struct {
 	creates []*hetznerChangeCreate
 	updates []*hetznerChangeUpdate
@@ -128,7 +129,10 @@ func readTTL(zf string) (int, bool) {
 	if len(matches) < 2 {
 		return 0, false
 	}
-	ttl, _ := strconv.Atoi(matches[1])
+	ttl, err := strconv.Atoi(matches[1])
+	if err != nil || ttl < 0 {
+		return 0, false
+	}
 	return ttl, true
 }
 
@@ -142,17 +146,17 @@ func decodeRecords(rrs []hcloud.ZoneRRSetRecord) []string {
 	return rs
 }
 
-// createRecord adds a new record
+// createRecord adds a new recordset.
 func createRecord(z *zonefile.Zonefile, c *hetznerChangeCreate) {
 	opts := c.opts
-	recType := opts.Type
+	recType := string(opts.Type)
 	ttl := z.GetTTL()
 	if opts.TTL != nil {
 		ttl = *opts.TTL
 	}
 	name := opts.Name
 	recs := decodeRecords(opts.Records)
-	if err := z.AddRecord(string(recType), name, ttl, recs); err != nil {
+	if err := z.AddRecord(recType, name, ttl, recs); err != nil {
 		zn, _ := strings.CutSuffix(z.GetOrigin(), ".")
 		log.WithFields(log.Fields{
 			"zoneName":   zn,
@@ -162,12 +166,12 @@ func createRecord(z *zonefile.Zonefile, c *hetznerChangeCreate) {
 	}
 }
 
-// updateRecord updates a recordset
+// updateRecord updates a recordset.
 func updateRecord(z *zonefile.Zonefile, u *hetznerChangeUpdate) {
 	rset := u.rrset
 	rOpts := u.recordsOpts
 	ttlOpts := u.ttlOpts
-	recType := rset.Type
+	recType := string(rset.Type)
 	ttl := z.GetTTL()
 	if ttlOpts != nil && ttlOpts.TTL != nil {
 		ttl = *ttlOpts.TTL
@@ -182,7 +186,7 @@ func updateRecord(z *zonefile.Zonefile, u *hetznerChangeUpdate) {
 		recs = decodeRecords(rset.Records)
 	}
 
-	if err := z.UpdateRecord(string(recType), name, ttl, recs); err != nil {
+	if err := z.UpdateRecord(recType, name, ttl, recs); err != nil {
 		zn, _ := strings.CutSuffix(z.GetOrigin(), ".")
 		log.WithFields(log.Fields{
 			"zoneName":   zn,
@@ -192,24 +196,60 @@ func updateRecord(z *zonefile.Zonefile, u *hetznerChangeUpdate) {
 	}
 }
 
-// runZoneCreates runs through the created recordset.
+// deleteRecord removes a recordset.
+func deleteRecord(z *zonefile.Zonefile, d *hetznerChangeDelete) {
+	rset := d.rrset
+	recType := string(rset.Type)
+	name := rset.Name
+	if err := z.DeleteRecord(recType, name); err != nil {
+		zn, _ := strings.CutSuffix(z.GetOrigin(), ".")
+		log.WithFields(log.Fields{
+			"zoneName":   zn,
+			"dnsName":    rset.Name,
+			"recordType": recType,
+		}).Warnf("Cannot delete record: %v", err)
+	}
+}
+
+// runZoneCreates runs through the created recordsets.
 func (c bulkChanges) runZoneCreates(zone *hcloud.Zone, z *zonefile.Zonefile) {
-	changes := c.changes[zone.ID]
+	changes, ok := c.changes[zone.ID]
+	if !ok {
+		return
+	}
 	for _, row := range changes.creates {
 		createRecord(z, row)
 	}
 }
 
-// runZoneUpdates runs through the created recordset.
+// runZoneUpdates runs through the updated recordsets.
 func (c bulkChanges) runZoneUpdates(zone *hcloud.Zone, z *zonefile.Zonefile) {
-	changes := c.changes[zone.ID]
+	changes, ok := c.changes[zone.ID]
+	if !ok {
+		return
+	}
 	for _, row := range changes.updates {
 		updateRecord(z, row)
 	}
 }
 
+// runZoneDeletes runs through the deletes recordsets.
+func (c bulkChanges) runZoneDeletes(zone *hcloud.Zone, z *zonefile.Zonefile) {
+	changes, ok := c.changes[zone.ID]
+	if !ok {
+		return
+	}
+	for _, row := range changes.deletes {
+		deleteRecord(z, row)
+	}
+}
+
+// runZoneChanges runs through all the changes for a given zone.
 func (c bulkChanges) runZoneChanges(zone *hcloud.Zone, zf string) (string, error) {
-	ttl, _ := readTTL(zf)
+	ttl, present := readTTL(zf)
+	if !present {
+		ttl = c.defaultTTL
+	}
 	zn := zone.Name
 	z, err := zonefile.NewZonefile(strings.NewReader(zf), zn, ttl)
 	if err != nil {

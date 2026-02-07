@@ -4497,3 +4497,1271 @@ func Test_Zonefile_UpdateRecord(t *testing.T) {
 		})
 	}
 }
+
+func Test_Zonefile_DeleteRecord(t *testing.T) {
+	type testCase struct {
+		name   string
+		object Zonefile
+		input  struct {
+			recordType string
+			name       string
+		}
+		expected  error
+		expObject Zonefile
+	}
+
+	run := func(t *testing.T, tc testCase) {
+		obj := tc.object
+		inp := tc.input
+		actual := obj.DeleteRecord(inp.recordType, inp.name)
+		assertError(t, tc.expected, actual)
+		assert.EqualValues(t, tc.expObject, obj)
+	}
+
+	testCases := []testCase{
+		{
+			name: "delete single record",
+			object: Zonefile{
+				zoneName: testZone,
+				records: map[string]rrset{
+					"fastipletonis.eu.|6": {
+						&dns.SOA{
+							Hdr: dns.Header{
+								Name:  "fastipletonis.eu.",
+								TTL:   3600,
+								Class: dns.ClassINET,
+							},
+							SOA: rdata.SOA{
+								Ns:      "hydrogen.ns.hetzner.com.",
+								Mbox:    "dns.hetzner.com.",
+								Serial:  2025112009,
+								Refresh: 86400,
+								Retry:   10800,
+								Expire:  3600000,
+								Minttl:  3600,
+							},
+						},
+					},
+					"fastipletonis.eu.|2": {
+						&dns.NS{
+							Hdr: dns.Header{
+								Name:  "fastipletonis.eu.",
+								TTL:   3600,
+								Class: dns.ClassINET,
+							},
+							NS: rdata.NS{
+								Ns: "helium.ns.hetzner.de.",
+							},
+						},
+						&dns.NS{
+							Hdr: dns.Header{
+								Name:  "fastipletonis.eu.",
+								TTL:   3600,
+								Class: dns.ClassINET,
+							},
+							NS: rdata.NS{
+								Ns: "hydrogen.ns.hetzner.com.",
+							},
+						},
+						&dns.NS{
+							Hdr: dns.Header{
+								Name:  "fastipletonis.eu.",
+								TTL:   3600,
+								Class: dns.ClassINET,
+							},
+							NS: rdata.NS{
+								Ns: "oxygen.ns.hetzner.com.",
+							},
+						},
+					},
+					"fastipletonis.eu.|257": {
+						&dns.CAA{
+							Hdr: dns.Header{
+								Name:  "fastipletonis.eu.",
+								TTL:   3600,
+								Class: dns.ClassINET,
+							},
+							CAA: rdata.CAA{
+								Flag:  128,
+								Tag:   "issue",
+								Value: "letsencrypt.org",
+							},
+						},
+					},
+					"fastipletonis.eu.|1": {
+						&dns.A{
+							Hdr: dns.Header{
+								Name:  "fastipletonis.eu.",
+								TTL:   3600,
+								Class: dns.ClassINET,
+							},
+							A: rdata.A{
+								Addr: netip.MustParseAddr("116.202.181.2"),
+							},
+						},
+					},
+					"www.fastipletonis.eu.|1": {
+						&dns.A{
+							Hdr: dns.Header{
+								Name:  "www.fastipletonis.eu.",
+								TTL:   3600,
+								Class: dns.ClassINET,
+							},
+							A: rdata.A{
+								Addr: netip.MustParseAddr("116.202.181.2"),
+							},
+						},
+					},
+					"ftp.fastipletonis.eu.|1": {
+						&dns.A{
+							Hdr: dns.Header{
+								Name:  "ftp.fastipletonis.eu.",
+								TTL:   3600,
+								Class: dns.ClassINET,
+							},
+							A: rdata.A{
+								Addr: netip.MustParseAddr("116.202.181.8"),
+							},
+						},
+					},
+				},
+				soaKey: testSoaKey,
+				ttl:    86400,
+				origin: testOrigin,
+			},
+			input: struct {
+				recordType string
+				name       string
+			}{
+				recordType: "A",
+				name:       "ftp",
+			},
+			expected: nil,
+			expObject: Zonefile{
+				zoneName: testZone,
+				records: map[string]rrset{
+					"fastipletonis.eu.|6": {
+						&dns.SOA{
+							Hdr: dns.Header{
+								Name:  "fastipletonis.eu.",
+								TTL:   3600,
+								Class: dns.ClassINET,
+							},
+							SOA: rdata.SOA{
+								Ns:      "hydrogen.ns.hetzner.com.",
+								Mbox:    "dns.hetzner.com.",
+								Serial:  2025112009,
+								Refresh: 86400,
+								Retry:   10800,
+								Expire:  3600000,
+								Minttl:  3600,
+							},
+						},
+					},
+					"fastipletonis.eu.|2": {
+						&dns.NS{
+							Hdr: dns.Header{
+								Name:  "fastipletonis.eu.",
+								TTL:   3600,
+								Class: dns.ClassINET,
+							},
+							NS: rdata.NS{
+								Ns: "helium.ns.hetzner.de.",
+							},
+						},
+						&dns.NS{
+							Hdr: dns.Header{
+								Name:  "fastipletonis.eu.",
+								TTL:   3600,
+								Class: dns.ClassINET,
+							},
+							NS: rdata.NS{
+								Ns: "hydrogen.ns.hetzner.com.",
+							},
+						},
+						&dns.NS{
+							Hdr: dns.Header{
+								Name:  "fastipletonis.eu.",
+								TTL:   3600,
+								Class: dns.ClassINET,
+							},
+							NS: rdata.NS{
+								Ns: "oxygen.ns.hetzner.com.",
+							},
+						},
+					},
+					"fastipletonis.eu.|257": {
+						&dns.CAA{
+							Hdr: dns.Header{
+								Name:  "fastipletonis.eu.",
+								TTL:   3600,
+								Class: dns.ClassINET,
+							},
+							CAA: rdata.CAA{
+								Flag:  128,
+								Tag:   "issue",
+								Value: "letsencrypt.org",
+							},
+						},
+					},
+					"fastipletonis.eu.|1": {
+						&dns.A{
+							Hdr: dns.Header{
+								Name:  "fastipletonis.eu.",
+								TTL:   3600,
+								Class: dns.ClassINET,
+							},
+							A: rdata.A{
+								Addr: netip.MustParseAddr("116.202.181.2"),
+							},
+						},
+					},
+					"www.fastipletonis.eu.|1": {
+						&dns.A{
+							Hdr: dns.Header{
+								Name:  "www.fastipletonis.eu.",
+								TTL:   3600,
+								Class: dns.ClassINET,
+							},
+							A: rdata.A{
+								Addr: netip.MustParseAddr("116.202.181.2"),
+							},
+						},
+					},
+				},
+				soaKey: testSoaKey,
+				ttl:    86400,
+				origin: testOrigin,
+			},
+		},
+		{
+			name: "delete multiple records",
+			object: Zonefile{
+				zoneName: testZone,
+				records: map[string]rrset{
+					"fastipletonis.eu.|6": {
+						&dns.SOA{
+							Hdr: dns.Header{
+								Name:  "fastipletonis.eu.",
+								TTL:   3600,
+								Class: dns.ClassINET,
+							},
+							SOA: rdata.SOA{
+								Ns:      "hydrogen.ns.hetzner.com.",
+								Mbox:    "dns.hetzner.com.",
+								Serial:  2025112009,
+								Refresh: 86400,
+								Retry:   10800,
+								Expire:  3600000,
+								Minttl:  3600,
+							},
+						},
+					},
+					"fastipletonis.eu.|2": {
+						&dns.NS{
+							Hdr: dns.Header{
+								Name:  "fastipletonis.eu.",
+								TTL:   3600,
+								Class: dns.ClassINET,
+							},
+							NS: rdata.NS{
+								Ns: "helium.ns.hetzner.de.",
+							},
+						},
+						&dns.NS{
+							Hdr: dns.Header{
+								Name:  "fastipletonis.eu.",
+								TTL:   3600,
+								Class: dns.ClassINET,
+							},
+							NS: rdata.NS{
+								Ns: "hydrogen.ns.hetzner.com.",
+							},
+						},
+						&dns.NS{
+							Hdr: dns.Header{
+								Name:  "fastipletonis.eu.",
+								TTL:   3600,
+								Class: dns.ClassINET,
+							},
+							NS: rdata.NS{
+								Ns: "oxygen.ns.hetzner.com.",
+							},
+						},
+					},
+					"fastipletonis.eu.|257": {
+						&dns.CAA{
+							Hdr: dns.Header{
+								Name:  "fastipletonis.eu.",
+								TTL:   3600,
+								Class: dns.ClassINET,
+							},
+							CAA: rdata.CAA{
+								Flag:  128,
+								Tag:   "issue",
+								Value: "letsencrypt.org",
+							},
+						},
+					},
+					"fastipletonis.eu.|1": {
+						&dns.A{
+							Hdr: dns.Header{
+								Name:  "fastipletonis.eu.",
+								TTL:   3600,
+								Class: dns.ClassINET,
+							},
+							A: rdata.A{
+								Addr: netip.MustParseAddr("116.202.181.2"),
+							},
+						},
+					},
+					"www.fastipletonis.eu.|1": {
+						&dns.A{
+							Hdr: dns.Header{
+								Name:  "www.fastipletonis.eu.",
+								TTL:   3600,
+								Class: dns.ClassINET,
+							},
+							A: rdata.A{
+								Addr: netip.MustParseAddr("116.202.181.2"),
+							},
+						},
+					},
+					"ftp.fastipletonis.eu.|1": {
+						&dns.A{
+							Hdr: dns.Header{
+								Name:  "ftp.fastipletonis.eu.",
+								TTL:   3600,
+								Class: dns.ClassINET,
+							},
+							A: rdata.A{
+								Addr: netip.MustParseAddr("116.202.181.8"),
+							},
+						},
+						&dns.A{
+							Hdr: dns.Header{
+								Name:  "ftp.fastipletonis.eu.",
+								TTL:   3600,
+								Class: dns.ClassINET,
+							},
+							A: rdata.A{
+								Addr: netip.MustParseAddr("116.202.181.9"),
+							},
+						},
+					},
+				},
+				soaKey: testSoaKey,
+				ttl:    86400,
+				origin: testOrigin,
+			},
+			input: struct {
+				recordType string
+				name       string
+			}{
+				recordType: "A",
+				name:       "ftp",
+			},
+			expected: nil,
+			expObject: Zonefile{
+				zoneName: testZone,
+				records: map[string]rrset{
+					"fastipletonis.eu.|6": {
+						&dns.SOA{
+							Hdr: dns.Header{
+								Name:  "fastipletonis.eu.",
+								TTL:   3600,
+								Class: dns.ClassINET,
+							},
+							SOA: rdata.SOA{
+								Ns:      "hydrogen.ns.hetzner.com.",
+								Mbox:    "dns.hetzner.com.",
+								Serial:  2025112009,
+								Refresh: 86400,
+								Retry:   10800,
+								Expire:  3600000,
+								Minttl:  3600,
+							},
+						},
+					},
+					"fastipletonis.eu.|2": {
+						&dns.NS{
+							Hdr: dns.Header{
+								Name:  "fastipletonis.eu.",
+								TTL:   3600,
+								Class: dns.ClassINET,
+							},
+							NS: rdata.NS{
+								Ns: "helium.ns.hetzner.de.",
+							},
+						},
+						&dns.NS{
+							Hdr: dns.Header{
+								Name:  "fastipletonis.eu.",
+								TTL:   3600,
+								Class: dns.ClassINET,
+							},
+							NS: rdata.NS{
+								Ns: "hydrogen.ns.hetzner.com.",
+							},
+						},
+						&dns.NS{
+							Hdr: dns.Header{
+								Name:  "fastipletonis.eu.",
+								TTL:   3600,
+								Class: dns.ClassINET,
+							},
+							NS: rdata.NS{
+								Ns: "oxygen.ns.hetzner.com.",
+							},
+						},
+					},
+					"fastipletonis.eu.|257": {
+						&dns.CAA{
+							Hdr: dns.Header{
+								Name:  "fastipletonis.eu.",
+								TTL:   3600,
+								Class: dns.ClassINET,
+							},
+							CAA: rdata.CAA{
+								Flag:  128,
+								Tag:   "issue",
+								Value: "letsencrypt.org",
+							},
+						},
+					},
+					"fastipletonis.eu.|1": {
+						&dns.A{
+							Hdr: dns.Header{
+								Name:  "fastipletonis.eu.",
+								TTL:   3600,
+								Class: dns.ClassINET,
+							},
+							A: rdata.A{
+								Addr: netip.MustParseAddr("116.202.181.2"),
+							},
+						},
+					},
+					"www.fastipletonis.eu.|1": {
+						&dns.A{
+							Hdr: dns.Header{
+								Name:  "www.fastipletonis.eu.",
+								TTL:   3600,
+								Class: dns.ClassINET,
+							},
+							A: rdata.A{
+								Addr: netip.MustParseAddr("116.202.181.2"),
+							},
+						},
+					},
+				},
+				soaKey: testSoaKey,
+				ttl:    86400,
+				origin: testOrigin,
+			},
+		},
+		{
+			name: "delete single root record",
+			object: Zonefile{
+				zoneName: testZone,
+				records: map[string]rrset{
+					"fastipletonis.eu.|6": {
+						&dns.SOA{
+							Hdr: dns.Header{
+								Name:  "fastipletonis.eu.",
+								TTL:   3600,
+								Class: dns.ClassINET,
+							},
+							SOA: rdata.SOA{
+								Ns:      "hydrogen.ns.hetzner.com.",
+								Mbox:    "dns.hetzner.com.",
+								Serial:  2025112009,
+								Refresh: 86400,
+								Retry:   10800,
+								Expire:  3600000,
+								Minttl:  3600,
+							},
+						},
+					},
+					"fastipletonis.eu.|2": {
+						&dns.NS{
+							Hdr: dns.Header{
+								Name:  "fastipletonis.eu.",
+								TTL:   3600,
+								Class: dns.ClassINET,
+							},
+							NS: rdata.NS{
+								Ns: "helium.ns.hetzner.de.",
+							},
+						},
+						&dns.NS{
+							Hdr: dns.Header{
+								Name:  "fastipletonis.eu.",
+								TTL:   3600,
+								Class: dns.ClassINET,
+							},
+							NS: rdata.NS{
+								Ns: "hydrogen.ns.hetzner.com.",
+							},
+						},
+						&dns.NS{
+							Hdr: dns.Header{
+								Name:  "fastipletonis.eu.",
+								TTL:   3600,
+								Class: dns.ClassINET,
+							},
+							NS: rdata.NS{
+								Ns: "oxygen.ns.hetzner.com.",
+							},
+						},
+					},
+					"fastipletonis.eu.|257": {
+						&dns.CAA{
+							Hdr: dns.Header{
+								Name:  "fastipletonis.eu.",
+								TTL:   3600,
+								Class: dns.ClassINET,
+							},
+							CAA: rdata.CAA{
+								Flag:  128,
+								Tag:   "issue",
+								Value: "letsencrypt.org",
+							},
+						},
+					},
+					"fastipletonis.eu.|1": {
+						&dns.A{
+							Hdr: dns.Header{
+								Name:  "fastipletonis.eu.",
+								TTL:   3600,
+								Class: dns.ClassINET,
+							},
+							A: rdata.A{
+								Addr: netip.MustParseAddr("116.202.181.2"),
+							},
+						},
+					},
+					"www.fastipletonis.eu.|1": {
+						&dns.A{
+							Hdr: dns.Header{
+								Name:  "www.fastipletonis.eu.",
+								TTL:   3600,
+								Class: dns.ClassINET,
+							},
+							A: rdata.A{
+								Addr: netip.MustParseAddr("116.202.181.2"),
+							},
+						},
+					},
+				},
+				soaKey: testSoaKey,
+				ttl:    86400,
+				origin: testOrigin,
+			},
+			input: struct {
+				recordType string
+				name       string
+			}{
+				recordType: "A",
+				name:       "@",
+			},
+			expected: nil,
+			expObject: Zonefile{
+				zoneName: testZone,
+				records: map[string]rrset{
+					"fastipletonis.eu.|6": {
+						&dns.SOA{
+							Hdr: dns.Header{
+								Name:  "fastipletonis.eu.",
+								TTL:   3600,
+								Class: dns.ClassINET,
+							},
+							SOA: rdata.SOA{
+								Ns:      "hydrogen.ns.hetzner.com.",
+								Mbox:    "dns.hetzner.com.",
+								Serial:  2025112009,
+								Refresh: 86400,
+								Retry:   10800,
+								Expire:  3600000,
+								Minttl:  3600,
+							},
+						},
+					},
+					"fastipletonis.eu.|2": {
+						&dns.NS{
+							Hdr: dns.Header{
+								Name:  "fastipletonis.eu.",
+								TTL:   3600,
+								Class: dns.ClassINET,
+							},
+							NS: rdata.NS{
+								Ns: "helium.ns.hetzner.de.",
+							},
+						},
+						&dns.NS{
+							Hdr: dns.Header{
+								Name:  "fastipletonis.eu.",
+								TTL:   3600,
+								Class: dns.ClassINET,
+							},
+							NS: rdata.NS{
+								Ns: "hydrogen.ns.hetzner.com.",
+							},
+						},
+						&dns.NS{
+							Hdr: dns.Header{
+								Name:  "fastipletonis.eu.",
+								TTL:   3600,
+								Class: dns.ClassINET,
+							},
+							NS: rdata.NS{
+								Ns: "oxygen.ns.hetzner.com.",
+							},
+						},
+					},
+					"fastipletonis.eu.|257": {
+						&dns.CAA{
+							Hdr: dns.Header{
+								Name:  "fastipletonis.eu.",
+								TTL:   3600,
+								Class: dns.ClassINET,
+							},
+							CAA: rdata.CAA{
+								Flag:  128,
+								Tag:   "issue",
+								Value: "letsencrypt.org",
+							},
+						},
+					},
+					"www.fastipletonis.eu.|1": {
+						&dns.A{
+							Hdr: dns.Header{
+								Name:  "www.fastipletonis.eu.",
+								TTL:   3600,
+								Class: dns.ClassINET,
+							},
+							A: rdata.A{
+								Addr: netip.MustParseAddr("116.202.181.2"),
+							},
+						},
+					},
+				},
+				soaKey: testSoaKey,
+				ttl:    86400,
+				origin: testOrigin,
+			},
+		},
+		{
+			name: "delete multiple root records",
+			object: Zonefile{
+				zoneName: testZone,
+				records: map[string]rrset{
+					"fastipletonis.eu.|6": {
+						&dns.SOA{
+							Hdr: dns.Header{
+								Name:  "fastipletonis.eu.",
+								TTL:   3600,
+								Class: dns.ClassINET,
+							},
+							SOA: rdata.SOA{
+								Ns:      "hydrogen.ns.hetzner.com.",
+								Mbox:    "dns.hetzner.com.",
+								Serial:  2025112009,
+								Refresh: 86400,
+								Retry:   10800,
+								Expire:  3600000,
+								Minttl:  3600,
+							},
+						},
+					},
+					"fastipletonis.eu.|2": {
+						&dns.NS{
+							Hdr: dns.Header{
+								Name:  "fastipletonis.eu.",
+								TTL:   3600,
+								Class: dns.ClassINET,
+							},
+							NS: rdata.NS{
+								Ns: "helium.ns.hetzner.de.",
+							},
+						},
+						&dns.NS{
+							Hdr: dns.Header{
+								Name:  "fastipletonis.eu.",
+								TTL:   3600,
+								Class: dns.ClassINET,
+							},
+							NS: rdata.NS{
+								Ns: "hydrogen.ns.hetzner.com.",
+							},
+						},
+						&dns.NS{
+							Hdr: dns.Header{
+								Name:  "fastipletonis.eu.",
+								TTL:   3600,
+								Class: dns.ClassINET,
+							},
+							NS: rdata.NS{
+								Ns: "oxygen.ns.hetzner.com.",
+							},
+						},
+					},
+					"fastipletonis.eu.|257": {
+						&dns.CAA{
+							Hdr: dns.Header{
+								Name:  "fastipletonis.eu.",
+								TTL:   3600,
+								Class: dns.ClassINET,
+							},
+							CAA: rdata.CAA{
+								Flag:  128,
+								Tag:   "issue",
+								Value: "letsencrypt.org",
+							},
+						},
+					},
+					"fastipletonis.eu.|1": {
+						&dns.A{
+							Hdr: dns.Header{
+								Name:  "fastipletonis.eu.",
+								TTL:   3600,
+								Class: dns.ClassINET,
+							},
+							A: rdata.A{
+								Addr: netip.MustParseAddr("116.202.181.2"),
+							},
+						},
+						&dns.A{
+							Hdr: dns.Header{
+								Name:  "fastipletonis.eu.",
+								TTL:   3600,
+								Class: dns.ClassINET,
+							},
+							A: rdata.A{
+								Addr: netip.MustParseAddr("116.202.181.3"),
+							},
+						},
+					},
+					"www.fastipletonis.eu.|1": {
+						&dns.A{
+							Hdr: dns.Header{
+								Name:  "www.fastipletonis.eu.",
+								TTL:   3600,
+								Class: dns.ClassINET,
+							},
+							A: rdata.A{
+								Addr: netip.MustParseAddr("116.202.181.2"),
+							},
+						},
+					},
+				},
+				soaKey: testSoaKey,
+				ttl:    86400,
+				origin: testOrigin,
+			},
+			input: struct {
+				recordType string
+				name       string
+			}{
+				recordType: "A",
+				name:       "@",
+			},
+			expected: nil,
+			expObject: Zonefile{
+				zoneName: testZone,
+				records: map[string]rrset{
+					"fastipletonis.eu.|6": {
+						&dns.SOA{
+							Hdr: dns.Header{
+								Name:  "fastipletonis.eu.",
+								TTL:   3600,
+								Class: dns.ClassINET,
+							},
+							SOA: rdata.SOA{
+								Ns:      "hydrogen.ns.hetzner.com.",
+								Mbox:    "dns.hetzner.com.",
+								Serial:  2025112009,
+								Refresh: 86400,
+								Retry:   10800,
+								Expire:  3600000,
+								Minttl:  3600,
+							},
+						},
+					},
+					"fastipletonis.eu.|2": {
+						&dns.NS{
+							Hdr: dns.Header{
+								Name:  "fastipletonis.eu.",
+								TTL:   3600,
+								Class: dns.ClassINET,
+							},
+							NS: rdata.NS{
+								Ns: "helium.ns.hetzner.de.",
+							},
+						},
+						&dns.NS{
+							Hdr: dns.Header{
+								Name:  "fastipletonis.eu.",
+								TTL:   3600,
+								Class: dns.ClassINET,
+							},
+							NS: rdata.NS{
+								Ns: "hydrogen.ns.hetzner.com.",
+							},
+						},
+						&dns.NS{
+							Hdr: dns.Header{
+								Name:  "fastipletonis.eu.",
+								TTL:   3600,
+								Class: dns.ClassINET,
+							},
+							NS: rdata.NS{
+								Ns: "oxygen.ns.hetzner.com.",
+							},
+						},
+					},
+					"fastipletonis.eu.|257": {
+						&dns.CAA{
+							Hdr: dns.Header{
+								Name:  "fastipletonis.eu.",
+								TTL:   3600,
+								Class: dns.ClassINET,
+							},
+							CAA: rdata.CAA{
+								Flag:  128,
+								Tag:   "issue",
+								Value: "letsencrypt.org",
+							},
+						},
+					},
+					"www.fastipletonis.eu.|1": {
+						&dns.A{
+							Hdr: dns.Header{
+								Name:  "www.fastipletonis.eu.",
+								TTL:   3600,
+								Class: dns.ClassINET,
+							},
+							A: rdata.A{
+								Addr: netip.MustParseAddr("116.202.181.2"),
+							},
+						},
+					},
+				},
+				soaKey: testSoaKey,
+				ttl:    86400,
+				origin: testOrigin,
+			},
+		},
+		{
+			name: "error non existing record",
+			object: Zonefile{
+				zoneName: testZone,
+				records: map[string]rrset{
+					"fastipletonis.eu.|6": {
+						&dns.SOA{
+							Hdr: dns.Header{
+								Name:  "fastipletonis.eu.",
+								TTL:   3600,
+								Class: dns.ClassINET,
+							},
+							SOA: rdata.SOA{
+								Ns:      "hydrogen.ns.hetzner.com.",
+								Mbox:    "dns.hetzner.com.",
+								Serial:  2025112009,
+								Refresh: 86400,
+								Retry:   10800,
+								Expire:  3600000,
+								Minttl:  3600,
+							},
+						},
+					},
+					"fastipletonis.eu.|2": {
+						&dns.NS{
+							Hdr: dns.Header{
+								Name:  "fastipletonis.eu.",
+								TTL:   3600,
+								Class: dns.ClassINET,
+							},
+							NS: rdata.NS{
+								Ns: "helium.ns.hetzner.de.",
+							},
+						},
+						&dns.NS{
+							Hdr: dns.Header{
+								Name:  "fastipletonis.eu.",
+								TTL:   3600,
+								Class: dns.ClassINET,
+							},
+							NS: rdata.NS{
+								Ns: "hydrogen.ns.hetzner.com.",
+							},
+						},
+						&dns.NS{
+							Hdr: dns.Header{
+								Name:  "fastipletonis.eu.",
+								TTL:   3600,
+								Class: dns.ClassINET,
+							},
+							NS: rdata.NS{
+								Ns: "oxygen.ns.hetzner.com.",
+							},
+						},
+					},
+					"fastipletonis.eu.|257": {
+						&dns.CAA{
+							Hdr: dns.Header{
+								Name:  "fastipletonis.eu.",
+								TTL:   3600,
+								Class: dns.ClassINET,
+							},
+							CAA: rdata.CAA{
+								Flag:  128,
+								Tag:   "issue",
+								Value: "letsencrypt.org",
+							},
+						},
+					},
+					"fastipletonis.eu.|1": {
+						&dns.A{
+							Hdr: dns.Header{
+								Name:  "fastipletonis.eu.",
+								TTL:   3600,
+								Class: dns.ClassINET,
+							},
+							A: rdata.A{
+								Addr: netip.MustParseAddr("116.202.181.2"),
+							},
+						},
+					},
+					"www.fastipletonis.eu.|1": {
+						&dns.A{
+							Hdr: dns.Header{
+								Name:  "www.fastipletonis.eu.",
+								TTL:   3600,
+								Class: dns.ClassINET,
+							},
+							A: rdata.A{
+								Addr: netip.MustParseAddr("116.202.181.2"),
+							},
+						},
+					},
+				},
+				soaKey: testSoaKey,
+				ttl:    86400,
+				origin: testOrigin,
+			},
+			input: struct {
+				recordType string
+				name       string
+			}{
+				recordType: "A",
+				name:       "ftp",
+			},
+			expected: errors.New("cannot delete recordset ftp.fastipletonis.eu. of type A because it does not exist"),
+			expObject: Zonefile{
+				zoneName: testZone,
+				records: map[string]rrset{
+					"fastipletonis.eu.|6": {
+						&dns.SOA{
+							Hdr: dns.Header{
+								Name:  "fastipletonis.eu.",
+								TTL:   3600,
+								Class: dns.ClassINET,
+							},
+							SOA: rdata.SOA{
+								Ns:      "hydrogen.ns.hetzner.com.",
+								Mbox:    "dns.hetzner.com.",
+								Serial:  2025112009,
+								Refresh: 86400,
+								Retry:   10800,
+								Expire:  3600000,
+								Minttl:  3600,
+							},
+						},
+					},
+					"fastipletonis.eu.|2": {
+						&dns.NS{
+							Hdr: dns.Header{
+								Name:  "fastipletonis.eu.",
+								TTL:   3600,
+								Class: dns.ClassINET,
+							},
+							NS: rdata.NS{
+								Ns: "helium.ns.hetzner.de.",
+							},
+						},
+						&dns.NS{
+							Hdr: dns.Header{
+								Name:  "fastipletonis.eu.",
+								TTL:   3600,
+								Class: dns.ClassINET,
+							},
+							NS: rdata.NS{
+								Ns: "hydrogen.ns.hetzner.com.",
+							},
+						},
+						&dns.NS{
+							Hdr: dns.Header{
+								Name:  "fastipletonis.eu.",
+								TTL:   3600,
+								Class: dns.ClassINET,
+							},
+							NS: rdata.NS{
+								Ns: "oxygen.ns.hetzner.com.",
+							},
+						},
+					},
+					"fastipletonis.eu.|257": {
+						&dns.CAA{
+							Hdr: dns.Header{
+								Name:  "fastipletonis.eu.",
+								TTL:   3600,
+								Class: dns.ClassINET,
+							},
+							CAA: rdata.CAA{
+								Flag:  128,
+								Tag:   "issue",
+								Value: "letsencrypt.org",
+							},
+						},
+					},
+					"fastipletonis.eu.|1": {
+						&dns.A{
+							Hdr: dns.Header{
+								Name:  "fastipletonis.eu.",
+								TTL:   3600,
+								Class: dns.ClassINET,
+							},
+							A: rdata.A{
+								Addr: netip.MustParseAddr("116.202.181.2"),
+							},
+						},
+					},
+					"www.fastipletonis.eu.|1": {
+						&dns.A{
+							Hdr: dns.Header{
+								Name:  "www.fastipletonis.eu.",
+								TTL:   3600,
+								Class: dns.ClassINET,
+							},
+							A: rdata.A{
+								Addr: netip.MustParseAddr("116.202.181.2"),
+							},
+						},
+					},
+				},
+				soaKey: testSoaKey,
+				ttl:    86400,
+				origin: testOrigin,
+			},
+		},
+		{
+			name: "error unrecognized type",
+			object: Zonefile{
+				zoneName: testZone,
+				records: map[string]rrset{
+					"fastipletonis.eu.|6": {
+						&dns.SOA{
+							Hdr: dns.Header{
+								Name:  "fastipletonis.eu.",
+								TTL:   3600,
+								Class: dns.ClassINET,
+							},
+							SOA: rdata.SOA{
+								Ns:      "hydrogen.ns.hetzner.com.",
+								Mbox:    "dns.hetzner.com.",
+								Serial:  2025112009,
+								Refresh: 86400,
+								Retry:   10800,
+								Expire:  3600000,
+								Minttl:  3600,
+							},
+						},
+					},
+					"fastipletonis.eu.|2": {
+						&dns.NS{
+							Hdr: dns.Header{
+								Name:  "fastipletonis.eu.",
+								TTL:   3600,
+								Class: dns.ClassINET,
+							},
+							NS: rdata.NS{
+								Ns: "helium.ns.hetzner.de.",
+							},
+						},
+						&dns.NS{
+							Hdr: dns.Header{
+								Name:  "fastipletonis.eu.",
+								TTL:   3600,
+								Class: dns.ClassINET,
+							},
+							NS: rdata.NS{
+								Ns: "hydrogen.ns.hetzner.com.",
+							},
+						},
+						&dns.NS{
+							Hdr: dns.Header{
+								Name:  "fastipletonis.eu.",
+								TTL:   3600,
+								Class: dns.ClassINET,
+							},
+							NS: rdata.NS{
+								Ns: "oxygen.ns.hetzner.com.",
+							},
+						},
+					},
+					"fastipletonis.eu.|257": {
+						&dns.CAA{
+							Hdr: dns.Header{
+								Name:  "fastipletonis.eu.",
+								TTL:   3600,
+								Class: dns.ClassINET,
+							},
+							CAA: rdata.CAA{
+								Flag:  128,
+								Tag:   "issue",
+								Value: "letsencrypt.org",
+							},
+						},
+					},
+					"fastipletonis.eu.|1": {
+						&dns.A{
+							Hdr: dns.Header{
+								Name:  "fastipletonis.eu.",
+								TTL:   3600,
+								Class: dns.ClassINET,
+							},
+							A: rdata.A{
+								Addr: netip.MustParseAddr("116.202.181.2"),
+							},
+						},
+					},
+					"www.fastipletonis.eu.|1": {
+						&dns.A{
+							Hdr: dns.Header{
+								Name:  "www.fastipletonis.eu.",
+								TTL:   3600,
+								Class: dns.ClassINET,
+							},
+							A: rdata.A{
+								Addr: netip.MustParseAddr("116.202.181.2"),
+							},
+						},
+					},
+				},
+				soaKey: testSoaKey,
+				ttl:    86400,
+				origin: testOrigin,
+			},
+			input: struct {
+				recordType string
+				name       string
+			}{
+				recordType: "IPP",
+				name:       "www",
+			},
+			expected: errors.New("record type IPP is not recognized"),
+			expObject: Zonefile{
+				zoneName: testZone,
+				records: map[string]rrset{
+					"fastipletonis.eu.|6": {
+						&dns.SOA{
+							Hdr: dns.Header{
+								Name:  "fastipletonis.eu.",
+								TTL:   3600,
+								Class: dns.ClassINET,
+							},
+							SOA: rdata.SOA{
+								Ns:      "hydrogen.ns.hetzner.com.",
+								Mbox:    "dns.hetzner.com.",
+								Serial:  2025112009,
+								Refresh: 86400,
+								Retry:   10800,
+								Expire:  3600000,
+								Minttl:  3600,
+							},
+						},
+					},
+					"fastipletonis.eu.|2": {
+						&dns.NS{
+							Hdr: dns.Header{
+								Name:  "fastipletonis.eu.",
+								TTL:   3600,
+								Class: dns.ClassINET,
+							},
+							NS: rdata.NS{
+								Ns: "helium.ns.hetzner.de.",
+							},
+						},
+						&dns.NS{
+							Hdr: dns.Header{
+								Name:  "fastipletonis.eu.",
+								TTL:   3600,
+								Class: dns.ClassINET,
+							},
+							NS: rdata.NS{
+								Ns: "hydrogen.ns.hetzner.com.",
+							},
+						},
+						&dns.NS{
+							Hdr: dns.Header{
+								Name:  "fastipletonis.eu.",
+								TTL:   3600,
+								Class: dns.ClassINET,
+							},
+							NS: rdata.NS{
+								Ns: "oxygen.ns.hetzner.com.",
+							},
+						},
+					},
+					"fastipletonis.eu.|257": {
+						&dns.CAA{
+							Hdr: dns.Header{
+								Name:  "fastipletonis.eu.",
+								TTL:   3600,
+								Class: dns.ClassINET,
+							},
+							CAA: rdata.CAA{
+								Flag:  128,
+								Tag:   "issue",
+								Value: "letsencrypt.org",
+							},
+						},
+					},
+					"fastipletonis.eu.|1": {
+						&dns.A{
+							Hdr: dns.Header{
+								Name:  "fastipletonis.eu.",
+								TTL:   3600,
+								Class: dns.ClassINET,
+							},
+							A: rdata.A{
+								Addr: netip.MustParseAddr("116.202.181.2"),
+							},
+						},
+					},
+					"www.fastipletonis.eu.|1": {
+						&dns.A{
+							Hdr: dns.Header{
+								Name:  "www.fastipletonis.eu.",
+								TTL:   3600,
+								Class: dns.ClassINET,
+							},
+							A: rdata.A{
+								Addr: netip.MustParseAddr("116.202.181.2"),
+							},
+						},
+					},
+				},
+				soaKey: testSoaKey,
+				ttl:    86400,
+				origin: testOrigin,
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			run(t, tc)
+		})
+	}
+}
