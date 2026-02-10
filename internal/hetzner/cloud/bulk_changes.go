@@ -257,6 +257,7 @@ func (c bulkChanges) runZoneChanges(zone *hcloud.Zone, zf string) (string, error
 	}
 	c.runZoneCreates(zone, z)
 	c.runZoneUpdates(zone, z)
+	c.runZoneDeletes(zone, z)
 	exp, err := z.Export()
 	if err != nil {
 		return "", fmt.Errorf("cannot export zonefile: %v", err)

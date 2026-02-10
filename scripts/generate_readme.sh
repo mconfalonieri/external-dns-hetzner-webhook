@@ -7,7 +7,7 @@ set -e
 VERSION=$1
 
 # The template file
-TEMPLATE_FILE="README.md.gotmpl"
+TEMPLATE_FILE="README.tmpl.md"
 
 # The final output file
 OUTPUT_FILE="README.md"
