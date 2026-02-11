@@ -19,7 +19,6 @@ package hetznercloud
 
 import (
 	"context"
-	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
@@ -258,11 +257,11 @@ func (c bulkChanges) runZoneChanges(zone *hcloud.Zone, zf string) (string, error
 	c.runZoneCreates(zone, z)
 	c.runZoneUpdates(zone, z)
 	c.runZoneDeletes(zone, z)
-	exp, err := z.Export()
+	nzf, err := z.Export()
 	if err != nil {
-		return "", fmt.Errorf("cannot export zonefile: %v", err)
+		return "", err
 	}
-	return exp, nil
+	return nzf, nil
 }
 
 // applyChangesZone applies changes to a zone.

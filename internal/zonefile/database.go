@@ -151,8 +151,8 @@ func (z Zonefile) updateSOA() (*dns.SOA, error) {
 func buildFile(recs rrset, origin string, ttl int) string {
 	var zoneBuilder strings.Builder
 	fmt.Fprint(&zoneBuilder, ";; Created by external-dns-hetzner-webhook\n")
-	fmt.Fprintf(&zoneBuilder, "$ORIGIN %s\n", origin)
-	fmt.Fprintf(&zoneBuilder, "$TTL %d\n", ttl)
+	fmt.Fprintf(&zoneBuilder, "$ORIGIN\t%s\n", origin)
+	fmt.Fprintf(&zoneBuilder, "$TTL\t%d\n", ttl)
 	for _, rr := range recs {
 		s := rr.String()
 		fmt.Fprintf(&zoneBuilder, "%s\n", s)

@@ -52,8 +52,8 @@ $TTL	86400
 www	3600	IN	A	116.202.181.2
 `
 	testExportedZonefile = `;; Created by external-dns-hetzner-webhook
-$ORIGIN fastipletonis.eu.
-$TTL 86400
+$ORIGIN	fastipletonis.eu.
+$TTL	86400
 fastipletonis.eu.	3600	IN	SOA	hydrogen.ns.hetzner.com. dns.hetzner.com. 2025112009 86400 10800 3600000 3600
 fastipletonis.eu.	3600	IN	NS	helium.ns.hetzner.de.
 fastipletonis.eu.	3600	IN	NS	hydrogen.ns.hetzner.com.
@@ -68,6 +68,13 @@ www.fastipletonis.eu.	3600	IN	A	116.202.181.2
 	testSoaKey       = "fastipletonis.eu.|6"
 	testTTL          = 86400
 )
+
+// sortRows sorts the file rows for comparison.
+func sortRows(file string) []string {
+	array := strings.Split(file, "\n")
+	slices.Sort(array)
+	return array
+}
 
 // assertError checks if an error is thrown when expected. Returns true if an
 // error is expected.
@@ -782,10 +789,8 @@ func Test_Zonefile_Export(t *testing.T) {
 		}
 		expSN := strconv.Itoa(int(todayMaxSerialNumber() - 99))
 		expFile := strings.Replace(exp.file, "2025112009", expSN, 1)
-		expArray := strings.Split(expFile, "\n")
-		array := strings.Split(file, "\n")
-		slices.Sort(expArray)
-		slices.Sort(array)
+		expArray := sortRows(expFile)
+		array := sortRows(file)
 		assert.EqualValues(t, expArray, array)
 	}
 

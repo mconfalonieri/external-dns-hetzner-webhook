@@ -18,8 +18,11 @@
 package hetznercloud
 
 import (
+	"errors"
+	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"external-dns-hetzner-webhook/internal/zonefile"
 
@@ -28,9 +31,28 @@ import (
 )
 
 const (
+	fmtSOADate    = "20060102"
+	oldSOA        = "2025112009"
 	inputZoneFile = `;; Exported on 2026-01-19T21:39:41Z
 $ORIGIN	fastipletonis.eu.
 $TTL	86400
+
+@	3600	IN	SOA	hydrogen.ns.hetzner.com. dns.hetzner.com. 2025112009 86400 10800 3600000 3600
+
+; NS records
+@	3600	IN	NS	helium.ns.hetzner.de.
+@	3600	IN	NS	hydrogen.ns.hetzner.com.
+@	3600	IN	NS	oxygen.ns.hetzner.com.
+
+; CAA records
+@	3600	IN	CAA	128 issue "letsencrypt.org"
+
+; A records
+@	3600	IN	A	116.202.181.2
+www	3600	IN	A	116.202.181.2
+`
+	inputZoneFileNoTTL = `;; Exported on 2026-01-19T21:39:41Z
+$ORIGIN	fastipletonis.eu.
 
 @	3600	IN	SOA	hydrogen.ns.hetzner.com. dns.hetzner.com. 2025112009 86400 10800 3600000 3600
 
@@ -119,12 +141,75 @@ $TTL	86400
 ; A records
 www	3600	IN	A	116.202.181.2
 `
+
+	changedZoneFile = `;; Exported on 2026-01-19T21:39:41Z
+$ORIGIN	fastipletonis.eu.
+$TTL	86400
+
+fastipletonis.eu.	3600	IN	SOA	hydrogen.ns.hetzner.com. dns.hetzner.com. 2025112009 86400 10800 3600000 3600
+
+; NS records
+fastipletonis.eu.	3600	IN	NS	helium.ns.hetzner.de.
+fastipletonis.eu.	3600	IN	NS	hydrogen.ns.hetzner.com.
+fastipletonis.eu.	3600	IN	NS	oxygen.ns.hetzner.com.
+
+; CAA records
+fastipletonis.eu.	3600	IN	CAA	128 issue "letsencrypt.org"
+
+; A records
+ftp.fastipletonis.eu.	3600	IN	A	116.202.181.1
+www.fastipletonis.eu.	3600	IN	A	116.202.181.2
+www.fastipletonis.eu.	3600	IN	A	116.202.181.3
+`
+	changedZoneFileDefaultTTL = `;; Exported on 2026-01-19T21:39:41Z
+$ORIGIN	fastipletonis.eu.
+$TTL	7200
+
+fastipletonis.eu.	3600	IN	SOA	hydrogen.ns.hetzner.com. dns.hetzner.com. 2025112009 86400 10800 3600000 3600
+
+; NS records
+fastipletonis.eu.	3600	IN	NS	helium.ns.hetzner.de.
+fastipletonis.eu.	3600	IN	NS	hydrogen.ns.hetzner.com.
+fastipletonis.eu.	3600	IN	NS	oxygen.ns.hetzner.com.
+
+; CAA records
+fastipletonis.eu.	3600	IN	CAA	128 issue "letsencrypt.org"
+
+; A records
+ftp.fastipletonis.eu.	3600	IN	A	116.202.181.1
+www.fastipletonis.eu.	3600	IN	A	116.202.181.2
+www.fastipletonis.eu.	3600	IN	A	116.202.181.3
+`
 )
 
 var (
 	ttl3600 = 3600
 	ttl7200 = 7200
 )
+
+// sortRows sorts the file rows for comparison.
+func sortRows(file string) []string {
+	array := strings.Split(file, "\n")
+	slices.Sort(array)
+	// Remove comments and empty rows
+	reduced := make([]string, 0)
+	for _, str := range array {
+		if str != "" && !strings.HasPrefix(str, ";") {
+			reduced = append(reduced, str)
+		}
+	}
+	return reduced
+}
+
+// todayMinSerialNumber returns today's minimum serial number as string.
+func todayMinSerialNumber() string {
+	return time.Now().Format(fmtSOADate) + "00"
+}
+
+// todayMaxSerialNumber returns today's maximum serial number as string.
+func todayMaxSerialNumber() string {
+	return time.Now().Format(fmtSOADate) + "99"
+}
 
 // createTestZonefile creates a test Zonefile.
 func createTestZonefile(zfile string) *zonefile.Zonefile {
@@ -1227,6 +1312,333 @@ func Test_bulkChanges_runZoneDeletes(t *testing.T) {
 				z: createTestZonefile(inputZoneFile),
 			},
 			expZonefile: createTestZonefile(deletedZoneFile),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			run(t, tc)
+		})
+	}
+}
+
+func Test_bulkChanges_runZoneChanges(t *testing.T) {
+	type testCase struct {
+		name   string
+		object bulkChanges
+		input  struct {
+			zone *hcloud.Zone
+			zf   string
+		}
+		expected struct {
+			nzf string
+			err error
+		}
+	}
+
+	run := func(t *testing.T, tc testCase) {
+		obj := tc.object
+		inp := tc.input
+		exp := tc.expected
+		nzf, err := obj.runZoneChanges(inp.zone, inp.zf)
+		assertError(t, exp.err, err)
+		assert.Equal(t, sortRows(exp.nzf), sortRows(nzf))
+	}
+
+	testCases := []testCase{
+		{
+			name: "error empty zonefile",
+			object: bulkChanges{
+				zones: map[int64]*hcloud.Zone{
+					1: {ID: 1, Name: "fastipletonis.eu"},
+				},
+				changes: map[int64]*zoneChanges{
+					1: {
+						creates: []*hetznerChangeCreate{},
+						updates: []*hetznerChangeUpdate{},
+						deletes: []*hetznerChangeDelete{
+							{
+								rrset: &hcloud.ZoneRRSet{
+									ID:   "1",
+									Zone: &hcloud.Zone{ID: 1, Name: "fastipletonis.eu"},
+									Name: "www",
+									Type: hcloud.ZoneRRSetTypeA,
+									TTL:  &ttl3600,
+									Records: []hcloud.ZoneRRSetRecord{
+										{
+											Value: "10.0.0.1",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			input: struct {
+				zone *hcloud.Zone
+				zf   string
+			}{
+				zone: &hcloud.Zone{ID: 1, Name: "fastipletonis.eu"},
+				zf:   "",
+			},
+			expected: struct {
+				nzf string
+				err error
+			}{
+				nzf: "",
+				err: errors.New("cannot import zone fastipletonis.eu: cannot read records"),
+			},
+		},
+		{
+			name: "error export zonefile",
+			object: bulkChanges{
+				zones: map[int64]*hcloud.Zone{
+					1: {ID: 1, Name: "fastipletonis.eu"},
+				},
+				changes: map[int64]*zoneChanges{
+					1: {
+						creates: []*hetznerChangeCreate{
+							{
+								zone: &hcloud.Zone{ID: 1, Name: "fastipletonis.eu"},
+								opts: hcloud.ZoneRRSetCreateOpts{
+									Name: "ftp",
+									Type: hcloud.ZoneRRSetTypeA,
+									TTL:  &ttl3600,
+									Records: []hcloud.ZoneRRSetRecord{
+										{
+											Value: "116.202.181.1",
+										},
+									},
+								},
+							},
+						},
+						updates: []*hetznerChangeUpdate{
+							{
+								rrset: &hcloud.ZoneRRSet{
+									ID:   "2",
+									Zone: &hcloud.Zone{ID: 1, Name: "fastipletonis.eu"},
+									Name: "www",
+									Type: hcloud.ZoneRRSetTypeA,
+									TTL:  &ttl3600,
+									Records: []hcloud.ZoneRRSetRecord{
+										{
+											Value: "116.202.181.2",
+										},
+									},
+								},
+								recordsOpts: &hcloud.ZoneRRSetSetRecordsOpts{
+									Records: []hcloud.ZoneRRSetRecord{
+										{
+											Value: "116.202.181.2",
+										},
+										{
+											Value: "116.202.181.3",
+										},
+									},
+								},
+							},
+						},
+						deletes: []*hetznerChangeDelete{
+							{
+								rrset: &hcloud.ZoneRRSet{
+									ID:   "3",
+									Zone: &hcloud.Zone{ID: 1, Name: "fastipletonis.eu"},
+									Name: "@",
+									Type: hcloud.ZoneRRSetTypeA,
+									TTL:  &ttl3600,
+									Records: []hcloud.ZoneRRSetRecord{
+										{
+											Value: "116.202.181.2",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			input: struct {
+				zone *hcloud.Zone
+				zf   string
+			}{
+				zone: &hcloud.Zone{ID: 1, Name: "fastipletonis.eu"},
+				zf:   strings.Replace(inputZoneFile, oldSOA, todayMaxSerialNumber(), 1),
+			},
+			expected: struct {
+				nzf string
+				err error
+			}{
+				nzf: "",
+				err: errors.New("cannot export zonefile: cannot increment version as it is 99"),
+			},
+		},
+		{
+			name: "regular zonefile",
+			object: bulkChanges{
+				zones: map[int64]*hcloud.Zone{
+					1: {ID: 1, Name: "fastipletonis.eu"},
+				},
+				changes: map[int64]*zoneChanges{
+					1: {
+						creates: []*hetznerChangeCreate{
+							{
+								zone: &hcloud.Zone{ID: 1, Name: "fastipletonis.eu"},
+								opts: hcloud.ZoneRRSetCreateOpts{
+									Name: "ftp",
+									Type: hcloud.ZoneRRSetTypeA,
+									TTL:  &ttl3600,
+									Records: []hcloud.ZoneRRSetRecord{
+										{
+											Value: "116.202.181.1",
+										},
+									},
+								},
+							},
+						},
+						updates: []*hetznerChangeUpdate{
+							{
+								rrset: &hcloud.ZoneRRSet{
+									ID:   "2",
+									Zone: &hcloud.Zone{ID: 1, Name: "fastipletonis.eu"},
+									Name: "www",
+									Type: hcloud.ZoneRRSetTypeA,
+									TTL:  &ttl3600,
+									Records: []hcloud.ZoneRRSetRecord{
+										{
+											Value: "116.202.181.2",
+										},
+									},
+								},
+								recordsOpts: &hcloud.ZoneRRSetSetRecordsOpts{
+									Records: []hcloud.ZoneRRSetRecord{
+										{
+											Value: "116.202.181.2",
+										},
+										{
+											Value: "116.202.181.3",
+										},
+									},
+								},
+							},
+						},
+						deletes: []*hetznerChangeDelete{
+							{
+								rrset: &hcloud.ZoneRRSet{
+									ID:   "3",
+									Zone: &hcloud.Zone{ID: 1, Name: "fastipletonis.eu"},
+									Name: "@",
+									Type: hcloud.ZoneRRSetTypeA,
+									TTL:  &ttl3600,
+									Records: []hcloud.ZoneRRSetRecord{
+										{
+											Value: "116.202.181.2",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			input: struct {
+				zone *hcloud.Zone
+				zf   string
+			}{
+				zone: &hcloud.Zone{ID: 1, Name: "fastipletonis.eu"},
+				zf:   inputZoneFile,
+			},
+			expected: struct {
+				nzf string
+				err error
+			}{
+				nzf: strings.Replace(changedZoneFile, oldSOA, todayMinSerialNumber(), 1),
+				err: nil,
+			},
+		},
+		{
+			name: "zonefile without ttl",
+			object: bulkChanges{
+				defaultTTL: 7200,
+				zones: map[int64]*hcloud.Zone{
+					1: {ID: 1, Name: "fastipletonis.eu"},
+				},
+				changes: map[int64]*zoneChanges{
+					1: {
+						creates: []*hetznerChangeCreate{
+							{
+								zone: &hcloud.Zone{ID: 1, Name: "fastipletonis.eu"},
+								opts: hcloud.ZoneRRSetCreateOpts{
+									Name: "ftp",
+									Type: hcloud.ZoneRRSetTypeA,
+									TTL:  &ttl3600,
+									Records: []hcloud.ZoneRRSetRecord{
+										{
+											Value: "116.202.181.1",
+										},
+									},
+								},
+							},
+						},
+						updates: []*hetznerChangeUpdate{
+							{
+								rrset: &hcloud.ZoneRRSet{
+									ID:   "2",
+									Zone: &hcloud.Zone{ID: 1, Name: "fastipletonis.eu"},
+									Name: "www",
+									Type: hcloud.ZoneRRSetTypeA,
+									TTL:  &ttl3600,
+									Records: []hcloud.ZoneRRSetRecord{
+										{
+											Value: "116.202.181.2",
+										},
+									},
+								},
+								recordsOpts: &hcloud.ZoneRRSetSetRecordsOpts{
+									Records: []hcloud.ZoneRRSetRecord{
+										{
+											Value: "116.202.181.2",
+										},
+										{
+											Value: "116.202.181.3",
+										},
+									},
+								},
+							},
+						},
+						deletes: []*hetznerChangeDelete{
+							{
+								rrset: &hcloud.ZoneRRSet{
+									ID:   "3",
+									Zone: &hcloud.Zone{ID: 1, Name: "fastipletonis.eu"},
+									Name: "@",
+									Type: hcloud.ZoneRRSetTypeA,
+									TTL:  &ttl3600,
+									Records: []hcloud.ZoneRRSetRecord{
+										{
+											Value: "116.202.181.2",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			input: struct {
+				zone *hcloud.Zone
+				zf   string
+			}{
+				zone: &hcloud.Zone{ID: 1, Name: "fastipletonis.eu"},
+				zf:   inputZoneFileNoTTL,
+			},
+			expected: struct {
+				nzf string
+				err error
+			}{
+				nzf: strings.Replace(changedZoneFileDefaultTTL, oldSOA, todayMinSerialNumber(), 1),
+				err: nil,
+			},
 		},
 	}
 
