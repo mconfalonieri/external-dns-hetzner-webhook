@@ -3,6 +3,8 @@
 > [!IMPORTANT]
 > Support for the legacy DNS is going to be discontinued by Hetzner in May 2026.
 > The legacy provider will be pulled from this provider in version 1.0.0.
+> No new features will be added to the legacy DNS driver and only important
+> bugfixes will be backported.
 
 > [!NOTE]
 > The latest version is **v0.11.0**.
