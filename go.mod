@@ -48,7 +48,7 @@ require (
 	github.com/xhit/go-str2duration/v2 v2.1.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.3 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
-	golang.org/x/crypto v0.47.0 // indirect
+	golang.org/x/crypto v0.48.0 // indirect
 	golang.org/x/oauth2 v0.34.0 // indirect
 	golang.org/x/term v0.40.0 // indirect
 	golang.org/x/time v0.14.0 // indirect
