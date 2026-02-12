@@ -91,6 +91,14 @@ type mockClientState struct {
 	ImportZonefileCalled     bool
 }
 
+// mockClientArgs keeps track of the arguments passed.
+type mockClientArgs struct {
+	ImportZoneFile struct {
+		zone *hcloud.Zone
+		opts hcloud.ZoneImportZonefileOpts
+	}
+}
+
 // mockClient represents the mock client used to simulate calls to the DNS API.
 type mockClient struct {
 	getZones           zonesResponse
@@ -104,6 +112,7 @@ type mockClient struct {
 	importZonefile     actionResponse
 	filterRRSetsByZone bool
 	state              mockClientState
+	args               mockClientArgs
 }
 
 // GetState returns the internal state
@@ -189,6 +198,8 @@ func (m *mockClient) ExportZonefile(ctx context.Context, zone *hcloud.Zone) (hcl
 func (m *mockClient) ImportZonefile(ctx context.Context, zone *hcloud.Zone, opts hcloud.ZoneImportZonefileOpts) (*hcloud.Action, *hcloud.Response, error) {
 	r := m.importZonefile
 	m.state.ImportZonefileCalled = true
+	m.args.ImportZoneFile.zone = zone
+	m.args.ImportZoneFile.opts = opts
 	return r.action, r.resp, r.err
 }
 

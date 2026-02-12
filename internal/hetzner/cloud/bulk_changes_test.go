@@ -18,7 +18,9 @@
 package hetznercloud
 
 import (
+	"context"
 	"errors"
+	"net/http"
 	"slices"
 	"strings"
 	"testing"
@@ -1638,6 +1640,435 @@ func Test_bulkChanges_runZoneChanges(t *testing.T) {
 			}{
 				nzf: strings.Replace(changedZoneFileDefaultTTL, oldSOA, todayMinSerialNumber(), 1),
 				err: nil,
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			run(t, tc)
+		})
+	}
+}
+
+func Test_bulkChanges_applyZoneChanges(t *testing.T) {
+	type testCase struct {
+		name      string
+		inpClient mockClient
+		object    bulkChanges
+		input     struct {
+			ctx  context.Context
+			zone *hcloud.Zone
+		}
+		expState mockClientState
+		expArgs  struct {
+			zone *hcloud.Zone
+			opts hcloud.ZoneImportZonefileOpts
+		}
+	}
+
+	run := func(t *testing.T, tc testCase) {
+		client := tc.inpClient
+		expState := tc.expState
+		expArgs := tc.expArgs
+		obj := tc.object
+		inp := tc.input
+		obj.dnsClient = &client
+		obj.applyZoneChanges(inp.ctx, inp.zone)
+		assert.Equal(t, expState, client.state)
+		assert.Equal(t, expArgs.zone, client.args.ImportZoneFile.zone)
+		assert.Equal(t, sortRows(expArgs.opts.Zonefile), sortRows(client.args.ImportZoneFile.opts.Zonefile))
+	}
+
+	testCases := []testCase{
+		{
+			name: "changes applied",
+			inpClient: mockClient{
+				exportZonefile: exportZonefileResponse{
+					result: hcloud.ZoneExportZonefileResult{
+						Zonefile: inputZoneFile,
+					},
+					resp: &hcloud.Response{
+						Response: &http.Response{
+							Status:     http.StatusText(http.StatusOK),
+							StatusCode: http.StatusOK,
+						},
+					},
+				},
+			},
+			object: bulkChanges{
+				zones: map[int64]*hcloud.Zone{
+					1: {ID: 1, Name: "fastipletonis.eu"},
+				},
+				changes: map[int64]*zoneChanges{
+					1: {
+						creates: []*hetznerChangeCreate{
+							{
+								zone: &hcloud.Zone{ID: 1, Name: "fastipletonis.eu"},
+								opts: hcloud.ZoneRRSetCreateOpts{
+									Name: "ftp",
+									Type: hcloud.ZoneRRSetTypeA,
+									TTL:  &ttl3600,
+									Records: []hcloud.ZoneRRSetRecord{
+										{
+											Value: "116.202.181.1",
+										},
+									},
+								},
+							},
+						},
+						updates: []*hetznerChangeUpdate{
+							{
+								rrset: &hcloud.ZoneRRSet{
+									ID:   "2",
+									Zone: &hcloud.Zone{ID: 1, Name: "fastipletonis.eu"},
+									Name: "www",
+									Type: hcloud.ZoneRRSetTypeA,
+									TTL:  &ttl3600,
+									Records: []hcloud.ZoneRRSetRecord{
+										{
+											Value: "116.202.181.2",
+										},
+									},
+								},
+								recordsOpts: &hcloud.ZoneRRSetSetRecordsOpts{
+									Records: []hcloud.ZoneRRSetRecord{
+										{
+											Value: "116.202.181.2",
+										},
+										{
+											Value: "116.202.181.3",
+										},
+									},
+								},
+							},
+						},
+						deletes: []*hetznerChangeDelete{
+							{
+								rrset: &hcloud.ZoneRRSet{
+									ID:   "3",
+									Zone: &hcloud.Zone{ID: 1, Name: "fastipletonis.eu"},
+									Name: "@",
+									Type: hcloud.ZoneRRSetTypeA,
+									TTL:  &ttl3600,
+									Records: []hcloud.ZoneRRSetRecord{
+										{
+											Value: "116.202.181.2",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			input: struct {
+				ctx  context.Context
+				zone *hcloud.Zone
+			}{
+				ctx:  context.Background(),
+				zone: &hcloud.Zone{ID: 1, Name: "fastipletonis.eu"},
+			},
+			expState: mockClientState{
+				ExportZonefileCalled: true,
+				ImportZonefileCalled: true,
+			},
+			expArgs: struct {
+				zone *hcloud.Zone
+				opts hcloud.ZoneImportZonefileOpts
+			}{
+				zone: &hcloud.Zone{ID: 1, Name: "fastipletonis.eu"},
+				opts: hcloud.ZoneImportZonefileOpts{
+					Zonefile: strings.Replace(changedZoneFile, oldSOA, todayMinSerialNumber(), 1),
+				},
+			},
+		},
+		{
+			name: "error export zonefile",
+			inpClient: mockClient{
+				exportZonefile: exportZonefileResponse{
+					result: hcloud.ZoneExportZonefileResult{},
+					resp: &hcloud.Response{
+						Response: &http.Response{
+							Status:     http.StatusText(http.StatusInternalServerError),
+							StatusCode: http.StatusInternalServerError,
+						},
+					},
+					err: errors.New("internal server error"),
+				},
+			},
+			object: bulkChanges{
+				zones: map[int64]*hcloud.Zone{
+					1: {ID: 1, Name: "fastipletonis.eu"},
+				},
+				changes: map[int64]*zoneChanges{
+					1: {
+						creates: []*hetznerChangeCreate{
+							{
+								zone: &hcloud.Zone{ID: 1, Name: "fastipletonis.eu"},
+								opts: hcloud.ZoneRRSetCreateOpts{
+									Name: "ftp",
+									Type: hcloud.ZoneRRSetTypeA,
+									TTL:  &ttl3600,
+									Records: []hcloud.ZoneRRSetRecord{
+										{
+											Value: "116.202.181.1",
+										},
+									},
+								},
+							},
+						},
+						updates: []*hetznerChangeUpdate{
+							{
+								rrset: &hcloud.ZoneRRSet{
+									ID:   "2",
+									Zone: &hcloud.Zone{ID: 1, Name: "fastipletonis.eu"},
+									Name: "www",
+									Type: hcloud.ZoneRRSetTypeA,
+									TTL:  &ttl3600,
+									Records: []hcloud.ZoneRRSetRecord{
+										{
+											Value: "116.202.181.2",
+										},
+									},
+								},
+								recordsOpts: &hcloud.ZoneRRSetSetRecordsOpts{
+									Records: []hcloud.ZoneRRSetRecord{
+										{
+											Value: "116.202.181.2",
+										},
+										{
+											Value: "116.202.181.3",
+										},
+									},
+								},
+							},
+						},
+						deletes: []*hetznerChangeDelete{
+							{
+								rrset: &hcloud.ZoneRRSet{
+									ID:   "3",
+									Zone: &hcloud.Zone{ID: 1, Name: "fastipletonis.eu"},
+									Name: "@",
+									Type: hcloud.ZoneRRSetTypeA,
+									TTL:  &ttl3600,
+									Records: []hcloud.ZoneRRSetRecord{
+										{
+											Value: "116.202.181.2",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			input: struct {
+				ctx  context.Context
+				zone *hcloud.Zone
+			}{
+				ctx:  context.Background(),
+				zone: &hcloud.Zone{ID: 1, Name: "fastipletonis.eu"},
+			},
+			expState: mockClientState{
+				ExportZonefileCalled: true,
+			},
+		},
+		{
+			name: "error run zone changes",
+			inpClient: mockClient{
+				exportZonefile: exportZonefileResponse{
+					result: hcloud.ZoneExportZonefileResult{
+						Zonefile: "",
+					},
+					resp: &hcloud.Response{
+						Response: &http.Response{
+							Status:     http.StatusText(http.StatusOK),
+							StatusCode: http.StatusOK,
+						},
+					},
+				},
+			},
+			object: bulkChanges{
+				zones: map[int64]*hcloud.Zone{
+					1: {ID: 1, Name: "fastipletonis.eu"},
+				},
+				changes: map[int64]*zoneChanges{
+					1: {
+						creates: []*hetznerChangeCreate{
+							{
+								zone: &hcloud.Zone{ID: 1, Name: "fastipletonis.eu"},
+								opts: hcloud.ZoneRRSetCreateOpts{
+									Name: "ftp",
+									Type: hcloud.ZoneRRSetTypeA,
+									TTL:  &ttl3600,
+									Records: []hcloud.ZoneRRSetRecord{
+										{
+											Value: "116.202.181.1",
+										},
+									},
+								},
+							},
+						},
+						updates: []*hetznerChangeUpdate{
+							{
+								rrset: &hcloud.ZoneRRSet{
+									ID:   "2",
+									Zone: &hcloud.Zone{ID: 1, Name: "fastipletonis.eu"},
+									Name: "www",
+									Type: hcloud.ZoneRRSetTypeA,
+									TTL:  &ttl3600,
+									Records: []hcloud.ZoneRRSetRecord{
+										{
+											Value: "116.202.181.2",
+										},
+									},
+								},
+								recordsOpts: &hcloud.ZoneRRSetSetRecordsOpts{
+									Records: []hcloud.ZoneRRSetRecord{
+										{
+											Value: "116.202.181.2",
+										},
+										{
+											Value: "116.202.181.3",
+										},
+									},
+								},
+							},
+						},
+						deletes: []*hetznerChangeDelete{
+							{
+								rrset: &hcloud.ZoneRRSet{
+									ID:   "3",
+									Zone: &hcloud.Zone{ID: 1, Name: "fastipletonis.eu"},
+									Name: "@",
+									Type: hcloud.ZoneRRSetTypeA,
+									TTL:  &ttl3600,
+									Records: []hcloud.ZoneRRSetRecord{
+										{
+											Value: "116.202.181.2",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			input: struct {
+				ctx  context.Context
+				zone *hcloud.Zone
+			}{
+				ctx:  context.Background(),
+				zone: &hcloud.Zone{ID: 1, Name: "fastipletonis.eu"},
+			},
+			expState: mockClientState{
+				ExportZonefileCalled: true,
+			},
+		},
+		{
+			name: "error import zonefile",
+			inpClient: mockClient{
+				exportZonefile: exportZonefileResponse{
+					result: hcloud.ZoneExportZonefileResult{
+						Zonefile: inputZoneFile,
+					},
+					resp: &hcloud.Response{
+						Response: &http.Response{
+							Status:     http.StatusText(http.StatusOK),
+							StatusCode: http.StatusOK,
+						},
+					},
+				},
+				importZonefile: actionResponse{
+					err: errors.New("internal server error"),
+				},
+			},
+			object: bulkChanges{
+				zones: map[int64]*hcloud.Zone{
+					1: {ID: 1, Name: "fastipletonis.eu"},
+				},
+				changes: map[int64]*zoneChanges{
+					1: {
+						creates: []*hetznerChangeCreate{
+							{
+								zone: &hcloud.Zone{ID: 1, Name: "fastipletonis.eu"},
+								opts: hcloud.ZoneRRSetCreateOpts{
+									Name: "ftp",
+									Type: hcloud.ZoneRRSetTypeA,
+									TTL:  &ttl3600,
+									Records: []hcloud.ZoneRRSetRecord{
+										{
+											Value: "116.202.181.1",
+										},
+									},
+								},
+							},
+						},
+						updates: []*hetznerChangeUpdate{
+							{
+								rrset: &hcloud.ZoneRRSet{
+									ID:   "2",
+									Zone: &hcloud.Zone{ID: 1, Name: "fastipletonis.eu"},
+									Name: "www",
+									Type: hcloud.ZoneRRSetTypeA,
+									TTL:  &ttl3600,
+									Records: []hcloud.ZoneRRSetRecord{
+										{
+											Value: "116.202.181.2",
+										},
+									},
+								},
+								recordsOpts: &hcloud.ZoneRRSetSetRecordsOpts{
+									Records: []hcloud.ZoneRRSetRecord{
+										{
+											Value: "116.202.181.2",
+										},
+										{
+											Value: "116.202.181.3",
+										},
+									},
+								},
+							},
+						},
+						deletes: []*hetznerChangeDelete{
+							{
+								rrset: &hcloud.ZoneRRSet{
+									ID:   "3",
+									Zone: &hcloud.Zone{ID: 1, Name: "fastipletonis.eu"},
+									Name: "@",
+									Type: hcloud.ZoneRRSetTypeA,
+									TTL:  &ttl3600,
+									Records: []hcloud.ZoneRRSetRecord{
+										{
+											Value: "116.202.181.2",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			input: struct {
+				ctx  context.Context
+				zone *hcloud.Zone
+			}{
+				ctx:  context.Background(),
+				zone: &hcloud.Zone{ID: 1, Name: "fastipletonis.eu"},
+			},
+			expState: mockClientState{
+				ExportZonefileCalled: true,
+				ImportZonefileCalled: true,
+			},
+			expArgs: struct {
+				zone *hcloud.Zone
+				opts hcloud.ZoneImportZonefileOpts
+			}{
+				zone: &hcloud.Zone{ID: 1, Name: "fastipletonis.eu"},
+				opts: hcloud.ZoneImportZonefileOpts{
+					Zonefile: strings.Replace(changedZoneFile, oldSOA, todayMinSerialNumber(), 1),
+				},
 			},
 		},
 	}

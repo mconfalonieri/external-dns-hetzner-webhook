@@ -264,8 +264,8 @@ func (c bulkChanges) runZoneChanges(zone *hcloud.Zone, zf string) (string, error
 	return nzf, nil
 }
 
-// applyChangesZone applies changes to a zone.
-func (c bulkChanges) applyChangesZone(ctx context.Context, zone *hcloud.Zone) {
+// applyZoneChanges applies changes to a zone.
+func (c bulkChanges) applyZoneChanges(ctx context.Context, zone *hcloud.Zone) {
 	metrics := metrics.GetOpenMetricsInstance()
 	startExport := time.Now()
 	zfr, _, err := c.dnsClient.ExportZonefile(ctx, zone)
@@ -284,6 +284,7 @@ func (c bulkChanges) applyChangesZone(ctx context.Context, zone *hcloud.Zone) {
 		log.WithFields(log.Fields{
 			"zoneName": zone.Name,
 		}).Errorf("Error while managing the zonefile: %v", err)
+		return
 	}
 	opts := hcloud.ZoneImportZonefileOpts{
 		Zonefile: nzf,
@@ -310,7 +311,7 @@ func (c bulkChanges) ApplyChanges(ctx context.Context) error {
 		return nil
 	}
 	for _, z := range c.zones {
-		c.applyChangesZone(ctx, z)
+		c.applyZoneChanges(ctx, z)
 	}
 	return nil
 }
