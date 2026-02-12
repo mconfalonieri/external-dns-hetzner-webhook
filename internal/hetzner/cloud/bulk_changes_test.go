@@ -1651,6 +1651,7 @@ func Test_bulkChanges_runZoneChanges(t *testing.T) {
 	}
 }
 
+// Test_bulkChanges_applyZoneChanges tests bulkChanges.applyZoneChanges().
 func Test_bulkChanges_applyZoneChanges(t *testing.T) {
 	type testCase struct {
 		name      string
@@ -2068,6 +2069,154 @@ func Test_bulkChanges_applyZoneChanges(t *testing.T) {
 				zone: &hcloud.Zone{ID: 1, Name: "fastipletonis.eu"},
 				opts: hcloud.ZoneImportZonefileOpts{
 					Zonefile: strings.Replace(changedZoneFile, oldSOA, todayMinSerialNumber(), 1),
+				},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			run(t, tc)
+		})
+	}
+}
+
+func Test_bulkChanges_ApplyChanges(t *testing.T) {
+	type testCase struct {
+		name      string
+		inpClient mockClient
+		object    bulkChanges
+		expected  error
+		expState  mockClientState
+		expArgs   struct {
+			zone *hcloud.Zone
+			opts hcloud.ZoneImportZonefileOpts
+		}
+	}
+
+	run := func(t *testing.T, tc testCase) {
+		client := tc.inpClient
+		expState := tc.expState
+		expArgs := tc.expArgs
+		obj := tc.object
+		obj.dnsClient = &client
+		actual := obj.ApplyChanges(context.Background())
+		assertError(t, tc.expected, actual)
+		assert.Equal(t, expState, client.state)
+		assert.Equal(t, expArgs.zone, client.args.ImportZoneFile.zone)
+		assert.Equal(t, sortRows(expArgs.opts.Zonefile), sortRows(client.args.ImportZoneFile.opts.Zonefile))
+	}
+
+	testCases := []testCase{
+		{
+			name: "changes applied",
+			inpClient: mockClient{
+				exportZonefile: exportZonefileResponse{
+					result: hcloud.ZoneExportZonefileResult{
+						Zonefile: inputZoneFile,
+					},
+					resp: &hcloud.Response{
+						Response: &http.Response{
+							Status:     http.StatusText(http.StatusOK),
+							StatusCode: http.StatusOK,
+						},
+					},
+				},
+			},
+			object: bulkChanges{
+				zones: map[int64]*hcloud.Zone{
+					1: {ID: 1, Name: "fastipletonis.eu"},
+				},
+				changes: map[int64]*zoneChanges{
+					1: {
+						creates: []*hetznerChangeCreate{
+							{
+								zone: &hcloud.Zone{ID: 1, Name: "fastipletonis.eu"},
+								opts: hcloud.ZoneRRSetCreateOpts{
+									Name: "ftp",
+									Type: hcloud.ZoneRRSetTypeA,
+									TTL:  &ttl3600,
+									Records: []hcloud.ZoneRRSetRecord{
+										{
+											Value: "116.202.181.1",
+										},
+									},
+								},
+							},
+						},
+						updates: []*hetznerChangeUpdate{
+							{
+								rrset: &hcloud.ZoneRRSet{
+									ID:   "2",
+									Zone: &hcloud.Zone{ID: 1, Name: "fastipletonis.eu"},
+									Name: "www",
+									Type: hcloud.ZoneRRSetTypeA,
+									TTL:  &ttl3600,
+									Records: []hcloud.ZoneRRSetRecord{
+										{
+											Value: "116.202.181.2",
+										},
+									},
+								},
+								recordsOpts: &hcloud.ZoneRRSetSetRecordsOpts{
+									Records: []hcloud.ZoneRRSetRecord{
+										{
+											Value: "116.202.181.2",
+										},
+										{
+											Value: "116.202.181.3",
+										},
+									},
+								},
+							},
+						},
+						deletes: []*hetznerChangeDelete{
+							{
+								rrset: &hcloud.ZoneRRSet{
+									ID:   "3",
+									Zone: &hcloud.Zone{ID: 1, Name: "fastipletonis.eu"},
+									Name: "@",
+									Type: hcloud.ZoneRRSetTypeA,
+									TTL:  &ttl3600,
+									Records: []hcloud.ZoneRRSetRecord{
+										{
+											Value: "116.202.181.2",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			expected: nil,
+			expState: mockClientState{
+				ExportZonefileCalled: true,
+				ImportZonefileCalled: true,
+			},
+			expArgs: struct {
+				zone *hcloud.Zone
+				opts hcloud.ZoneImportZonefileOpts
+			}{
+				zone: &hcloud.Zone{ID: 1, Name: "fastipletonis.eu"},
+				opts: hcloud.ZoneImportZonefileOpts{
+					Zonefile: strings.Replace(changedZoneFile, oldSOA, todayMinSerialNumber(), 1),
+				},
+			},
+		},
+		{
+			name: "empty changes",
+			inpClient: mockClient{
+				exportZonefile: exportZonefileResponse{
+					result: hcloud.ZoneExportZonefileResult{
+						Zonefile: inputZoneFile,
+					},
+					resp: &hcloud.Response{
+						Response: &http.Response{
+							Status:     http.StatusText(http.StatusOK),
+							StatusCode: http.StatusOK,
+						},
+					},
 				},
 			},
 		},
