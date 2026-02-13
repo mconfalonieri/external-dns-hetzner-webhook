@@ -48,9 +48,8 @@ type bulkChanges struct {
 	dryRun     bool
 	defaultTTL int
 	slash      string
-
-	zones   map[int64]*hcloud.Zone
-	changes map[int64]*zoneChanges
+	zones      map[int64]*hcloud.Zone
+	changes    map[int64]*zoneChanges
 }
 
 // NewBulkChanges creates a new bulkChanges object.
@@ -60,6 +59,7 @@ func NewBulkChanges(dnsClient apiClient, dryRun bool, defaultTTL int, slash stri
 		dryRun:     dryRun,
 		defaultTTL: defaultTTL,
 		slash:      slash,
+		zones:      make(map[int64]*hcloud.Zone, 0),
 		changes:    make(map[int64]*zoneChanges, 0),
 	}
 }
@@ -147,6 +147,7 @@ func decodeRecords(rrs []hcloud.ZoneRRSetRecord) []string {
 
 // createRecord adds a new recordset.
 func createRecord(z *zonefile.Zonefile, c *hetznerChangeCreate) {
+	log.WithFields(c.GetLogFields()).Debug("Planning record creation")
 	opts := c.opts
 	recType := string(opts.Type)
 	ttl := z.GetTTL()
@@ -167,6 +168,7 @@ func createRecord(z *zonefile.Zonefile, c *hetznerChangeCreate) {
 
 // updateRecord updates a recordset.
 func updateRecord(z *zonefile.Zonefile, u *hetznerChangeUpdate) {
+	log.WithFields(u.GetLogFields()).Debug("Planning record update")
 	rset := u.rrset
 	rOpts := u.recordsOpts
 	ttlOpts := u.ttlOpts
@@ -197,6 +199,7 @@ func updateRecord(z *zonefile.Zonefile, u *hetznerChangeUpdate) {
 
 // deleteRecord removes a recordset.
 func deleteRecord(z *zonefile.Zonefile, d *hetznerChangeDelete) {
+	log.WithFields(d.GetLogFields()).Debug("Planning record deletion")
 	rset := d.rrset
 	recType := string(rset.Type)
 	name := rset.Name
@@ -268,12 +271,13 @@ func (c bulkChanges) runZoneChanges(zone *hcloud.Zone, zf string) (string, error
 func (c bulkChanges) applyZoneChanges(ctx context.Context, zone *hcloud.Zone) {
 	metrics := metrics.GetOpenMetricsInstance()
 	startExport := time.Now()
+	log.Debugf("Downloading zonefile from [%s]", zone.Name)
 	zfr, _, err := c.dnsClient.ExportZonefile(ctx, zone)
 	if err != nil {
 		metrics.IncFailedApiCallsTotal(actExportZonefile)
 		log.WithFields(log.Fields{
 			"zoneName": zone.Name,
-		}).Errorf("Error while exporting zonefile: %v", err)
+		}).Errorf("Error while downloading zonefile: %v", err)
 		return
 	}
 	delayExport := time.Since(startExport)
@@ -290,12 +294,13 @@ func (c bulkChanges) applyZoneChanges(ctx context.Context, zone *hcloud.Zone) {
 		Zonefile: nzf,
 	}
 	startImport := time.Now()
+	log.Debugf("Uploading zonefile to [%s]", zone.Name)
 	_, _, err = c.dnsClient.ImportZonefile(ctx, zone, opts)
 	if err != nil {
 		metrics.IncFailedApiCallsTotal(actImportZonefile)
 		log.WithFields(log.Fields{
 			"zoneName": zone.Name,
-		}).Errorf("Error while importing the zonefile: %v", err)
+		}).Errorf("Error while uploading the zonefile: %v", err)
 		return
 	}
 	delayImport := time.Since(startImport)
