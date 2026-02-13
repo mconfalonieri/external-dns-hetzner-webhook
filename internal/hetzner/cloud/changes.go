@@ -94,7 +94,7 @@ func (c hetznerChanges) applyDeletes(ctx context.Context) error {
 	metrics := metrics.GetOpenMetricsInstance()
 	for _, e := range c.deletes {
 		log.WithFields(e.GetLogFields()).Debug("Deleting domain record")
-		log.Infof("Deleting record [%s] from zone [%s]", e.rrset.Name, e.rrset.Zone.Name)
+		log.Infof("Deleting record [%s] of type [%s] from zone [%s]", e.rrset.Name, e.rrset.Type, e.rrset.Zone.Name)
 		if c.dryRun {
 			continue
 		}
