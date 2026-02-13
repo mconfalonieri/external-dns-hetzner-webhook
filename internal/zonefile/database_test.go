@@ -1455,7 +1455,7 @@ func Test_Zonefile_parseTXTRecord(t *testing.T) {
 			}{
 				name:   "reg.fastipletonis.eu.",
 				ttl:    3600,
-				record: "\"test=value\"",
+				record: `"test=value"`,
 			},
 			expected: struct {
 				txt *dns.TXT
@@ -1468,7 +1468,7 @@ func Test_Zonefile_parseTXTRecord(t *testing.T) {
 						Class: dns.ClassINET,
 					},
 					TXT: rdata.TXT{
-						Txt: []string{"\"test=value\""},
+						Txt: []string{"test=value"},
 					},
 				},
 				err: nil,
@@ -1486,7 +1486,7 @@ func Test_Zonefile_parseTXTRecord(t *testing.T) {
 			}{
 				name:   "reg.fastipletonis.eu.",
 				ttl:    3600,
-				record: "\"test=\\\"value\\\"\"",
+				record: `"test=\"value\""`,
 			},
 			expected: struct {
 				txt *dns.TXT
@@ -1499,7 +1499,7 @@ func Test_Zonefile_parseTXTRecord(t *testing.T) {
 						Class: dns.ClassINET,
 					},
 					TXT: rdata.TXT{
-						Txt: []string{"\"test=\\\"value\\\"\""},
+						Txt: []string{`test="value"`},
 					},
 				},
 				err: nil,
@@ -1517,7 +1517,7 @@ func Test_Zonefile_parseTXTRecord(t *testing.T) {
 			}{
 				name:   "reg.fastipletonis.eu.",
 				ttl:    3600,
-				record: "\"test=value\" \"prod=value\"",
+				record: `"test=value" "prod=value"`,
 			},
 			expected: struct {
 				txt *dns.TXT
@@ -1530,7 +1530,7 @@ func Test_Zonefile_parseTXTRecord(t *testing.T) {
 						Class: dns.ClassINET,
 					},
 					TXT: rdata.TXT{
-						Txt: []string{"\"test=value\"", "\"prod=value\""},
+						Txt: []string{"test=value", "prod=value"},
 					},
 				},
 				err: nil,

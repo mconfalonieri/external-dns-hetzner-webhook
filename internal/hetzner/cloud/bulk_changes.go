@@ -303,6 +303,9 @@ func (c bulkChanges) applyZoneChanges(ctx context.Context, zone *hcloud.Zone) {
 		}).Errorf("Error while uploading the zonefile: %v", err)
 		return
 	}
+	zc := c.changes[zone.ID]
+	log.Infof("Uploaded zonefile for zone [%s] with %d creations, %d updates and %d deletions.",
+		zone.Name, len(zc.creates), len(zc.updates), len(zc.deletes))
 	delayImport := time.Since(startImport)
 	metrics.IncSuccessfulApiCallsTotal(actImportZonefile)
 	metrics.AddApiDelayHist(actImportZonefile, delayImport.Milliseconds())

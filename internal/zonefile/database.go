@@ -261,7 +261,14 @@ func (z Zonefile) parseCNAMERecord(name string, ttl int, arg string) (*dns.CNAME
 func (z Zonefile) parseTXTRecord(name string, ttl int, arg string) (*dns.TXT, error) {
 	rows := txtSplit.FindAllString(arg, -1)
 	if rows == nil {
-		return nil, fmt.Errorf("invalid TXT record: %s", arg)
+		rows = []string{arg}
+	} else {
+		for i, row := range rows {
+			if len(row) >= 2 && row[0] == '"' && row[len(row)-1] == '"' {
+				row = row[1 : len(row)-1]
+			}
+			rows[i] = strings.ReplaceAll(row, `\"`, `"`)
+		}
 	}
 	return &dns.TXT{
 		Hdr: dns.Header{
