@@ -2,7 +2,7 @@
 
 > [!IMPORTANT]
 > Support for the legacy DNS is going to be discontinued by Hetzner in May 2026.
-> The legacy provider will be pulled from this provider in version **1.0.0**.
+> The legacy provider will be pulled from this provider in version **v1.0.0**.
 > No new features will be added to the legacy DNS driver and only important
 > bugfixes will be backported.
 
@@ -19,7 +19,7 @@ you to manage your Hetzner domains inside your kubernetes cluster.
 This webhook supports both the old DNS API and the new Cloud DNS interface.
 
 > [!TIP]
-> If you are upgrading to **0.11.x** from previous versions read the
+> If you are upgrading to **v0.11.x** from previous versions read the
 > [Upgrading from previous versions](#upgrading-from-previous-versions) section.
 
 
@@ -272,7 +272,7 @@ export and manipulate the zonefiles instead of the single recordsets. This will
 reduce the API calls when updating zones with lots of changes and a relatively
 long interval.
 
-> [WARNING]
+> [!WARNING]
 > The bulk mode is experimental and comes with some limitations. Please read
 > the [Bulk mode](#bulk-mode) section before activating it.
 >
