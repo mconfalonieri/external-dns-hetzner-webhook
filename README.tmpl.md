@@ -510,6 +510,13 @@ The actions supported by the Cloud API provider are:
 - `update_rrset` (this is the method used to update labels)
 - `delete_rrset`
 
+In case `BULK_MODE` is set to true, the following actions will be used instead:
+
+- `get_zones`
+- `get_rrsets`
+- `import_zonefile`
+- `export_zonefile`
+
 The label `zone` can assume one of the zone names as its value.
 
 ## Development
