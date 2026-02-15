@@ -53,7 +53,6 @@ func Test_NewHetznerProvider(t *testing.T) {
 			assert.Equal(t, exp.provider.dryRun, p.dryRun)
 			assert.Equal(t, exp.provider.debug, p.debug)
 			assert.Equal(t, exp.provider.batchSize, p.batchSize)
-			assert.Equal(t, exp.provider.defaultTTL, p.defaultTTL)
 			actualJSON, _ := p.domainFilter.MarshalJSON()
 			expectedJSON, _ := exp.provider.domainFilter.MarshalJSON()
 			assert.Equal(t, actualJSON, expectedJSON)
@@ -68,7 +67,6 @@ func Test_NewHetznerProvider(t *testing.T) {
 				DryRun:       true,
 				Debug:        true,
 				BatchSize:    50,
-				DefaultTTL:   3600,
 				DomainFilter: []string{"alpha.com, beta.com"},
 			},
 			expected: struct {
@@ -85,7 +83,6 @@ func Test_NewHetznerProvider(t *testing.T) {
 				DryRun:       true,
 				Debug:        true,
 				BatchSize:    50,
-				DefaultTTL:   3600,
 				DomainFilter: []string{"alpha.com, beta.com"},
 			},
 			expected: struct {
@@ -97,7 +94,6 @@ func Test_NewHetznerProvider(t *testing.T) {
 					batchSize:    50,
 					debug:        true,
 					dryRun:       true,
-					defaultTTL:   3600,
 					domainFilter: endpoint.NewDomainFilter([]string{"alpha.com, beta.com"}),
 				},
 			},
@@ -162,7 +158,6 @@ func Test_Zones(t *testing.T) {
 				batchSize:         100,
 				debug:             true,
 				dryRun:            false,
-				defaultTTL:        7200,
 				domainFilter:      &endpoint.DomainFilter{},
 				zoneCacheDuration: time.Duration(int64(3600) * int64(time.Second)),
 				zoneCacheUpdate:   time.Now(),
@@ -217,7 +212,6 @@ func Test_Zones(t *testing.T) {
 				batchSize:    100,
 				debug:        true,
 				dryRun:       false,
-				defaultTTL:   7200,
 				domainFilter: endpoint.NewDomainFilter([]string{"alpha.com", "gamma.com"}),
 			},
 			expected: struct {
@@ -270,7 +264,6 @@ func Test_Zones(t *testing.T) {
 				batchSize:         100,
 				debug:             true,
 				dryRun:            false,
-				defaultTTL:        7200,
 				domainFilter:      &endpoint.DomainFilter{},
 				zoneCacheDuration: time.Duration(int64(3600) * int64(time.Second)),
 				zoneCacheUpdate:   time.Now().Add(time.Duration(int64(3600) * int64(time.Second))),
@@ -312,7 +305,6 @@ func Test_Zones(t *testing.T) {
 				batchSize:    100,
 				debug:        true,
 				dryRun:       false,
-				defaultTTL:   7200,
 				domainFilter: &endpoint.DomainFilter{},
 			},
 			expected: struct {
@@ -485,7 +477,6 @@ func Test_Records(t *testing.T) {
 				batchSize:    100,
 				debug:        true,
 				dryRun:       false,
-				defaultTTL:   7200,
 				domainFilter: &endpoint.DomainFilter{},
 			},
 			expected: struct {
@@ -586,7 +577,6 @@ func Test_Records(t *testing.T) {
 				batchSize:    100,
 				debug:        true,
 				dryRun:       false,
-				defaultTTL:   7200,
 				domainFilter: &endpoint.DomainFilter{},
 			},
 			expected: struct {
@@ -636,7 +626,6 @@ func Test_Records(t *testing.T) {
 				batchSize:    100,
 				debug:        true,
 				dryRun:       false,
-				defaultTTL:   7200,
 				domainFilter: &endpoint.DomainFilter{},
 			},
 			expected: struct {
@@ -676,7 +665,6 @@ func Test_Records(t *testing.T) {
 				batchSize:    100,
 				debug:        true,
 				dryRun:       false,
-				defaultTTL:   7200,
 				domainFilter: &endpoint.DomainFilter{},
 			},
 			expected: struct {
@@ -808,7 +796,6 @@ func Test_getRecordsByZoneID(t *testing.T) {
 				batchSize:    100,
 				debug:        true,
 				dryRun:       false,
-				defaultTTL:   7200,
 				domainFilter: &endpoint.DomainFilter{},
 			},
 			expected: struct {
@@ -909,7 +896,6 @@ func Test_getRecordsByZoneID(t *testing.T) {
 				batchSize:    100,
 				debug:        true,
 				dryRun:       false,
-				defaultTTL:   7200,
 				domainFilter: &endpoint.DomainFilter{},
 			},
 			expected: struct {
@@ -979,7 +965,6 @@ func Test_getRecordsByZoneID(t *testing.T) {
 				batchSize:    100,
 				debug:        true,
 				dryRun:       false,
-				defaultTTL:   7200,
 				domainFilter: &endpoint.DomainFilter{},
 			},
 			expected: struct {
@@ -1019,7 +1004,6 @@ func Test_getRecordsByZoneID(t *testing.T) {
 				batchSize:    100,
 				debug:        true,
 				dryRun:       false,
-				defaultTTL:   7200,
 				domainFilter: &endpoint.DomainFilter{},
 			},
 			expected: struct {

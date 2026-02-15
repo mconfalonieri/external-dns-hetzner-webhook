@@ -44,23 +44,21 @@ type zoneChanges struct {
 // method exports the BIND zone file, applies the changes and re-uploads it,
 // therefore using always exactly two calls per zone.
 type bulkChanges struct {
-	dnsClient  apiClient
-	dryRun     bool
-	defaultTTL int
-	slash      string
-	zones      map[int64]*hcloud.Zone
-	changes    map[int64]*zoneChanges
+	dnsClient apiClient
+	dryRun    bool
+	slash     string
+	zones     map[int64]*hcloud.Zone
+	changes   map[int64]*zoneChanges
 }
 
 // NewBulkChanges creates a new bulkChanges object.
-func NewBulkChanges(dnsClient apiClient, dryRun bool, defaultTTL int, slash string) *bulkChanges {
+func NewBulkChanges(dnsClient apiClient, dryRun bool, slash string) *bulkChanges {
 	return &bulkChanges{
-		dnsClient:  dnsClient,
-		dryRun:     dryRun,
-		defaultTTL: defaultTTL,
-		slash:      slash,
-		zones:      make(map[int64]*hcloud.Zone, 0),
-		changes:    make(map[int64]*zoneChanges, 0),
+		dnsClient: dnsClient,
+		dryRun:    dryRun,
+		slash:     slash,
+		zones:     make(map[int64]*hcloud.Zone, 0),
+		changes:   make(map[int64]*zoneChanges, 0),
 	}
 }
 
@@ -250,7 +248,7 @@ func (c bulkChanges) runZoneDeletes(zone *hcloud.Zone, z *zonefile.Zonefile) {
 func (c bulkChanges) runZoneChanges(zone *hcloud.Zone, zf string) (string, error) {
 	ttl, present := readTTL(zf)
 	if !present {
-		ttl = c.defaultTTL
+		ttl = zone.TTL
 	}
 	zn := zone.Name
 	z, err := zonefile.NewZonefile(strings.NewReader(zf), zn, ttl)

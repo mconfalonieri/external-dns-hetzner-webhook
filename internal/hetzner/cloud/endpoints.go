@@ -134,11 +134,13 @@ func createEndpointFromRecord(slash string, rrset *hcloud.ZoneRRSet) *endpoint.E
 	// Handle local CNAMEs
 	targets := extractEndpointTargets(rrset)
 	ep := endpoint.NewEndpoint(name, string(rrset.Type), targets...)
-	log.Debugf("Reading extracted endpoint %s", ep.DNSName)
 	ep.ProviderSpecific = getProviderSpecific(slash, rrset.Labels)
 	if rrset.TTL != nil {
 		ep.RecordTTL = endpoint.TTL(*rrset.TTL)
+	} else {
+		ep.RecordTTL = endpoint.TTL(rrset.Zone.TTL)
 	}
+	log.WithFields(getEndpointLogFields(ep)).Debugf("Reading extracted endpoint %s", ep.DNSName)
 	return ep
 }
 
@@ -149,7 +151,7 @@ func endpointsByZoneID(zoneIDNameMapper zoneIDName, endpoints []*endpoint.Endpoi
 	for idx, ep := range endpoints {
 		zoneID, _ := zoneIDNameMapper.FindZone(ep.DNSName)
 		if zoneID == -1 {
-			log.Debugf("Skipping record %d (%s) because no hosted zone matching record DNS Name was detected", idx, ep.DNSName)
+			log.Warnf("Skipping record %s of type %s because no hosted zone matching record DNS Name was detected", ep.DNSName, ep.RecordType)
 			continue
 		} else {
 			log.WithFields(getEndpointLogFields(ep)).Debugf("Reading endpoint %d for dividing by zone", idx)

@@ -1352,7 +1352,7 @@ func Test_bulkChanges_runZoneChanges(t *testing.T) {
 			name: "error empty zonefile",
 			object: bulkChanges{
 				zones: map[int64]*hcloud.Zone{
-					1: {ID: 1, Name: "fastipletonis.eu"},
+					1: {ID: 1, Name: "fastipletonis.eu", TTL: 7200},
 				},
 				changes: map[int64]*zoneChanges{
 					1: {
@@ -1396,7 +1396,7 @@ func Test_bulkChanges_runZoneChanges(t *testing.T) {
 			name: "error export zonefile",
 			object: bulkChanges{
 				zones: map[int64]*hcloud.Zone{
-					1: {ID: 1, Name: "fastipletonis.eu"},
+					1: {ID: 1, Name: "fastipletonis.eu", TTL: 7200},
 				},
 				changes: map[int64]*zoneChanges{
 					1: {
@@ -1479,7 +1479,7 @@ func Test_bulkChanges_runZoneChanges(t *testing.T) {
 			name: "regular zonefile",
 			object: bulkChanges{
 				zones: map[int64]*hcloud.Zone{
-					1: {ID: 1, Name: "fastipletonis.eu"},
+					1: {ID: 1, Name: "fastipletonis.eu", TTL: 3600},
 				},
 				changes: map[int64]*zoneChanges{
 					1: {
@@ -1561,15 +1561,14 @@ func Test_bulkChanges_runZoneChanges(t *testing.T) {
 		{
 			name: "zonefile without ttl",
 			object: bulkChanges{
-				defaultTTL: 7200,
 				zones: map[int64]*hcloud.Zone{
-					1: {ID: 1, Name: "fastipletonis.eu"},
+					1: {ID: 1, Name: "fastipletonis.eu", TTL: 7200},
 				},
 				changes: map[int64]*zoneChanges{
 					1: {
 						creates: []*hetznerChangeCreate{
 							{
-								zone: &hcloud.Zone{ID: 1, Name: "fastipletonis.eu"},
+								zone: &hcloud.Zone{ID: 1, Name: "fastipletonis.eu", TTL: 7200},
 								opts: hcloud.ZoneRRSetCreateOpts{
 									Name: "ftp",
 									Type: hcloud.ZoneRRSetTypeA,
@@ -1586,7 +1585,7 @@ func Test_bulkChanges_runZoneChanges(t *testing.T) {
 							{
 								rrset: &hcloud.ZoneRRSet{
 									ID:   "2",
-									Zone: &hcloud.Zone{ID: 1, Name: "fastipletonis.eu"},
+									Zone: &hcloud.Zone{ID: 1, Name: "fastipletonis.eu", TTL: 7200},
 									Name: "www",
 									Type: hcloud.ZoneRRSetTypeA,
 									TTL:  &ttl3600,
@@ -1612,7 +1611,7 @@ func Test_bulkChanges_runZoneChanges(t *testing.T) {
 							{
 								rrset: &hcloud.ZoneRRSet{
 									ID:   "3",
-									Zone: &hcloud.Zone{ID: 1, Name: "fastipletonis.eu"},
+									Zone: &hcloud.Zone{ID: 1, Name: "fastipletonis.eu", TTL: 7200},
 									Name: "@",
 									Type: hcloud.ZoneRRSetTypeA,
 									TTL:  &ttl3600,
@@ -1631,7 +1630,7 @@ func Test_bulkChanges_runZoneChanges(t *testing.T) {
 				zone *hcloud.Zone
 				zf   string
 			}{
-				zone: &hcloud.Zone{ID: 1, Name: "fastipletonis.eu"},
+				zone: &hcloud.Zone{ID: 1, Name: "fastipletonis.eu", TTL: 7200},
 				zf:   inputZoneFileNoTTL,
 			},
 			expected: struct {

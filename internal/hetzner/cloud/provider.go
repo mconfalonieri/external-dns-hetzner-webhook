@@ -63,7 +63,6 @@ type HetznerProvider struct {
 	batchSize         int
 	debug             bool
 	dryRun            bool
-	defaultTTL        int
 	zoneIDNameMapper  zoneIDName
 	domainFilter      *endpoint.DomainFilter
 	slashEscSeq       string
@@ -116,7 +115,6 @@ func NewHetznerProvider(config *hetzner.Configuration) (*HetznerProvider, error)
 		batchSize:         config.BatchSize,
 		debug:             config.Debug,
 		dryRun:            config.DryRun,
-		defaultTTL:        config.DefaultTTL,
 		domainFilter:      hetzner.GetDomainFilter(*config),
 		slashEscSeq:       config.SlashEscSeq,
 		maxFailCount:      config.MaxFailCount,
@@ -289,9 +287,9 @@ func (p *HetznerProvider) getRRSetsByZoneID(ctx context.Context) (map[int64][]*h
 // BULK_MODE flag.
 func (p HetznerProvider) getChangesRunner() changesRunner {
 	if p.bulkMode {
-		return NewBulkChanges(p.client, p.dryRun, p.defaultTTL, p.slashEscSeq)
+		return NewBulkChanges(p.client, p.dryRun, p.slashEscSeq)
 	} else {
-		return NewHetznerChanges(p.client, p.dryRun, p.defaultTTL, p.slashEscSeq)
+		return NewHetznerChanges(p.client, p.dryRun, p.slashEscSeq)
 	}
 }
 

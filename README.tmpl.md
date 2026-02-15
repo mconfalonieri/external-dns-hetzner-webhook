@@ -222,10 +222,15 @@ This can be changed using the **SLASH_ESC_SEQ** environment variable.
 
 ### 0.10.x to 0.11.x
 
-The configuration is fully compatible with previous versions. A **BULK_MODE**
-parameter was added. When set to `true`, the webhook will export and manipulate
-the zonefiles instead of the single recordsets. This will reduce the API calls
-when updating zones with lots of changes and a relatively long interval.
+The configuration is compatible with previous versions; however the
+**DEFAULT_TTL** parameter was removed and this environment variable will
+therefore not affect the configuration. The default TTL will be the one defined
+in the zone.
+
+A **BULK_MODE** parameter was added. When set to `true`, the webhook will
+export and manipulate the zonefiles instead of the single recordsets. This will
+reduce the API calls when updating zones with lots of changes and a relatively
+long interval.
 
 
 ### 0.9.x to 0.10.x
@@ -292,7 +297,6 @@ Hetzner DNS API.
 | --------------- | -------------------------------------- | -------------------------- |
 | HETZNER_API_KEY | Hetzner API token                      | Mandatory                  |
 | BATCH_SIZE      | Number of zones per call               | Default: `100`, max: `100` |
-| DEFAULT_TTL     | Default record TTL                     | Default: `7200`            |
 | USE_CLOUD_API   | Use the new cloud API                  | Default: `false`           |
 | SLASH_ESC_SEQ   | Escape sequence for label annotations  | Default: `--slash--`       |
 | MAX_FAIL_COUNT  | Number of failed calls before shutdown | Default: `-1` (disabled)   |
@@ -327,10 +331,11 @@ These variables control the sockets that this application listens to.
 
 Please notice that the following variables were **deprecated**:
 
-| Variable    | Description                      |
-| ----------- | -------------------------------- |
-| HEALTH_HOST | Metrics hostname (deprecated)    |
-| HEALTH_PORT | Metrics port (deprecated)        |
+| Variable    | Description                            |
+| ----------- | -------------------------------------- |
+| HEALTH_HOST | Metrics hostname (deprecated)          |
+| HEALTH_PORT | Metrics port (deprecated)              |
+| DEFAULT_TTL | The default TTL is taken from the zone |
 
 
 ### Domain filtering

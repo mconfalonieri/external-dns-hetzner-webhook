@@ -29,10 +29,9 @@ import (
 
 // hetznerChange contains all changes to apply to DNS.
 type hetznerChanges struct {
-	dnsClient  apiClient
-	dryRun     bool
-	defaultTTL int
-	slash      string
+	dnsClient apiClient
+	dryRun    bool
+	slash     string
 
 	creates []*hetznerChangeCreate
 	updates []*hetznerChangeUpdate
@@ -40,12 +39,11 @@ type hetznerChanges struct {
 }
 
 // NewHetznerChanges creates a new hetznerChanges object.
-func NewHetznerChanges(dnsClient apiClient, dryRun bool, defaultTTL int, slash string) *hetznerChanges {
+func NewHetznerChanges(dnsClient apiClient, dryRun bool, slash string) *hetznerChanges {
 	return &hetznerChanges{
-		dnsClient:  dnsClient,
-		dryRun:     dryRun,
-		defaultTTL: defaultTTL,
-		slash:      slash,
+		dnsClient: dnsClient,
+		dryRun:    dryRun,
+		slash:     slash,
 	}
 }
 
@@ -118,7 +116,7 @@ func (c hetznerChanges) applyCreates(ctx context.Context) error {
 		zone := e.zone
 		opts := e.opts
 		if opts.TTL == nil {
-			ttl := c.defaultTTL
+			ttl := zone.TTL
 			opts.TTL = &ttl
 		}
 		log.WithFields(e.GetLogFields()).Debug("Creating domain record")
@@ -166,7 +164,7 @@ func (c hetznerChanges) applyUpdates(ctx context.Context) error {
 		}
 		if ttlOpts != nil {
 			if ttlOpts.TTL == nil {
-				ttl := c.defaultTTL
+				ttl := rrset.Zone.TTL
 				ttlOpts.TTL = &ttl
 			}
 			log.Infof("Updating TTL for ID [%s], Name [%s], Type [%s] in zone [%s]: %d",

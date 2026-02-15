@@ -48,7 +48,6 @@ type HetznerProvider struct {
 	batchSize         int
 	debug             bool
 	dryRun            bool
-	defaultTTL        int
 	zoneIDNameMapper  provider.ZoneIDName
 	domainFilter      *endpoint.DomainFilter
 	maxFailCount      int
@@ -95,7 +94,6 @@ func NewHetznerProvider(config *hetzner.Configuration) (*HetznerProvider, error)
 		batchSize:         config.BatchSize,
 		debug:             config.Debug,
 		dryRun:            config.DryRun,
-		defaultTTL:        config.DefaultTTL,
 		domainFilter:      hetzner.GetDomainFilter(*config),
 		maxFailCount:      config.MaxFailCount,
 		zoneCacheDuration: zcTTL,
@@ -288,8 +286,7 @@ func (p HetznerProvider) ApplyChanges(ctx context.Context, planChanges *plan.Cha
 	deletesByZoneID := endpointsByZoneID(p.zoneIDNameMapper, planChanges.Delete)
 
 	changes := hetznerChanges{
-		dryRun:     p.dryRun,
-		defaultTTL: p.defaultTTL,
+		dryRun: p.dryRun,
 	}
 
 	processCreateActions(p.zoneIDNameMapper, recordsByZoneID, createsByZoneID, &changes)
