@@ -19,23 +19,8 @@ package hetznercloud
 
 import (
 	"context"
-	"time"
-
-	"external-dns-hetzner-webhook/internal/metrics"
 
 	"github.com/hetznercloud/hcloud-go/v2/hcloud"
-)
-
-const (
-	actGetZones           = "get_zones"
-	actGetRRSets          = "get_rrsets"
-	actCreateRRSet        = "create_rrset"
-	actUpdateRRSetTTL     = "update_rrset_ttl"
-	actUpdateRRSetRecords = "update_rrset_records"
-	actUpdateRRSet        = "update_rrset"
-	actDeleteRRSet        = "delete_rrset"
-	actExportZonefile     = "export_zonefile"
-	actImportZonefile     = "import_zonefile"
 )
 
 // apiClient is an abstraction of the REST API client.
@@ -60,27 +45,26 @@ type apiClient interface {
 	ImportZonefile(ctx context.Context, zone *hcloud.Zone, opts hcloud.ZoneImportZonefileOpts) (*hcloud.Action, *hcloud.Response, error)
 }
 
+// isEndPage returns true if this is the last page response.
+func isEndPage(resp *hcloud.Response) bool {
+	return resp == nil || resp.Meta.Pagination == nil || resp.Meta.Pagination.LastPage <= resp.Meta.Pagination.Page
+}
+
 // fetchRecords fetches all records for a given zone.
 func fetchRecords(ctx context.Context, zone *hcloud.Zone, client apiClient, batchSize int) ([]*hcloud.ZoneRRSet, error) {
-	metrics := metrics.GetOpenMetricsInstance()
 	records := []*hcloud.ZoneRRSet{}
 	opts := hcloud.ZoneRRSetListOpts{
 		ListOpts: hcloud.ListOpts{PerPage: batchSize},
 	}
 
 	for {
-		start := time.Now()
 		pagedRecords, resp, err := client.GetRRSets(ctx, zone, opts)
 		if err != nil {
-			metrics.IncFailedApiCallsTotal(actGetRRSets)
 			return nil, err
 		}
-		delay := time.Since(start)
-		metrics.IncSuccessfulApiCallsTotal(actGetRRSets)
-		metrics.AddApiDelayHist(actGetRRSets, delay.Milliseconds())
 		records = append(records, pagedRecords...)
 
-		if resp == nil || resp.Meta.Pagination == nil || resp.Meta.Pagination.LastPage <= resp.Meta.Pagination.Page {
+		if isEndPage(resp) {
 			break
 		}
 
@@ -92,25 +76,19 @@ func fetchRecords(ctx context.Context, zone *hcloud.Zone, client apiClient, batc
 
 // fetchZones fetches all the zones from the client.
 func fetchZones(ctx context.Context, client apiClient, batchSize int) ([]*hcloud.Zone, error) {
-	metrics := metrics.GetOpenMetricsInstance()
 	zones := []*hcloud.Zone{}
 	opts := hcloud.ZoneListOpts{
 		ListOpts: hcloud.ListOpts{PerPage: batchSize},
 	}
 
 	for {
-		start := time.Now()
 		pagedZones, resp, err := client.GetZones(ctx, opts)
 		if err != nil {
-			metrics.IncFailedApiCallsTotal(actGetZones)
 			return nil, err
 		}
-		delay := time.Since(start)
-		metrics.IncSuccessfulApiCallsTotal(actGetZones)
-		metrics.AddApiDelayHist(actGetZones, delay.Milliseconds())
 		zones = append(zones, pagedZones...)
 
-		if resp == nil || resp.Meta.Pagination == nil || resp.Meta.Pagination.LastPage <= resp.Meta.Pagination.Page {
+		if isEndPage(resp) {
 			break
 		}
 

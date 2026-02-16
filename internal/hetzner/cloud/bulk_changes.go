@@ -22,9 +22,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"time"
 
-	"external-dns-hetzner-webhook/internal/metrics"
 	"external-dns-hetzner-webhook/internal/zonefile"
 
 	"github.com/hetznercloud/hcloud-go/v2/hcloud"
@@ -267,20 +265,14 @@ func (c bulkChanges) runZoneChanges(zone *hcloud.Zone, zf string) (string, error
 
 // applyZoneChanges applies changes to a zone.
 func (c bulkChanges) applyZoneChanges(ctx context.Context, zone *hcloud.Zone) {
-	metrics := metrics.GetOpenMetricsInstance()
-	startExport := time.Now()
 	log.Debugf("Downloading zonefile from [%s]", zone.Name)
 	zfr, _, err := c.dnsClient.ExportZonefile(ctx, zone)
 	if err != nil {
-		metrics.IncFailedApiCallsTotal(actExportZonefile)
 		log.WithFields(log.Fields{
 			"zoneName": zone.Name,
 		}).Errorf("Error while downloading zonefile: %v", err)
 		return
 	}
-	delayExport := time.Since(startExport)
-	metrics.IncSuccessfulApiCallsTotal(actExportZonefile)
-	metrics.AddApiDelayHist(actExportZonefile, delayExport.Milliseconds())
 	nzf, err := c.runZoneChanges(zone, zfr.Zonefile)
 	if err != nil {
 		log.WithFields(log.Fields{
@@ -291,11 +283,9 @@ func (c bulkChanges) applyZoneChanges(ctx context.Context, zone *hcloud.Zone) {
 	opts := hcloud.ZoneImportZonefileOpts{
 		Zonefile: nzf,
 	}
-	startImport := time.Now()
 	log.Debugf("Uploading zonefile to [%s]", zone.Name)
 	_, _, err = c.dnsClient.ImportZonefile(ctx, zone, opts)
 	if err != nil {
-		metrics.IncFailedApiCallsTotal(actImportZonefile)
 		log.WithFields(log.Fields{
 			"zoneName": zone.Name,
 		}).Errorf("Error while uploading the zonefile: %v", err)
@@ -304,9 +294,6 @@ func (c bulkChanges) applyZoneChanges(ctx context.Context, zone *hcloud.Zone) {
 	zc := c.changes[zone.ID]
 	log.Infof("Uploaded zonefile for zone [%s] with %d creations, %d updates and %d deletions.",
 		zone.Name, len(zc.creates), len(zc.updates), len(zc.deletes))
-	delayImport := time.Since(startImport)
-	metrics.IncSuccessfulApiCallsTotal(actImportZonefile)
-	metrics.AddApiDelayHist(actImportZonefile, delayImport.Milliseconds())
 }
 
 // ApplyChanges applies the planned changes.

@@ -19,9 +19,6 @@ package hetznercloud
 
 import (
 	"context"
-	"time"
-
-	"external-dns-hetzner-webhook/internal/metrics"
 
 	"github.com/hetznercloud/hcloud-go/v2/hcloud"
 	log "github.com/sirupsen/logrus"
@@ -89,21 +86,15 @@ func (c *hetznerChanges) AddChangeDelete(rrset *hcloud.ZoneRRSet) {
 // applyDeletes processes the records to be deleted.
 func (c hetznerChanges) applyDeletes(ctx context.Context) error {
 	client := c.dnsClient
-	metrics := metrics.GetOpenMetricsInstance()
 	for _, e := range c.deletes {
 		log.WithFields(e.GetLogFields()).Debug("Deleting domain record")
 		log.Infof("Deleting record [%s] of type [%s] from zone [%s]", e.rrset.Name, e.rrset.Type, e.rrset.Zone.Name)
 		if c.dryRun {
 			continue
 		}
-		start := time.Now()
 		if _, _, err := client.DeleteRRSet(ctx, e.rrset); err != nil {
-			metrics.IncFailedApiCallsTotal(actDeleteRRSet)
 			return err
 		}
-		delay := time.Since(start)
-		metrics.IncSuccessfulApiCallsTotal(actDeleteRRSet)
-		metrics.AddApiDelayHist(actDeleteRRSet, delay.Milliseconds())
 	}
 	return nil
 }
@@ -111,7 +102,6 @@ func (c hetznerChanges) applyDeletes(ctx context.Context) error {
 // applyCreates processes the records to be created.
 func (c hetznerChanges) applyCreates(ctx context.Context) error {
 	client := c.dnsClient
-	metrics := metrics.GetOpenMetricsInstance()
 	for _, e := range c.creates {
 		zone := e.zone
 		opts := e.opts
@@ -125,14 +115,9 @@ func (c hetznerChanges) applyCreates(ctx context.Context) error {
 		if c.dryRun {
 			continue
 		}
-		start := time.Now()
 		if _, _, err := client.CreateRRSet(ctx, zone, opts); err != nil {
-			metrics.IncFailedApiCallsTotal(actCreateRRSet)
 			return err
 		}
-		delay := time.Since(start)
-		metrics.IncSuccessfulApiCallsTotal(actCreateRRSet)
-		metrics.AddApiDelayHist(actCreateRRSet, delay.Milliseconds())
 	}
 	return nil
 }
@@ -140,7 +125,6 @@ func (c hetznerChanges) applyCreates(ctx context.Context) error {
 // applyUpdates processes the records to be updated.
 func (c hetznerChanges) applyUpdates(ctx context.Context) error {
 	client := c.dnsClient
-	metrics := metrics.GetOpenMetricsInstance()
 	for _, e := range c.updates {
 		rrset := e.rrset
 		recordOpts := e.recordsOpts
@@ -153,14 +137,9 @@ func (c hetznerChanges) applyUpdates(ctx context.Context) error {
 			if c.dryRun {
 				continue
 			}
-			start := time.Now()
 			if _, _, err := client.UpdateRRSetRecords(ctx, rrset, *recordOpts); err != nil {
-				metrics.IncFailedApiCallsTotal(actUpdateRRSetRecords)
 				return err
 			}
-			delay := time.Since(start)
-			metrics.IncSuccessfulApiCallsTotal(actUpdateRRSetRecords)
-			metrics.AddApiDelayHist(actUpdateRRSetRecords, delay.Milliseconds())
 		}
 		if ttlOpts != nil {
 			if ttlOpts.TTL == nil {
@@ -172,14 +151,9 @@ func (c hetznerChanges) applyUpdates(ctx context.Context) error {
 			if c.dryRun {
 				continue
 			}
-			start := time.Now()
 			if _, _, err := client.UpdateRRSetTTL(ctx, rrset, *ttlOpts); err != nil {
-				metrics.IncFailedApiCallsTotal(actUpdateRRSetTTL)
 				return err
 			}
-			delay := time.Since(start)
-			metrics.IncSuccessfulApiCallsTotal(actUpdateRRSetTTL)
-			metrics.AddApiDelayHist(actUpdateRRSetTTL, delay.Milliseconds())
 		}
 		if updateOpts != nil {
 			logLabels := formatLabels(updateOpts.Labels)
@@ -188,14 +162,9 @@ func (c hetznerChanges) applyUpdates(ctx context.Context) error {
 			if c.dryRun {
 				continue
 			}
-			start := time.Now()
 			if _, _, err := client.UpdateRRSetLabels(ctx, rrset, *updateOpts); err != nil {
-				metrics.IncFailedApiCallsTotal(actUpdateRRSet)
 				return err
 			}
-			delay := time.Since(start)
-			metrics.IncSuccessfulApiCallsTotal(actUpdateRRSetTTL)
-			metrics.AddApiDelayHist(actUpdateRRSetTTL, delay.Milliseconds())
 		}
 	}
 	return nil
