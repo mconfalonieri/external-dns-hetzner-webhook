@@ -1,0 +1,5 @@
+{
+  "extends": ["config:base"],
+  "prTitle": "Dependency Update: {{depName}}",
+  "prTitlePrefix": "🤖 "
+}
