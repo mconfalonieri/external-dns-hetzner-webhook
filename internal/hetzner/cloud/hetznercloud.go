@@ -28,7 +28,7 @@ import (
 )
 
 const (
-	// Action constants used for metrics calls.
+	// Action constants used for metrics.
 	actGetZones           = "get_zones"
 	actGetRRSets          = "get_rrsets"
 	actCreateRRSet        = "create_rrset"
@@ -40,13 +40,13 @@ const (
 	actImportZonefile     = "import_zonefile"
 )
 
-// hetznerCloud is the cloud API client.
+// hetznerCloud is the Cloud API client.
 type hetznerCloud struct {
 	client  *hcloud.Client
 	metrics *metrics.OpenMetrics
 }
 
-// NewHetznerCloud returns a new client.
+// NewHetznerCloud returns a new client. The API key is passed as an argument.
 func NewHetznerCloud(apiKey string) (*hetznerCloud, error) {
 	if apiKey == "" {
 		return nil, errors.New("nil API key provided")
@@ -71,7 +71,7 @@ func (h hetznerCloud) GetZones(ctx context.Context, opts hcloud.ZoneListOpts) ([
 	return result, response, err
 }
 
-// GetRRSets returns the RRSets for a given zone.
+// GetRRSets returns the recordset found in a given zone.
 func (h hetznerCloud) GetRRSets(ctx context.Context, zone *hcloud.Zone, opts hcloud.ZoneRRSetListOpts) ([]*hcloud.ZoneRRSet, *hcloud.Response, error) {
 	zoneClient := h.client.Zone
 	start := time.Now()
@@ -85,7 +85,7 @@ func (h hetznerCloud) GetRRSets(ctx context.Context, zone *hcloud.Zone, opts hcl
 	return result, response, err
 }
 
-// CreateRRSet creates a new RRSet.
+// CreateRRSet creates a new recordset in the specified zone.
 func (h hetznerCloud) CreateRRSet(ctx context.Context, zone *hcloud.Zone, opts hcloud.ZoneRRSetCreateOpts) (hcloud.ZoneRRSetCreateResult, *hcloud.Response, error) {
 	zoneClient := h.client.Zone
 	start := time.Now()
@@ -99,7 +99,8 @@ func (h hetznerCloud) CreateRRSet(ctx context.Context, zone *hcloud.Zone, opts h
 	return result, response, err
 }
 
-// UpdateRRSetTTL updates an RRSet's TTL.
+// UpdateRRSetTTL updates the TTL of a recordset. It is not possible to set a
+// different TTL for each target.
 func (h hetznerCloud) UpdateRRSetTTL(ctx context.Context, rrset *hcloud.ZoneRRSet, opts hcloud.ZoneRRSetChangeTTLOpts) (*hcloud.Action, *hcloud.Response, error) {
 	zoneClient := h.client.Zone
 	start := time.Now()
@@ -113,7 +114,8 @@ func (h hetznerCloud) UpdateRRSetTTL(ctx context.Context, rrset *hcloud.ZoneRRSe
 	return result, response, err
 }
 
-// UpdateRRSetRecords updates the records of an RRSet.
+// UpdateRRSetRecords updates the targets of a recordset. The provided targets
+// overwrite completely the previous ones.
 func (h hetznerCloud) UpdateRRSetRecords(ctx context.Context, rrset *hcloud.ZoneRRSet, opts hcloud.ZoneRRSetSetRecordsOpts) (*hcloud.Action, *hcloud.Response, error) {
 	zoneClient := h.client.Zone
 	start := time.Now()
@@ -127,7 +129,7 @@ func (h hetznerCloud) UpdateRRSetRecords(ctx context.Context, rrset *hcloud.Zone
 	return result, response, err
 }
 
-// UpdateRRSetLabels updates the labels of an RRSet.
+// UpdateRRSetLabels updates the labels of a recordset.
 func (h hetznerCloud) UpdateRRSetLabels(ctx context.Context, rrset *hcloud.ZoneRRSet, opts hcloud.ZoneRRSetUpdateOpts) (*hcloud.ZoneRRSet, *hcloud.Response, error) {
 	zoneClient := h.client.Zone
 	start := time.Now()
@@ -141,7 +143,7 @@ func (h hetznerCloud) UpdateRRSetLabels(ctx context.Context, rrset *hcloud.ZoneR
 	return result, response, err
 }
 
-// DeleteRecord deletes an RRSet.
+// DeleteRecord deletes a recordset from a zone.
 func (h hetznerCloud) DeleteRRSet(ctx context.Context, rrset *hcloud.ZoneRRSet) (hcloud.ZoneRRSetDeleteResult, *hcloud.Response, error) {
 	zoneClient := h.client.Zone
 	start := time.Now()
@@ -155,7 +157,7 @@ func (h hetznerCloud) DeleteRRSet(ctx context.Context, rrset *hcloud.ZoneRRSet) 
 	return result, response, err
 }
 
-// ExportZonefile exports a zonefile.
+// ExportZonefile downloads a zonefile from Hetzner.
 func (h hetznerCloud) ExportZonefile(ctx context.Context, zone *hcloud.Zone) (hcloud.ZoneExportZonefileResult, *hcloud.Response, error) {
 	zoneClient := h.client.Zone
 	start := time.Now()
@@ -169,6 +171,7 @@ func (h hetznerCloud) ExportZonefile(ctx context.Context, zone *hcloud.Zone) (hc
 	return result, response, err
 }
 
+// ImportZonefile uploads a zonefile to Hetzner.
 func (h hetznerCloud) ImportZonefile(ctx context.Context, zone *hcloud.Zone, opts hcloud.ZoneImportZonefileOpts) (*hcloud.Action, *hcloud.Response, error) {
 	zoneClient := h.client.Zone
 	start := time.Now()
