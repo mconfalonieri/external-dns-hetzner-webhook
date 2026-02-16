@@ -1,5 +1,6 @@
 {
   "extends": ["config:base"],
   "semanticCommitType": "chore",
-  "prTitle": "🤖 Dependency Update: {{depName}} {{newVersion}}"
+  "prTitle": "Dependency Update: {{depName}} {{newVersion}}",
+  "commitMessagePrefix": "🤖"
 }
