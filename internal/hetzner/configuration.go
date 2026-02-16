@@ -19,6 +19,7 @@ package hetzner
 
 import (
 	"fmt"
+	"os"
 	"regexp"
 	"strings"
 
@@ -39,8 +40,6 @@ type Configuration struct {
 	Debug bool `env:"HETZNER_DEBUG" default:"false"`
 	// Default batch size (max 100)
 	BatchSize int `env:"BATCH_SIZE" default:"100"`
-	// Default TTL when not specified
-	DefaultTTL int `env:"DEFAULT_TTL" default:"7200"`
 	// Domain filter
 	DomainFilter []string `env:"DOMAIN_FILTER" default:""`
 	// Excluded domains
@@ -57,12 +56,17 @@ type Configuration struct {
 	MaxFailCount int `env:"MAX_FAIL_COUNT" default:"-1"`
 	// Zones cache TTL in seconds.
 	ZoneCacheTTL int `env:"ZONE_CACHE_TTL" default:"0"`
+	// Enable bulk mode
+	BulkMode bool `env:"BULK_MODE" default:"false"`
 }
 
 // NewConfiguration creates a new configuration object.
 func NewConfiguration() (*Configuration, error) {
 	cfg := &Configuration{}
 
+	if os.Getenv("DEFAULT_TTL") != "" {
+		log.Warn("The DEFAULT_TTL environment variable is deprecated and will be ignored.")
+	}
 	// Populate with values from environment.
 	if err := env.Set(cfg); err != nil {
 		return nil, err

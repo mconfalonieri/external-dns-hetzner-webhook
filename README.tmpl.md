@@ -1,7 +1,10 @@
 # ExternalDNS - UNOFFICIAL Hetzner Webhook
 
-> [!WARNING]
-> **This software is experimental.**
+> [!IMPORTANT]
+> Support for the legacy DNS is going to be discontinued by Hetzner in May 2026.
+> The legacy provider will be pulled from this provider in version **v1.0.0**.
+> No new features will be added to the legacy DNS driver and only important
+> bugfixes will be backported.
 
 > [!NOTE]
 > The latest version is **{{ .Version }}**.
@@ -16,7 +19,7 @@ you to manage your Hetzner domains inside your kubernetes cluster.
 This webhook supports both the old DNS API and the new Cloud DNS interface.
 
 > [!TIP]
-> If you are upgrading to **0.8.x** from previous versions read the
+> If you are upgrading to **v0.11.x** from previous versions read the
 > [Upgrading from previous versions](#upgrading-from-previous-versions) section.
 
 
@@ -215,7 +218,65 @@ requires an escape sequence for the slash part. By default this will be:
 
 This can be changed using the **SLASH_ESC_SEQ** environment variable.
 
+## Bulk mode
+
+The Cloud API now supports a new way of updating the records for a zone called
+**bulk mode**. This mode is activated by setting the `BULK_MODE` environment
+variable to `true`. It works by exporting the zonefile, editing it and then
+uploading the modified version. It is meant to be used in environments with a
+high number of record changes per zone and a relatively long interval between
+the updates, a combination that could cause the exhaustion of the permitted API
+calls.
+
+> [!WARNING]
+> Beware that this method of updating the records is potentially destructive
+> and subject to "race conditions" if manual edits are applied while the zone
+> is being updated. Theoretically, unsupported records won't be affected, but
+> this method is to be considered **HIGHLY EXPERIMENTAL**, and bugs are likely
+> to be found.
+
+It comes with some limitations.
+
+  1. [Hetzner labels](#hetzner-labels) are not supported, as there is no way to
+     import them in the zonefile. Record comments are unsupported as well.
+  2. All the records must be **not protected** as they will all be overwritten
+     during the import operation, **including the SOA**. This is why the bulk
+     mode should be used with care.
+  3. The SOA serial number is updated on each import, but the logic of the
+     serial number only accepts the standard 10-digits serial number and will
+     refuse to update it if the serial of the day is 99. Most configurations
+     will be OK with this limitation.
+  4. If the zones managed by this webhook are also manipuilated by other
+     software the following situation, although unlikely, could happen:
+       
+       1. the webhook downloads the zonefile for a zone
+       2. the other software manipulates some record on the same zone
+       3. the webhook uploads the zonefile, missing the changes applied by the
+          other software
+       4. since the upload rewrites the zonefile, those changes are now lost.
+  
+Please check the [Zone file import](https://docs.hetzner.cloud/reference/cloud#tag/zones/zone-file-import)
+section of the Hetzner documentation for more details.
+
 ## Upgrading from previous versions
+
+### 0.10.x to 0.11.x
+
+The configuration is compatible with previous versions; however the
+**DEFAULT_TTL** parameter was removed and this environment variable will
+therefore not affect the configuration. The default TTL will be the one defined
+in the zone.
+
+A **BULK_MODE** parameter was added. When set to `true`, the webhook will
+export and manipulate the zonefiles instead of the single recordsets. This will
+reduce the API calls when updating zones with lots of changes and a relatively
+long interval.
+
+> [!WARNING]
+> The bulk mode is experimental and comes with some limitations. Please read
+> the [Bulk mode](#bulk-mode) section before activating it.
+>
+
 
 ### 0.9.x to 0.10.x
 
@@ -281,11 +342,11 @@ Hetzner DNS API.
 | --------------- | -------------------------------------- | -------------------------- |
 | HETZNER_API_KEY | Hetzner API token                      | Mandatory                  |
 | BATCH_SIZE      | Number of zones per call               | Default: `100`, max: `100` |
-| DEFAULT_TTL     | Default record TTL                     | Default: `7200`            |
 | USE_CLOUD_API   | Use the new cloud API                  | Default: `false`           |
 | SLASH_ESC_SEQ   | Escape sequence for label annotations  | Default: `--slash--`       |
 | MAX_FAIL_COUNT  | Number of failed calls before shutdown | Default: `-1` (disabled)   |
-| ZONE_CACHE_TTL | TTL for the zone cache in seconds      | Default: `0` (disabled)    |
+| ZONE_CACHE_TTL  | TTL for the zone cache in seconds      | Default: `0` (disabled)    |
+| BULK_MODE       | Enables bulk mode                      | Default: `false`           |
 
 > [!IMPORTANT]
 > Please notice that when **USE_CLOUD_API** is set to `true`, the token stored 
@@ -315,10 +376,11 @@ These variables control the sockets that this application listens to.
 
 Please notice that the following variables were **deprecated**:
 
-| Variable    | Description                      |
-| ----------- | -------------------------------- |
-| HEALTH_HOST | Metrics hostname (deprecated)    |
-| HEALTH_PORT | Metrics port (deprecated)        |
+| Variable    | Description                            |
+| ----------- | -------------------------------------- |
+| HEALTH_HOST | Metrics hostname (deprecated)          |
+| HEALTH_PORT | Metrics port (deprecated)              |
+| DEFAULT_TTL | The default TTL is taken from the zone |
 
 
 ### Domain filtering
@@ -447,6 +509,13 @@ The actions supported by the Cloud API provider are:
 - `update_rrset_records`
 - `update_rrset` (this is the method used to update labels)
 - `delete_rrset`
+
+In case `BULK_MODE` is set to true, the following actions will be used instead:
+
+- `get_zones`
+- `get_rrsets`
+- `import_zonefile`
+- `export_zonefile`
 
 The label `zone` can assume one of the zone names as its value.
 

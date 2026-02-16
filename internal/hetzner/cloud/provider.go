@@ -40,6 +40,21 @@ import (
 // logFatalf is a mockable call to log.Fatalf
 var logFatalf = log.Fatalf
 
+// changesRunner is the general interface for applying changes.
+type changesRunner interface {
+	// AddChangeCreate adds a new creation entry to the current object.
+	AddChangeCreate(zone *hcloud.Zone, opts hcloud.ZoneRRSetCreateOpts)
+	// AddChangeUpdate adds a new update entry to the current object.
+	AddChangeUpdate(rrset *hcloud.ZoneRRSet, ttlOpts *hcloud.ZoneRRSetChangeTTLOpts, recordsOpts *hcloud.ZoneRRSetSetRecordsOpts, updateOpts *hcloud.ZoneRRSetUpdateOpts)
+	// AddChangeDelete adds a new delete entry to the current object.
+	AddChangeDelete(rrset *hcloud.ZoneRRSet)
+	// ApplyChanges applies the planned changes using dnsClient.
+	ApplyChanges(ctx context.Context) error
+	// GetSlash returns the current slash escape sequence and a boolean that
+	// determines if labels are supported by the implementation.
+	GetSlash() (string, bool)
+}
+
 // HetznerProvider implements ExternalDNS' provider.Provider interface for
 // Hetzner.
 type HetznerProvider struct {
@@ -48,7 +63,6 @@ type HetznerProvider struct {
 	batchSize         int
 	debug             bool
 	dryRun            bool
-	defaultTTL        int
 	zoneIDNameMapper  zoneIDName
 	domainFilter      *endpoint.DomainFilter
 	slashEscSeq       string
@@ -57,6 +71,7 @@ type HetznerProvider struct {
 	zoneCacheDuration time.Duration
 	zoneCacheUpdate   time.Time
 	zoneCache         []*hcloud.Zone
+	bulkMode          bool
 }
 
 // NewHetznerProvider creates a new HetznerProvider instance.
@@ -71,7 +86,7 @@ func NewHetznerProvider(config *hetzner.Configuration) (*HetznerProvider, error)
 
 	client, err := NewHetznerCloud(config.APIKey)
 	if err != nil {
-		return nil, fmt.Errorf("cannot instantiate cloud DNS provider: %s", err.Error())
+		return nil, fmt.Errorf("cannot instantiate cloud DNS provider: %w", err)
 	}
 
 	var msg string
@@ -81,6 +96,10 @@ func NewHetznerProvider(config *hetzner.Configuration) (*HetznerProvider, error)
 		msg = "Configuring cloud DNS provider without maximum fail count"
 	}
 	log.Info(msg)
+
+	if config.BulkMode {
+		log.Info("Experimental BULK_MODE activated: changes will use import/export endpoints.")
+	}
 
 	zcTTL := time.Duration(int64(config.ZoneCacheTTL) * int64(time.Second))
 	zcUpdate := time.Now()
@@ -96,12 +115,12 @@ func NewHetznerProvider(config *hetzner.Configuration) (*HetznerProvider, error)
 		batchSize:         config.BatchSize,
 		debug:             config.Debug,
 		dryRun:            config.DryRun,
-		defaultTTL:        config.DefaultTTL,
 		domainFilter:      hetzner.GetDomainFilter(*config),
 		slashEscSeq:       config.SlashEscSeq,
 		maxFailCount:      config.MaxFailCount,
 		zoneCacheDuration: zcTTL,
 		zoneCacheUpdate:   zcUpdate,
+		bulkMode:          config.BulkMode,
 	}, nil
 }
 
@@ -264,6 +283,16 @@ func (p *HetznerProvider) getRRSetsByZoneID(ctx context.Context) (map[int64][]*h
 	return rrSetsByZoneID, nil
 }
 
+// getChangesRunner returns the appropriate changesRunner depending on the
+// BULK_MODE flag.
+func (p HetznerProvider) getChangesRunner() changesRunner {
+	if p.bulkMode {
+		return NewBulkChanges(p.client, p.dryRun, p.slashEscSeq)
+	} else {
+		return NewHetznerChanges(p.client, p.dryRun, p.slashEscSeq)
+	}
+}
+
 // ApplyChanges applies the given set of generic changes to the provider.
 func (p *HetznerProvider) ApplyChanges(ctx context.Context, planChanges *plan.Changes) error {
 	if !planChanges.HasChanges() {
@@ -282,15 +311,16 @@ func (p *HetznerProvider) ApplyChanges(ctx context.Context, planChanges *plan.Ch
 	log.Debug("Preparing deletes")
 	deletesByZoneID := endpointsByZoneID(p.zoneIDNameMapper, planChanges.Delete)
 
-	changes := hetznerChanges{
-		dryRun:     p.dryRun,
-		defaultTTL: p.defaultTTL,
-		slash:      p.slashEscSeq,
-	}
+	changes := p.getChangesRunner()
 
-	processCreateActions(p.zoneIDNameMapper, rrSetsByZoneID, createsByZoneID, &changes)
-	processUpdateActions(p.zoneIDNameMapper, rrSetsByZoneID, updatesByZoneID, &changes)
-	processDeleteActions(p.zoneIDNameMapper, rrSetsByZoneID, deletesByZoneID, &changes)
+	processCreateActions(p.zoneIDNameMapper, rrSetsByZoneID, createsByZoneID, changes)
+	processUpdateActions(p.zoneIDNameMapper, rrSetsByZoneID, updatesByZoneID, changes)
+	processDeleteActions(p.zoneIDNameMapper, rrSetsByZoneID, deletesByZoneID, changes)
 
-	return changes.ApplyChanges(ctx, p.client)
+	return changes.ApplyChanges(ctx)
+}
+
+// GetDomainFilter returns the domain filter
+func (p HetznerProvider) GetDomainFilter() endpoint.DomainFilterInterface {
+	return p.domainFilter
 }
