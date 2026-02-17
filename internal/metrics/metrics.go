@@ -140,7 +140,7 @@ func (m *OpenMetrics) AddApiDelayHist(action string, delay int64) {
 
 // SetRateLimitStats sets the rate limits stats.
 func (m *OpenMetrics) SetRateLimitStats(action string, h http.Header) {
-	rl, err := parseRateLimits(h)
+	rl, err := parseRateLimit(h)
 	if err != nil {
 		return
 	}
