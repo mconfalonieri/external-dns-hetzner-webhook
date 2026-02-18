@@ -21,6 +21,7 @@ import (
 	"net/http"
 
 	"github.com/prometheus/client_golang/prometheus"
+	log "github.com/sirupsen/logrus"
 )
 
 // metrics instance
@@ -83,15 +84,15 @@ func GetOpenMetricsInstance() *OpenMetrics {
 				[]string{"action"},
 			),
 			rateLimitLimit: prometheus.NewGauge(prometheus.GaugeOpts{
-				Name: "rate_limit_limit",
+				Name: "ratelimit_limit",
 				Help: "The maximum number of API calls available in the current timeframe",
 			}),
 			rateLimitRemaining: prometheus.NewGauge(prometheus.GaugeOpts{
-				Name: "rate_limit_remaining",
+				Name: "ratelimit_remaining",
 				Help: "The remaining number of API calls available in the current timeframe",
 			}),
 			rateLimitResetSeconds: prometheus.NewGauge(prometheus.GaugeOpts{
-				Name: "rate_limit_reset_seconds",
+				Name: "ratelimit_reset_seconds",
 				Help: "UNIX timestamp of the next rate limit reset",
 			}),
 		}
@@ -100,6 +101,9 @@ func GetOpenMetricsInstance() *OpenMetrics {
 		reg.MustRegister(metrics.filteredOutZones)
 		reg.MustRegister(metrics.skippedRecords)
 		reg.MustRegister(metrics.apiDelayHist)
+		reg.MustRegister(metrics.rateLimitLimit)
+		reg.MustRegister(metrics.rateLimitRemaining)
+		reg.MustRegister(metrics.rateLimitResetSeconds)
 	}
 	return metrics
 }
@@ -142,6 +146,7 @@ func (m *OpenMetrics) AddApiDelayHist(action string, delay int64) {
 func (m *OpenMetrics) SetRateLimitStats(action string, h http.Header) {
 	rl, err := parseRateLimit(h)
 	if err != nil {
+		log.Debugf("Action %s provoked rate limit error: %v", action, err)
 		return
 	}
 	m.rateLimitLimit.Set(float64(rl.limit))
