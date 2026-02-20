@@ -18,7 +18,10 @@
 package metrics
 
 import (
+	"net/http"
+
 	"github.com/prometheus/client_golang/prometheus"
+	log "github.com/sirupsen/logrus"
 )
 
 // metrics instance
@@ -34,6 +37,10 @@ type OpenMetrics struct {
 	filteredOutZones prometheus.Gauge
 	skippedRecords   *prometheus.GaugeVec
 	apiDelayHist     *prometheus.HistogramVec
+
+	rateLimitLimit        prometheus.Gauge
+	rateLimitRemaining    prometheus.Gauge
+	rateLimitResetSeconds prometheus.Gauge
 }
 
 // GetOpenMetricsInstance returns the current OpenMetrics instance or creates a
@@ -76,12 +83,27 @@ func GetOpenMetricsInstance() *OpenMetrics {
 				},
 				[]string{"action"},
 			),
+			rateLimitLimit: prometheus.NewGauge(prometheus.GaugeOpts{
+				Name: "ratelimit_limit",
+				Help: "The maximum number of API calls available in one hour",
+			}),
+			rateLimitRemaining: prometheus.NewGauge(prometheus.GaugeOpts{
+				Name: "ratelimit_remaining",
+				Help: "The remaining number of API calls available in the current timeframe",
+			}),
+			rateLimitResetSeconds: prometheus.NewGauge(prometheus.GaugeOpts{
+				Name: "ratelimit_reset_seconds",
+				Help: "UNIX timestamp of the next rate limit reset",
+			}),
 		}
 		reg.MustRegister(metrics.successfulApiCallsTotal)
 		reg.MustRegister(metrics.failedApiCallsTotal)
 		reg.MustRegister(metrics.filteredOutZones)
 		reg.MustRegister(metrics.skippedRecords)
 		reg.MustRegister(metrics.apiDelayHist)
+		reg.MustRegister(metrics.rateLimitLimit)
+		reg.MustRegister(metrics.rateLimitRemaining)
+		reg.MustRegister(metrics.rateLimitResetSeconds)
 	}
 	return metrics
 }
@@ -118,4 +140,16 @@ func (m *OpenMetrics) SetSkippedRecords(zone string, num int) {
 func (m *OpenMetrics) AddApiDelayHist(action string, delay int64) {
 	label := prometheus.Labels{"action": action}
 	m.apiDelayHist.With(label).Observe(float64(delay))
+}
+
+// SetRateLimitStats sets the rate limits stats.
+func (m *OpenMetrics) SetRateLimitStats(action string, h http.Header) {
+	rl, err := parseRateLimit(h)
+	if err != nil {
+		log.Debugf("Action %s provoked rate limit error: %v", action, err)
+		return
+	}
+	m.rateLimitLimit.Set(float64(rl.limit))
+	m.rateLimitRemaining.Set(float64(rl.remaining))
+	m.rateLimitResetSeconds.Set(float64(rl.reset))
 }

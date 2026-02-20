@@ -18,6 +18,7 @@
 package metrics
 
 import (
+	"net/http"
 	"testing"
 
 	"github.com/prometheus/client_golang/prometheus/testutil"
@@ -102,4 +103,25 @@ func Test_OpenMetrics_SetSkippedRecords(t *testing.T) {
 	actual := testutil.ToFloat64(metrics.skippedRecords)
 
 	assert.Equal(t, expected, actual)
+}
+
+func Test_OpenMetrics_SetRateLimitStats(t *testing.T) {
+	metrics = nil
+	val := http.Header{
+		"Ratelimit-Limit":     {"1000"},
+		"Ratelimit-Remaining": {"500"},
+		"Ratelimit-Reset":     {"1771370227"},
+	}
+	expLimit := float64(1000)
+	expRemaining := float64(500)
+	expReset := float64(1771370227)
+
+	GetOpenMetricsInstance().SetRateLimitStats(testAction, val)
+	actLimit := testutil.ToFloat64(metrics.rateLimitLimit)
+	actRemaining := testutil.ToFloat64(metrics.rateLimitRemaining)
+	actReset := testutil.ToFloat64(metrics.rateLimitResetSeconds)
+
+	assert.Equal(t, expLimit, actLimit)
+	assert.Equal(t, expRemaining, actRemaining)
+	assert.Equal(t, expReset, actReset)
 }
