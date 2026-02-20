@@ -85,7 +85,7 @@ func GetOpenMetricsInstance() *OpenMetrics {
 			),
 			rateLimitLimit: prometheus.NewGauge(prometheus.GaugeOpts{
 				Name: "ratelimit_limit",
-				Help: "The maximum number of API calls available in the current timeframe",
+				Help: "The maximum number of API calls available in one hour",
 			}),
 			rateLimitRemaining: prometheus.NewGauge(prometheus.GaugeOpts{
 				Name: "ratelimit_remaining",

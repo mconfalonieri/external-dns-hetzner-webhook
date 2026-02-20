@@ -7,7 +7,7 @@
 > bugfixes will be backported.
 
 > [!NOTE]
-> The latest version is **v0.11.0**.
+> The latest version is **v0.12.0**.
 
 [ExternalDNS](https://github.com/kubernetes-sigs/external-dns) is a Kubernetes
 add-on for automatically DNS records for Kubernetes services using different
@@ -83,7 +83,7 @@ provider:
   webhook:
     image:
       repository: ghcr.io/mconfalonieri/external-dns-hetzner-webhook
-      tag: v0.11.0
+      tag: v0.12.0
     env:
       - name: HETZNER_API_KEY
         valueFrom:
@@ -143,7 +143,7 @@ extraArgs:
 
 sidecars:
   - name: hetzner-webhook
-    image: ghcr.io/mconfalonieri/external-dns-hetzner-webhook:v0.11.0
+    image: ghcr.io/mconfalonieri/external-dns-hetzner-webhook:v0.12.0
     ports:
       - containerPort: 8888
         name: webhook
@@ -259,6 +259,11 @@ Please check the [Zone file import](https://docs.hetzner.cloud/reference/cloud#t
 section of the Hetzner documentation for more details.
 
 ## Upgrading from previous versions
+
+### 0.11.x to 0.12.x
+
+No changes to the configuration. Added [rate limit metrics](#exposed-metrics)
+for the Cloud API provider.
 
 ### 0.10.x to 0.11.x
 
@@ -488,6 +493,14 @@ for scraping.
 | `filtered_out_zones`         | Gauge     | _none_   | The number of zones excluded by the domain filter        |
 | `skipped_records`            | Gauge     | `zone`   | The number of skipped records per domain                 |
 | `api_delay_hist`             | Histogram | `action` | Histogram of the delay (ms) when calling the Hetzner API |
+
+When using the Cloud API also the rate limit metrics will be available:
+
+| Name                      | Type      | Labels   | Description                                         |
+| ------------------------- | --------- | -------- | --------------------------------------------------- |
+| `ratelimit_limit`         | Gauge     | _none_   | Total API calls that can be performed in a hour     |
+| `ratelimit_remaining`     | Gauge     | _none_   | Remaining API calls until the next rate limit reset |
+| `ratelimit_reset_seconds` | Gauge     | _none_   | UNIX timestamp for the next rate limit reset        |
 
 The label `action` can assume one of the following values, depending on the
 Hetzner API endpoint called.
