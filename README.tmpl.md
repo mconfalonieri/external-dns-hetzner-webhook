@@ -19,7 +19,7 @@ you to manage your Hetzner domains inside your kubernetes cluster.
 This webhook supports both the old DNS API and the new Cloud DNS interface.
 
 > [!TIP]
-> If you are upgrading to **v0.11.x** from previous versions read the
+> If you are upgrading to **v0.12.x** from previous versions read the
 > [Upgrading from previous versions](#upgrading-from-previous-versions) section.
 
 
