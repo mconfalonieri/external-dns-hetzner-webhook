@@ -1,10 +1,13 @@
 # ExternalDNS - UNOFFICIAL Hetzner Webhook
 
 > [!IMPORTANT]
-> Support for the legacy DNS is going to be discontinued by Hetzner in May 2026.
-> The legacy provider will be pulled from this provider in version **v1.0.0**.
-> No new features will be added to the legacy DNS driver and only important
-> bugfixes will be backported.
+> Support for the legacy DNS system is going to be discontinued by Hetzner in
+> May 2026. For this reason the legacy DNS provider will be deleted in version
+> **v1.0.0**, which will be released in June, and only the new Cloud provider
+> will be available.
+>
+> For the time being no new features will be added to the legacy DNS driver and
+> only important bugfixes will be backported.
 
 > [!NOTE]
 > The latest version is **v0.12.0**.
