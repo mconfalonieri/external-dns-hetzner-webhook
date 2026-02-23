@@ -1,10 +1,13 @@
 # ExternalDNS - UNOFFICIAL Hetzner Webhook
 
 > [!IMPORTANT]
-> Support for the legacy DNS is going to be discontinued by Hetzner in May 2026.
-> The legacy provider will be pulled from this provider in version **v1.0.0**.
-> No new features will be added to the legacy DNS driver and only important
-> bugfixes will be backported.
+> Support for the legacy DNS system is going to be discontinued by Hetzner in
+> May 2026. For this reason the legacy DNS provider will be deleted in version
+> **v1.0.0**, which will be released in June, and only the new Cloud provider
+> will be available.
+>
+> For the time being no new features will be added to the legacy DNS driver and
+> only important bugfixes will be backported.
 
 > [!NOTE]
 > The latest version is **{{ .Version }}**.
@@ -19,7 +22,7 @@ you to manage your Hetzner domains inside your kubernetes cluster.
 This webhook supports both the old DNS API and the new Cloud DNS interface.
 
 > [!TIP]
-> If you are upgrading to **v0.11.x** from previous versions read the
+> If you are upgrading to **v0.12.x** from previous versions read the
 > [Upgrading from previous versions](#upgrading-from-previous-versions) section.
 
 
@@ -260,6 +263,11 @@ section of the Hetzner documentation for more details.
 
 ## Upgrading from previous versions
 
+### 0.11.x to 0.12.x
+
+No changes to the configuration. Added [rate limit metrics](#exposed-metrics)
+for the Cloud API provider.
+
 ### 0.10.x to 0.11.x
 
 The configuration is compatible with previous versions; however the
@@ -488,6 +496,14 @@ for scraping.
 | `filtered_out_zones`         | Gauge     | _none_   | The number of zones excluded by the domain filter        |
 | `skipped_records`            | Gauge     | `zone`   | The number of skipped records per domain                 |
 | `api_delay_hist`             | Histogram | `action` | Histogram of the delay (ms) when calling the Hetzner API |
+
+When using the Cloud API also the rate limit metrics will be available:
+
+| Name                      | Type      | Labels   | Description                                         |
+| ------------------------- | --------- | -------- | --------------------------------------------------- |
+| `ratelimit_limit`         | Gauge     | _none_   | Total API calls that can be performed in a hour     |
+| `ratelimit_remaining`     | Gauge     | _none_   | Remaining API calls until the next rate limit reset |
+| `ratelimit_reset_seconds` | Gauge     | _none_   | UNIX timestamp for the next rate limit reset        |
 
 The label `action` can assume one of the following values, depending on the
 Hetzner API endpoint called.
