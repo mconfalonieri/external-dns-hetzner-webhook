@@ -24,7 +24,7 @@ jobs:
           go-version: '1.26'
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@v4
         with:
           platforms: 'linux/amd64,linux/arm64'
 
