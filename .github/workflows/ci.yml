@@ -28,7 +28,7 @@ jobs:
       - name: Run Unit Tests
         run: make unit-test
       - name: Set Up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
       - name: Cleanup for renovate
         if: startsWith(github.head_ref, 'renovate/')
         run: make renovate-fix
