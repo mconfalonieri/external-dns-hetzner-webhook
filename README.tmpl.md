@@ -107,7 +107,7 @@ provider:
       timeoutSeconds: 5
 
 extraArgs:
-  - "--txt-prefix=reg-%{record_type}-"
+  - "--txt-prefix=reg-%{record_type}."
 ```
 
 And then:
@@ -142,7 +142,7 @@ provider: webhook
 policy: sync
 extraArgs:
   webhook-provider-url: http://localhost:8888
-  txt-prefix: "reg-%{record_type}-"
+  txt-prefix: "reg-%{record_type}."
 
 sidecars:
   - name: hetzner-webhook
