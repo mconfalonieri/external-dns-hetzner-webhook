@@ -1,12 +1,13 @@
-name: Publish Docs
+name: Publish documentation
+
 on:
   push:
     tags:
-      - 'v*' # Triggers on tags like v1.0.1, v2.0.0
+      - 'v*'
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
         with:
