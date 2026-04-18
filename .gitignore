@@ -8,3 +8,4 @@ reports/
 cosign.key
 dist/
 tools/
+site/

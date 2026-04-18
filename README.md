@@ -27,6 +27,9 @@ This webhook supports both the old DNS API and the new Cloud DNS interface.
 
 ## 🚀 Quickstart
 
+This quickstart assumes that you are using the new Cloud API for new
+installations.
+
 ### 1. Create a Hetzner API Token
 
 Generate a Read/Write API token in your [Hetzner Console](./).

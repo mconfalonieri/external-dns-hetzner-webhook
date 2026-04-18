@@ -10,7 +10,7 @@ sockets:
 
 The environment variables controlling the socket addresses are not meant to be
 changed, under normal circumstances, for the reasons explained in
-[Tweaking the configuration](tweaking-the-configuration).
+[Tweaking the configuration](./environment-variables.md#tweaking-the-configuration).
 The endpoints
 [expected by ExternalDNS](https://github.com/kubernetes-sigs/external-dns/blob/master/docs/tutorials/webhook-provider.md)
 are marked with *.
@@ -40,5 +40,5 @@ In this table those endpoints are marked with  __*__.
 | `/healthz`         | * | Implements a combined liveness and readiness probe |
 | `/metrics`         | * | Exposes the available metrics                      |
 
-Please check the [Exposed metrics](#exposed-metrics) section for more
+Please check the [Exposed metrics](./metrics.md) section for more
 information.

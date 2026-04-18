@@ -1,0 +1,16 @@
+site_name: External DNS Hetzner Webhook
+site_url: https://mconfalonieri.github.io/external-dns-hetzner-webhook/
+
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - content.code.copy
+    - navigation.tabs
+
+extra:
+  version:
+    provider: mike
+
+plugins:
+  - search
