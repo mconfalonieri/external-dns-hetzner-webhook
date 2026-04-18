@@ -1,0 +1,33 @@
+name: Publish Docs
+on:
+  push:
+    tags:
+      - 'v*' # Triggers on tags like v1.0.1, v2.0.0
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Important: mike needs full history to manage branches
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.x
+
+      - name: Install dependencies
+        run: pip install mkdocs-material mike mkdocs-macros-plugin
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Deploy version
+        run: |
+          # Use the tag name as the version and update 'latest'
+          mike deploy --push --update-aliases \
+            -D "extra.image_tag=${{ github.ref_name }}" \
+            ${{ github.ref_name }} latest

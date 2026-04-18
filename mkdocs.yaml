@@ -1,4 +1,4 @@
-site_name: External DNS Hetzner Webhook
+site_name: (UNOFFICIAL) External DNS Hetzner Webhook
 site_url: https://mconfalonieri.github.io/external-dns-hetzner-webhook/
 
 theme:
@@ -9,13 +9,21 @@ theme:
 
 nav:
   - Home: index.md
-  - Requirements: requirements.md
-  - Deployment: deployment.md
-  - Environment variables: environment-variables.md
-  - Upgrading: upgrading.md
-  - Endpoints: endpoints.md
-  - Metrics: metrics.md
-  - Advanced features: advanced-features.md
+  - Getting started:
+    - Requirements: requirements.md
+    - Deployment: deployment.md
+    - Upgrading from prevoius versions: upgrading.md
+  - Configuration:
+    - Environment variables: environment-variables.md
+  - Beyond basic usage:
+    - Endpoints: endpoints.md
+    - Metrics: metrics.md
+    - Advanced features: advanced-features.md
+  - External resources:
+    - Source code: https://github.com/mconfalonieri/external-dns-hetzner-webhook
+    - Releases: https://github.com/mconfalonieri/external-dns-hetzner-webhook/releases
+    - Packages: https://github.com/mconfalonieri/external-dns-hetzner-webhook/pkgs/container/external-dns-hetzner-webhook
+
 
 markdown_extensions:
   - admonition
@@ -25,6 +33,9 @@ markdown_extensions:
 extra:
   version:
     provider: mike
+  image_tag: localbuild
 
 plugins:
+  - mike
   - search
+  - macros
