@@ -27,8 +27,8 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Deploy version
+        env:
+          CURRENT_VERSION: ${{ github.ref_name }}
         run: |
           # Use the tag name as the version and update 'latest'
-          mike deploy --push --update-aliases \
-            -D "extra.image_tag=${{ github.ref_name }}" \
-            ${{ github.ref_name }} latest
+          mike deploy --push --update-aliases ${{ github.ref_name }} latest

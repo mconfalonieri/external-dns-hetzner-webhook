@@ -33,7 +33,7 @@ markdown_extensions:
 extra:
   version:
     provider: mike
-  image_tag: localbuild
+  image_tag: !ENV [CURRENT_VERSION, "localbuild"]
 
 plugins:
   - mike
