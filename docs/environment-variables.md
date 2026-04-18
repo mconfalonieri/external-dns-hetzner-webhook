@@ -1,8 +1,10 @@
-# Environment variables
+# Environment variables and configuration
+
+## Environment variables
 
 The following environment variables can be used for configuring the application.
 
-## Hetzner DNS API calls configuration
+### Hetzner DNS API calls configuration
 
 These variables control the behavior of the webhook when interacting with
 Hetzner DNS API.
@@ -21,7 +23,7 @@ Hetzner DNS API.
 > Please notice that when **USE_CLOUD_API** is set to `true`, the token stored 
 > in **HETZNER_API_KEY** must be a Hetzner Cloud token, NOT the classic DNS one.
 
-## Test and debug
+### Test and debug
 
 These environment variables are useful for testing and debugging purposes.
 
@@ -30,7 +32,7 @@ These environment variables are useful for testing and debugging purposes.
 | DRY_RUN         | If set, changes won't be applied | Default: `false` |
 | HETZNER_DEBUG   | Enables debugging messages       | Default: `false` |
 
-## Socket configuration
+### Socket configuration
 
 These variables control the sockets that this application listens to.
 
@@ -52,7 +54,7 @@ Please notice that the following variables were **deprecated**:
 | DEFAULT_TTL | The default TTL is taken from the zone |
 
 
-## Domain filtering
+### Domain filtering
 
 Additional environment variables for domain filtering. When used, this webhook
 will be able to work only on domains (zones) matching the filter.

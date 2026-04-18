@@ -1,4 +1,4 @@
-# Metrics
+# Exposed metrics
 
 The following metrics related to the API calls towards Hetzner are available
 for scraping.

@@ -1,4 +1,4 @@
-## Deployment
+# Kubernetes deployment
 
 The Hetzner webhook is provided as a regular Open Container Initiative (OCI)
 image released in the
@@ -15,7 +15,7 @@ In either case, a secret that stores the Hetzner API key is required:
 kubectl create secret generic hetzner-credentials --from-literal=api-key='<EXAMPLE_PLEASE_REPLACE>' -n external-dns
 ```
 
-### Using the ExternalDNS chart
+## Using the ExternalDNS chart
 
 Skip this step if you already have the ExternalDNS repository added:
 
@@ -71,7 +71,7 @@ And then:
 helm install external-dns-hetzner external-dns/external-dns -f external-dns-hetzner-values.yaml -n external-dns
 ```
 
-### Using the Bitnami chart
+## Using the Bitnami chart
 
 > [!NOTE]
 > The Bitnami distribution model changed and most features are now paid for.

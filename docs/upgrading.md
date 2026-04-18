@@ -22,7 +22,6 @@ long interval.
 > the [Bulk mode](#bulk-mode) section before activating it.
 >
 
-
 ## 0.9.x to 0.10.x
 
 The configuration is fully compatible. There is a new configuration parameter

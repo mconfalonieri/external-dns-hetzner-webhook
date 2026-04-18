@@ -1,4 +1,4 @@
-# Endpoints
+# Exposed endpoints
 
 This process exposes several endpoints, that will be available through these
 sockets:

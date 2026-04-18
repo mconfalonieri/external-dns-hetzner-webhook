@@ -5,8 +5,17 @@ theme:
   name: material
   features:
     - navigation.sections
-    - content.code.copy
-    - navigation.tabs
+    - navigation.expand
+
+nav:
+  - Home: index.md
+  - Requirements: requirements.md
+  - Deployment: deployment.md
+  - Environment variables: environment-variables.md
+  - Upgrading: upgrading.md
+  - Endpoints: endpoints.md
+  - Metrics: metrics.md
+  - Advanced features: advanced-features.md
 
 extra:
   version:
