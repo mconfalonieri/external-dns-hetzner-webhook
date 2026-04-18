@@ -101,18 +101,20 @@ extraArgs:
 And then:
 
 ```shell
-# install external-dns with helm
+# install external-dns with Helm
 helm install external-dns-hetzner external-dns/external-dns -f external-dns-hetzner-values.yaml -n external-dns
 ```
 
 ## ⚖️ License
 
-This project is licensed under the MIT License - see the [LICENSE](./LICENSE) file for details.
+This project is licensed under the Apache License, version 2.0 - see the
+[LICENSE](./LICENSE) file for details.
 
 ## 👥 Credits
 
 This Webhook was forked and modified from the [IONOS Webhook](https://github.com/ionos-cloud/external-dns-ionos-webhook)
-to work with Hetzner. It also contains huge parts from [DrBu7cher's Hetzner provider](https://github.com/DrBu7cher/external-dns/tree/readding_hcloud_provider).
+to work with Hetzner. It also contains huge parts from
+[DrBu7cher's Hetzner provider](https://github.com/DrBu7cher/external-dns/tree/readding_hcloud_provider).
 
 ### Contributors
 
