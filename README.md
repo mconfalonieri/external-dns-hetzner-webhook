@@ -38,7 +38,7 @@ installations.
 
 ### 1. Create a Hetzner API Token
 
-Generate a Read/Write API token in your [Hetzner Console](./).
+Generate a Read/Write API token in your [Hetzner Console](https://console.hetzner.com/).
 
 ### 2. Create a secret with your API token
 
