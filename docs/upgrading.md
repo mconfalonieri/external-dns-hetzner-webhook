@@ -2,7 +2,7 @@
 
 ## 0.11.x to 0.12.x
 
-No changes to the configuration. Added [rate limit metrics](#exposed-metrics)
+No changes to the configuration. Added [rate limit metrics](./metrics.md)
 for the Cloud API provider.
 
 ## 0.10.x to 0.11.x
@@ -17,10 +17,10 @@ export and manipulate the zonefiles instead of the single recordsets. This will
 reduce the API calls when updating zones with lots of changes and a relatively
 long interval.
 
-> [!WARNING]
-> The bulk mode is experimental and comes with some limitations. Please read
-> the [Bulk mode](#bulk-mode) section before activating it.
->
+!!! attention
+    The bulk mode is experimental and comes with some limitations. Please read
+    the [Bulk mode](./advanced-features.md#bulk-mode) section before activating
+    it.
 
 ## 0.9.x to 0.10.x
 
@@ -47,7 +47,7 @@ might be worth to check out:
 
 - the new Cloud API is now supported through the **USE_CLOUD_API** environment
   variable and using a Cloud API token for **HETZNER_API_TOKEN**;
-- [Hetzner labels](#hetzner-labels) are available when the new Cloud API is in use;
+- [Hetzner labels](./advanced-features.md#hetzner-labels) are available when the new Cloud API is in use;
 - The minimum ExternalDNS version is now **0.19.0** as the label system and the
   Cloud API are untested with previous versions.
 
@@ -68,5 +68,5 @@ changes to be aware of are:
   - `/metrics` and
   - `/healthz`;
 
-  their description can be found in the [Metrics socket](#metrics-socket)
+  their description can be found in the [Metrics socket](./endpoints.md#metrics-socket)
   section.

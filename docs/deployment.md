@@ -73,8 +73,8 @@ helm install external-dns-hetzner external-dns/external-dns -f external-dns-hetz
 
 ## Using the Bitnami chart
 
-> [!NOTE]
-> The Bitnami distribution model changed and most features are now paid for.
+!!! note
+    The Bitnami distribution model changed and most features are now paid for.
 
 Skip this step if you already have the Bitnami repository added:
 

@@ -13,8 +13,8 @@ zones will be reloaded every time the webhook is called by ExternalDNS.
 
 ## Hetzner labels
 
-> ![NOTE]
-> This feature is available only in the Cloud API.
+!!! note
+    This feature is available only in the Cloud API.
 
 Hetzner labels are supported from version **0.8.0** as provider-specific
 annotations. This feature has some additional requirements to work properly:
@@ -58,8 +58,8 @@ This can be changed using the **SLASH_ESC_SEQ** environment variable.
 
 ## Bulk mode
 
-> ![NOTE]
-> This feature is available only in the Cloud API.
+!!! note
+    This feature is available only in the Cloud API.
 
 The Cloud API now supports a new way of updating the records for a zone called
 **bulk mode**. This mode is activated by setting the `BULK_MODE` environment
@@ -69,12 +69,12 @@ high number of record changes per zone and a relatively long interval between
 the updates, a combination that could cause the exhaustion of the permitted API
 calls.
 
-> [!WARNING]
-> Beware that this method of updating the records is potentially destructive
-> and subject to "race conditions" if manual edits are applied while the zone
-> is being updated. Theoretically, unsupported records won't be affected, but
-> this method is to be considered **HIGHLY EXPERIMENTAL**, and bugs are likely
-> to be found.
+!!! danger
+    Beware that this method of updating the records is potentially destructive
+    and subject to "race conditions" if manual edits are applied while the zone
+    is being updated. Theoretically, unsupported records won't be affected, but
+    this method is to be considered **HIGHLY EXPERIMENTAL**, and bugs are likely
+    to be found.
 
 It comes with some limitations.
 

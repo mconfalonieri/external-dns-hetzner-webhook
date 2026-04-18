@@ -17,6 +17,11 @@ nav:
   - Metrics: metrics.md
   - Advanced features: advanced-features.md
 
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+
 extra:
   version:
     provider: mike

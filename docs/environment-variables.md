@@ -19,9 +19,10 @@ Hetzner DNS API.
 | ZONE_CACHE_TTL  | TTL for the zone cache in seconds      | Default: `0` (disabled)    |
 | BULK_MODE       | Enables bulk mode                      | Default: `false`           |
 
-> [!IMPORTANT]
-> Please notice that when **USE_CLOUD_API** is set to `true`, the token stored 
-> in **HETZNER_API_KEY** must be a Hetzner Cloud token, NOT the classic DNS one.
+!!! info
+    Please notice that when **USE_CLOUD_API** is set to `true`, the token
+    stored in **HETZNER_API_KEY** must be a Hetzner Cloud token, NOT the
+    classic DNS one.
 
 ### Test and debug
 
