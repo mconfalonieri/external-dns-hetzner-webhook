@@ -28,3 +28,11 @@ This webhook supports both the old DNS API and the new Cloud DNS interface.
   - zone cache
   - Hetzner labels
   - bulk mode
+
+## Other links
+
+- [Source code repository](https://github.com/mconfalonieri/external-dns-hetzner-webhook)
+  hosted on GitHub.
+- [Releases](https://github.com/mconfalonieri/external-dns-hetzner-webhook/releases)
+  with notes.
+- [Packages](https://github.com/mconfalonieri/external-dns-hetzner-webhook/pkgs/container/external-dns-hetzner-webhook) released as OCI images.
