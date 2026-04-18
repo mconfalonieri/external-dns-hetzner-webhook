@@ -23,11 +23,7 @@ This webhook supports both the old DNS API and the new Cloud DNS interface.
 - [Endpoints](./endpoints.md): the endpoints exposed by this webhook.
 - [Metrics](./metrics.md): metrics exposed by this webhook.
 - [Advanced features](./advanced-features.md): advanced features implemented in
-  this webhook:
-
-  - zone cache
-  - Hetzner labels
-  - bulk mode
+  this webhook: zone cache, Hetzner labels, bulk mode.
 
 ## Other links
 
