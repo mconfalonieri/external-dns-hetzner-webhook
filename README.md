@@ -25,6 +25,11 @@ This webhook supports both the old DNS API and the new Cloud DNS interface.
 > If you are upgrading to **v0.12.x** from previous versions read the
 > [Upgrading from previous versions](#upgrading-from-previous-versions) section.
 
+## 📚 Documentation
+
+Please check the [documentation website](https://external-dns-hetzner-webhook.github.com)
+for further information.
+
 ## 🚀 Quickstart
 
 This quickstart assumes that you are using the new Cloud API for new
@@ -99,36 +104,6 @@ And then:
 # install external-dns with helm
 helm install external-dns-hetzner external-dns/external-dns -f external-dns-hetzner-values.yaml -n external-dns
 ```
-
-## 📝 Notes on the configuration
-
-While tweaking the configuration, there are some points to take into
-consideration:
-
-- if `WEBHOOK_HOST` and `METRICS_HOST` are set to the same address/hostname or
-  one of them is set to `0.0.0.0` remember to use different ports. Please note
-  that it **highly recommendend** for `WEBHOOK_HOST` to be `localhost`, as
-  any address reachable from outside the pod might be a **security issue**;
-  besides this, changing these would likely need more tweaks than just setting
-  the environment variables. The default settings are compatible with the
-  [ExternalDNS assumptions](https://github.com/kubernetes-sigs/external-dns/blob/master/docs/tutorials/webhook-provider.md);
-- if your records don't get deleted when applications are uninstalled, you
-  might want to verify the policy in use for ExternalDNS: if it's `upsert-only`
-  no deletion will occur. It must be set to `sync` for deletions to be
-  processed. Please check that `external-dns-hetzner-values.yaml` include:
-
-  ```yaml
-  policy: sync
-  ```
-- the `--txt-prefix` parameter should really include: `%{record_type}`, as any
-  other value will cause a weird duplication of database records. Change the
-  value provided in the sample configuration only if you really know what are
-  you doing.
-
-## 📚 Documentation
-
-Please check the [documentation website](https://external-dns-hetzner-webhook.github.com)
-for further information.
 
 ## ⚖️ License
 

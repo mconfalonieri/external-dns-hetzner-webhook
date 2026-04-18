@@ -25,6 +25,11 @@ This webhook supports both the old DNS API and the new Cloud DNS interface.
 > If you are upgrading to **v0.12.x** from previous versions read the
 > [Upgrading from previous versions](#upgrading-from-previous-versions) section.
 
+## 📚 Documentation
+
+Please check the [documentation website](https://external-dns-hetzner-webhook.github.com)
+for further information.
+
 ## 🚀 Quickstart
 
 This quickstart assumes that you are using the new Cloud API for new
@@ -99,11 +104,6 @@ And then:
 # install external-dns with helm
 helm install external-dns-hetzner external-dns/external-dns -f external-dns-hetzner-values.yaml -n external-dns
 ```
-
-## 📚 Documentation
-
-Please check the [documentation website](https://external-dns-hetzner-webhook.github.com)
-for further information.
 
 ## ⚖️ License
 
