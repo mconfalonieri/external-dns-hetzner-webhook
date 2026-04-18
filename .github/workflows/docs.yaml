@@ -1,0 +1,34 @@
+name: Publish documentation
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0 # Important: mike needs full history to manage branches
+
+      - name: Setup Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install mkdocs-material mike mkdocs-macros-plugin
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Deploy version
+        run: |
+          # Use the tag name as the version and update 'latest'
+          mike deploy --push --update-aliases \
+            -D "extra.image_tag=${{ github.ref_name }}" \
+            ${{ github.ref_name }} latest
