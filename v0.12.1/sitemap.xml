@@ -2,34 +2,42 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
          <loc>https://mconfalonieri.github.io/external-dns-hetzner-webhook/v0.12.1/</loc>
-         <lastmod>2026-04-18</lastmod>
+         <lastmod>2026-04-21</lastmod>
+         <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://mconfalonieri.github.io/external-dns-hetzner-webhook/v0.12.1/advanced-features/</loc>
-         <lastmod>2026-04-18</lastmod>
+         <lastmod>2026-04-21</lastmod>
+         <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://mconfalonieri.github.io/external-dns-hetzner-webhook/v0.12.1/deployment/</loc>
-         <lastmod>2026-04-18</lastmod>
+         <lastmod>2026-04-21</lastmod>
+         <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://mconfalonieri.github.io/external-dns-hetzner-webhook/v0.12.1/endpoints/</loc>
-         <lastmod>2026-04-18</lastmod>
+         <lastmod>2026-04-21</lastmod>
+         <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://mconfalonieri.github.io/external-dns-hetzner-webhook/v0.12.1/environment-variables/</loc>
-         <lastmod>2026-04-18</lastmod>
+         <lastmod>2026-04-21</lastmod>
+         <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://mconfalonieri.github.io/external-dns-hetzner-webhook/v0.12.1/metrics/</loc>
-         <lastmod>2026-04-18</lastmod>
+         <lastmod>2026-04-21</lastmod>
+         <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://mconfalonieri.github.io/external-dns-hetzner-webhook/v0.12.1/requirements/</loc>
-         <lastmod>2026-04-18</lastmod>
+         <lastmod>2026-04-21</lastmod>
+         <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://mconfalonieri.github.io/external-dns-hetzner-webhook/v0.12.1/upgrading/</loc>
-         <lastmod>2026-04-18</lastmod>
+         <lastmod>2026-04-21</lastmod>
+         <changefreq>daily</changefreq>
     </url>
 </urlset>
