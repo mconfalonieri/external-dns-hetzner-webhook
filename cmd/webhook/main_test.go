@@ -61,10 +61,8 @@ func Test_createProvider(t *testing.T) {
 
 	testCases := []testCase{
 		{
-			name: "hetznercloud implementation",
-			config: &hetzner.Configuration{
-				UseCloudAPI: true,
-			},
+			name:         "hetznercloud implementation",
+			config:       &hetzner.Configuration{},
 			expectedType: &hetznercloud.HetznerProvider{},
 		},
 	}
