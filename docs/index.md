@@ -6,5 +6,3 @@ different providers. By default, Kubernetes manages DNS records internally, but
 ExternalDNS takes this functionality a step further by delegating the management
 of DNS records to an external DNS provider such as this one. This webhook allows
 you to manage your Hetzner domains inside your kubernetes cluster.
-
-This webhook supports both the old DNS API and the new Cloud DNS interface.

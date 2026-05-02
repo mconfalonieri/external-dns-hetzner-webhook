@@ -24,7 +24,6 @@ import (
 
 	"external-dns-hetzner-webhook/internal/hetzner"
 	hetznercloud "external-dns-hetzner-webhook/internal/hetzner/cloud"
-	hetznerdns "external-dns-hetzner-webhook/internal/hetzner/dns"
 	"external-dns-hetzner-webhook/internal/server"
 
 	log "github.com/sirupsen/logrus"
@@ -61,16 +60,9 @@ func waitForSignal(status healthStatus) {
 	status.SetReady(false)
 }
 
-// createProvider creates a provider depending on the USE_CLOUD_API environment
-// variable. It uses the "hetznerdns" implementation if it is false and the
-// "hetznercloud" implementation if it is true. By default it creates a
-// "hetznerdns" provider.
+// createProvider creates a provider.
 func createProvider(config *hetzner.Configuration) (provider.Provider, error) {
-	if config.UseCloudAPI {
-		return hetznercloud.NewHetznerProvider(config)
-	} else {
-		return hetznerdns.NewHetznerProvider(config)
-	}
+	return hetznercloud.NewHetznerProvider(config)
 }
 
 // main reads the server configuration and starts both the webhook and the

@@ -14,15 +14,10 @@ zones will be reloaded every time the webhook is called by ExternalDNS.
 ## Hetzner labels
 
 !!! note
-    This feature is available only in the Cloud API.
+    This feature is not available when bulk mode is activated.
 
 Hetzner labels are supported from version **0.8.0** as provider-specific
-annotations. This feature has some additional requirements to work properly:
-
-- External DNS in use must be **0.19.0** or higher
-- the zone must be migrated to Hetzner Cloud console
-- **USE_CLOUD_API** must be set to `true`
-- **HETZNER_API_TOKEN** must refer to a Cloud API token
+annotations.
 
 The labels are set with an annotation prefixed with:
 `external-dns.alpha.kubernetes.io/webhook-hetzner-label-`.
@@ -58,16 +53,11 @@ This can be changed using the **SLASH_ESC_SEQ** environment variable.
 
 ## Bulk mode
 
-!!! note
-    This feature is available only in the Cloud API.
-
-The Cloud API now supports a new way of updating the records for a zone called
-**bulk mode**. This mode is activated by setting the `BULK_MODE` environment
-variable to `true`. It works by exporting the zonefile, editing it and then
-uploading the modified version. It is meant to be used in environments with a
-high number of record changes per zone and a relatively long interval between
-the updates, a combination that could cause the exhaustion of the permitted API
-calls.
+This mode is activated by setting the `BULK_MODE` environment variable to
+`true`. It works by exporting the zonefile, editing it and then uploading the
+modified version. It is meant to be used in environments with a high number of
+record changes per zone and a relatively long interval between the updates, a
+combination that could cause the exhaustion of the permitted API calls.
 
 !!! danger
     Beware that this method of updating the records is potentially destructive
