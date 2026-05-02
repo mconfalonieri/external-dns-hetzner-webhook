@@ -13,16 +13,15 @@ Hetzner DNS API.
 | --------------- | -------------------------------------- | -------------------------- |
 | HETZNER_API_KEY | Hetzner API token                      | Mandatory                  |
 | BATCH_SIZE      | Number of zones per call               | Default: `100`, max: `100` |
-| USE_CLOUD_API   | Use the new cloud API                  | Default: `false`           |
 | SLASH_ESC_SEQ   | Escape sequence for label annotations  | Default: `--slash--`       |
 | MAX_FAIL_COUNT  | Number of failed calls before shutdown | Default: `-1` (disabled)   |
 | ZONE_CACHE_TTL  | TTL for the zone cache in seconds      | Default: `0` (disabled)    |
 | BULK_MODE       | Enables bulk mode                      | Default: `false`           |
 
-!!! info
-    Please notice that when **USE_CLOUD_API** is set to `true`, the token
-    stored in **HETZNER_API_KEY** must be a Hetzner Cloud token, NOT the
-    classic DNS one.
+!!! warn
+    Please notice that **USE_CLOUD_API** was deprecated and retired in
+    **v1.0.0**: Hetzner retired the old DNS API, therefore only the Cloud API
+    is available now.
 
 ### Test and debug
 
@@ -102,4 +101,3 @@ consideration:
   other value will cause a weird duplication of database records. Change the
   value provided in the sample configuration only if you really know what are
   you doing.
-

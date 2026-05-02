@@ -25,7 +25,6 @@ import (
 
 	"external-dns-hetzner-webhook/internal/hetzner"
 	hetznercloud "external-dns-hetzner-webhook/internal/hetzner/cloud"
-	hetznerdns "external-dns-hetzner-webhook/internal/hetzner/dns"
 
 	"github.com/stretchr/testify/assert"
 	"sigs.k8s.io/external-dns/provider"
@@ -61,13 +60,6 @@ func Test_createProvider(t *testing.T) {
 	}
 
 	testCases := []testCase{
-		{
-			name: "hetznerdns implementation",
-			config: &hetzner.Configuration{
-				UseCloudAPI: false,
-			},
-			expectedType: &hetznerdns.HetznerProvider{},
-		},
 		{
 			name: "hetznercloud implementation",
 			config: &hetzner.Configuration{
