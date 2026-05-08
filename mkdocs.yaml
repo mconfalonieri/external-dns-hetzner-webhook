@@ -12,7 +12,7 @@ nav:
   - Getting started:
     - Requirements: requirements.md
     - Deployment: deployment.md
-    - Upgrading from prevoius versions: upgrading.md
+    - Upgrading from previous versions: upgrading.md
   - Configuration:
     - Environment variables: environment-variables.md
   - Beyond basic usage:
