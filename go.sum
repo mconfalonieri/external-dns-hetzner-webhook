@@ -79,8 +79,6 @@ github.com/google/pprof v0.0.0-20250501235452-c0086092b71a h1:rDA3FfmxwXR+BVKKdz
 github.com/google/pprof v0.0.0-20250501235452-c0086092b71a/go.mod h1:5hDyRhoBCxViHszMt12TnOpEI4VVi+U8Gm9iphldiMA=
 github.com/google/uuid v1.6.0 h1:NIvaJDMOsjHA8n1jAhLSgzrAzy1Hgr+hNrb57e+94F0=
 github.com/google/uuid v1.6.0/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
-github.com/hetznercloud/hcloud-go/v2 v2.40.0 h1:fuP7khfiDQAIXdKyQq7f3LnnOjyZg0PXTafXjUKkqIA=
-github.com/hetznercloud/hcloud-go/v2 v2.40.0/go.mod h1:ANz38eerXjPv00dm9dckKhttOGtYeeGmjjvwL5e6c5E=
 github.com/hetznercloud/hcloud-go/v2 v2.41.2 h1:fO5zsMgp5oejrtnFj8mYuqlp+iMuirpaKv4b5FYNRdQ=
 github.com/hetznercloud/hcloud-go/v2 v2.41.2/go.mod h1:9OGvC//jbHE4sv2Oyo0bQ2vEWuUMKYoNMyj9Qxz2qcc=
 github.com/jobstoit/hetzner-dns-go v0.1.1 h1:M4TZjZZqeCcb1NycGAFbawGf1zr6oVL1S3w6M0R6UG8=
