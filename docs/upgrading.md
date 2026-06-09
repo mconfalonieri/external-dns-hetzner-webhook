@@ -1,5 +1,13 @@
 # Upgrading from previous versions
 
+## 0.12.x to 1.0.x
+
+The legacy DNS provider was removed. **USE_CLOUD_API** will therefore be
+ignored. All zones mnust be imported in Hetzner's cloud console.
+
+Make sure that the token fed to the webhook was created in the same project
+where the imported DNS zone live.
+
 ## 0.11.x to 0.12.x
 
 No changes to the configuration. Added [rate limit metrics](./metrics.md)

@@ -30,8 +30,6 @@ import (
 
 // Configuration contains the Hetzner provider's configuration.
 type Configuration struct {
-	// Use the new Cloud API for DNS
-	UseCloudAPI bool `env:"USE_CLOUD_API" default:"false"`
 	// DNS API key or Cloud API key
 	APIKey string `env:"HETZNER_API_KEY" required:"true"`
 	// If true, do not execute actions on the API
