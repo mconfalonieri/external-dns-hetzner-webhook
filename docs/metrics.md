@@ -3,15 +3,22 @@
 The following metrics related to the API calls towards Hetzner are available
 for scraping.
 
+## API calls
+
 | Name                         | Type      | Labels   | Description                                              |
 | ---------------------------- | --------- | -------- | -------------------------------------------------------- |
 | `successful_api_calls_total` | Counter   | `action` | The number of successful Hetzner API calls               |
 | `failed_api_calls_total`     | Counter   | `action` | The number of Hetzner API calls that returned an error   |
-| `filtered_out_zones`         | Gauge     | _none_   | The number of zones excluded by the domain filter        |
-| `skipped_records`            | Gauge     | `zone`   | The number of skipped records per domain                 |
 | `api_delay_hist`             | Histogram | `action` | Histogram of the delay (ms) when calling the Hetzner API |
 
-When using the Cloud API also the rate limit metrics will be available:
+## Zones and records
+
+| Name                         | Type      | Labels   | Description                                              |
+| ---------------------------- | --------- | -------- | -------------------------------------------------------- |
+| `filtered_out_zones`         | Gauge     | _none_   | The number of zones excluded by the domain filter        |
+| `skipped_records`            | Gauge     | `zone`   | The number of skipped records per domain                 |
+
+## Rate limit metrics
 
 | Name                      | Type      | Labels   | Description                                         |
 | ------------------------- | --------- | -------- | --------------------------------------------------- |
@@ -22,15 +29,7 @@ When using the Cloud API also the rate limit metrics will be available:
 The label `action` can assume one of the following values, depending on the
 Hetzner API endpoint called.
 
-The actions supported by the legacy DNS provider are:
-
-- `get_zones`
-- `get_records`
-- `create_record`
-- `delete_record`
-- `update_record`
-
-The actions supported by the Cloud API provider are:
+The actions supported by the regular provider are:
 
 - `get_zones`
 - `get_rrsets`
