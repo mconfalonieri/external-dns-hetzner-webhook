@@ -88,7 +88,7 @@ run: build ## Run the binary on local machine
 	build/bin/external-dns-hetzner-webhook
 
 .PHONY: all
-all: unit-test build doc ## Run the unit tests and build the binaries
+all: unit-test build ## Run the unit tests and build the binaries
 
 ##@ Docker
 
