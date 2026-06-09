@@ -16,7 +16,7 @@ zones will be reloaded every time the webhook is called by ExternalDNS.
 !!! note
     This feature is not available when bulk mode is activated.
 
-Hetzner labels are supported from version **0.8.0** as provider-specific
+Hetzner labels are supported since version **0.8.0** as provider-specific
 annotations.
 
 The labels are set with an annotation prefixed with:
