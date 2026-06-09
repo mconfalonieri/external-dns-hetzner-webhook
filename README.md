@@ -1,16 +1,7 @@
 # ExternalDNS - UNOFFICIAL Hetzner Webhook
 
-> [!IMPORTANT]
-> Support for the legacy DNS system is going to be discontinued by Hetzner in
-> May 2026. For this reason the legacy DNS provider will be deleted in version
-> **v1.0.0**, which will be released in June, and only the new Cloud provider
-> will be available.
->
-> For the time being no new features will be added to the legacy DNS driver and
-> only important bugfixes will be backported.
-
 > [!NOTE]
-> The latest version is **v0.12.1**.
+> The latest version is **v1.0.0**.
 
 [ExternalDNS](https://github.com/kubernetes-sigs/external-dns) is a Kubernetes
 add-on for automatically handling DNS records for Kubernetes services using
@@ -19,11 +10,15 @@ ExternalDNS takes this functionality a step further by delegating the management
 of DNS records to an external DNS provider such as this one. This webhook allows
 you to manage your Hetzner domains inside your kubernetes cluster.
 
-This webhook supports both the old DNS API and the new Cloud DNS interface.
+> [!IMPORTANT]
+> Support for the legacy DNS system was discontinued by Hetzner.
+> For this reason the legacy DNS provider was removed from the sources in
+> **v1.0.0**, and the Cloud provider is now the default and only supported one.
+> 
 
 > [!TIP]
 > If you are upgrading from previous versions please read the
-> [Upgrading from previous versions](https://mconfalonieri.github.io/external-dns-hetzner-webhook/v0.12.1/upgrading/)
+> [Upgrading from previous versions](https://mconfalonieri.github.io/external-dns-hetzner-webhook/v1.0.0/upgrading/)
 > section.
 
 ## 📚 Documentation
@@ -75,7 +70,7 @@ provider:
   webhook:
     image:
       repository: ghcr.io/mconfalonieri/external-dns-hetzner-webhook
-      tag: v0.12.1
+      tag: v1.0.0
     env:
       - name: HETZNER_API_KEY
         valueFrom:
