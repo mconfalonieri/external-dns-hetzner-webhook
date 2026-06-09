@@ -2,7 +2,7 @@ module external-dns-hetzner-webhook
 
 go 1.26.1
 
-toolchain go1.26.3
+toolchain go1.26.4
 
 require (
 	codeberg.org/miekg/dns v0.6.81
