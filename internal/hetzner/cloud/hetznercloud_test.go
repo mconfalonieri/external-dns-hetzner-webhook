@@ -20,7 +20,9 @@ package hetznercloud
 import (
 	"context"
 	"errors"
+	"net/http"
 	"testing"
+	"time"
 
 	"github.com/hetznercloud/hcloud-go/v2/hcloud"
 	"github.com/stretchr/testify/assert"
@@ -203,6 +205,29 @@ func (m *mockClient) ImportZonefile(ctx context.Context, zone *hcloud.Zone, opts
 	return r.action, r.resp, r.err
 }
 
+type mockMetrics struct {
+	CalledIncFailedApiCallsTotal     int
+	CalledIncSuccessfulApiCallsTotal int
+	CalledAddApiDelayHist            int
+	CalledSetRateLimitStats          int
+}
+
+func (mm *mockMetrics) IncFailedApiCallsTotal(string) {
+	mm.CalledIncFailedApiCallsTotal += 1
+}
+
+func (mm *mockMetrics) IncSuccessfulApiCallsTotal(string) {
+	mm.CalledIncSuccessfulApiCallsTotal += 1
+}
+
+func (mm *mockMetrics) AddApiDelayHist(string, int64) {
+	mm.CalledAddApiDelayHist += 1
+}
+
+func (mm *mockMetrics) SetRateLimitStats(string, http.Header) {
+	mm.CalledSetRateLimitStats += 1
+}
+
 // assertError checks if an error is thrown when expected.
 func assertError(t *testing.T, expected, actual error) bool {
 	var expError bool
@@ -214,6 +239,138 @@ func assertError(t *testing.T, expected, actual error) bool {
 		expError = true
 	}
 	return expError
+}
+
+// Test_hetznerCloud_writeMetrics tests hetznerCloud.writeMetrics().
+func Test_hetznerCloud_writeMetrics(t *testing.T) {
+	type testCase struct {
+		name   string
+		object hetznerCloud
+		input  struct {
+			a   string
+			s   time.Time
+			r   *hcloud.Response
+			err error
+		}
+		expObject hetznerCloud
+	}
+
+	run := func(t *testing.T, tc testCase) {
+		obj := tc.object
+		inp := tc.input
+		exp := tc.expObject
+		obj.writeMetrics(inp.a, inp.s, inp.r, inp.err)
+		assert.Equal(t, exp, obj)
+	}
+
+	testCases := []testCase{
+		{
+			name: "nil response",
+			object: hetznerCloud{
+				metrics: &mockMetrics{},
+			},
+			input: struct {
+				a   string
+				s   time.Time
+				r   *hcloud.Response
+				err error
+			}{
+				a:   "test",
+				s:   time.Now(),
+				r:   nil,
+				err: nil,
+			},
+			expObject: hetznerCloud{
+				metrics: &mockMetrics{
+					CalledIncFailedApiCallsTotal:     0,
+					CalledIncSuccessfulApiCallsTotal: 1,
+					CalledAddApiDelayHist:            1,
+					CalledSetRateLimitStats:          0,
+				},
+			},
+		},
+		{
+			name: "successful response",
+			object: hetznerCloud{
+				metrics: &mockMetrics{},
+			},
+			input: struct {
+				a   string
+				s   time.Time
+				r   *hcloud.Response
+				err error
+			}{
+				a:   "test",
+				s:   time.Now(),
+				r:   &hcloud.Response{Response: &http.Response{}},
+				err: nil,
+			},
+			expObject: hetznerCloud{
+				metrics: &mockMetrics{
+					CalledIncFailedApiCallsTotal:     0,
+					CalledIncSuccessfulApiCallsTotal: 1,
+					CalledAddApiDelayHist:            1,
+					CalledSetRateLimitStats:          1,
+				},
+			},
+		},
+		{
+			name: "error in response",
+			object: hetznerCloud{
+				metrics: &mockMetrics{},
+			},
+			input: struct {
+				a   string
+				s   time.Time
+				r   *hcloud.Response
+				err error
+			}{
+				a:   "test",
+				s:   time.Now(),
+				r:   &hcloud.Response{Response: &http.Response{}},
+				err: errors.New("test error"),
+			},
+			expObject: hetznerCloud{
+				metrics: &mockMetrics{
+					CalledIncFailedApiCallsTotal:     1,
+					CalledIncSuccessfulApiCallsTotal: 0,
+					CalledAddApiDelayHist:            1,
+					CalledSetRateLimitStats:          1,
+				},
+			},
+		},
+		{
+			name: "error and unavailable response",
+			object: hetznerCloud{
+				metrics: &mockMetrics{},
+			},
+			input: struct {
+				a   string
+				s   time.Time
+				r   *hcloud.Response
+				err error
+			}{
+				a:   "test",
+				s:   time.Now(),
+				r:   nil,
+				err: errors.New("test error"),
+			},
+			expObject: hetznerCloud{
+				metrics: &mockMetrics{
+					CalledIncFailedApiCallsTotal:     1,
+					CalledIncSuccessfulApiCallsTotal: 0,
+					CalledAddApiDelayHist:            1,
+					CalledSetRateLimitStats:          0,
+				},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			run(t, tc)
+		})
+	}
 }
 
 // Test_NewHetznerCloud tests NewHetznerCloud().
