@@ -112,7 +112,7 @@ func (h hetznerCloud) UpdateRRSetTTL(ctx context.Context, rrset *hcloud.ZoneRRSe
 	zoneClient := h.client.Zone
 	start := time.Now()
 	result, response, err := zoneClient.ChangeRRSetTTL(ctx, rrset, opts)
-	h.writeMetrics(actUpdateRRSet, start, response, err)
+	h.writeMetrics(actUpdateRRSetTTL, start, response, err)
 	return result, response, err
 }
 
