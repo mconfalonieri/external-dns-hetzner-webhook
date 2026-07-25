@@ -10,12 +10,6 @@ ExternalDNS takes this functionality a step further by delegating the management
 of DNS records to an external DNS provider such as this one. This webhook allows
 you to manage your Hetzner domains inside your kubernetes cluster.
 
-> [!IMPORTANT]
-> Support for the legacy DNS system was discontinued by Hetzner.
-> For this reason the legacy DNS provider was removed from the sources in
-> **v1.0.0**, and the Cloud provider is now the default and only supported one.
-> 
-
 > [!TIP]
 > If you are upgrading from previous versions please read the
 > [Upgrading from previous versions](https://mconfalonieri.github.io/external-dns-hetzner-webhook/{{ .Version }}/upgrading/)
