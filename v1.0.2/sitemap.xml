@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+    <url>
+         <loc>https://mconfalonieri.github.io/external-dns-hetzner-webhook/v1.0.2/</loc>
+         <lastmod>2026-07-25</lastmod>
+    </url>
+    <url>
+         <loc>https://mconfalonieri.github.io/external-dns-hetzner-webhook/v1.0.2/advanced-features/</loc>
+         <lastmod>2026-07-25</lastmod>
+    </url>
+    <url>
+         <loc>https://mconfalonieri.github.io/external-dns-hetzner-webhook/v1.0.2/deployment/</loc>
+         <lastmod>2026-07-25</lastmod>
+    </url>
+    <url>
+         <loc>https://mconfalonieri.github.io/external-dns-hetzner-webhook/v1.0.2/endpoints/</loc>
+         <lastmod>2026-07-25</lastmod>
+    </url>
+    <url>
+         <loc>https://mconfalonieri.github.io/external-dns-hetzner-webhook/v1.0.2/environment-variables/</loc>
+         <lastmod>2026-07-25</lastmod>
+    </url>
+    <url>
+         <loc>https://mconfalonieri.github.io/external-dns-hetzner-webhook/v1.0.2/metrics/</loc>
+         <lastmod>2026-07-25</lastmod>
+    </url>
+    <url>
+         <loc>https://mconfalonieri.github.io/external-dns-hetzner-webhook/v1.0.2/requirements/</loc>
+         <lastmod>2026-07-25</lastmod>
+    </url>
+    <url>
+         <loc>https://mconfalonieri.github.io/external-dns-hetzner-webhook/v1.0.2/upgrading/</loc>
+         <lastmod>2026-07-25</lastmod>
+    </url>
+</urlset>
