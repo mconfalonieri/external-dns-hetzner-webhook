@@ -20,6 +20,7 @@ package hetznercloud
 import (
 	"context"
 	"errors"
+	"net/http"
 	"time"
 
 	"external-dns-hetzner-webhook/internal/metrics"
@@ -40,10 +41,31 @@ const (
 	actImportZonefile     = "import_zonefile"
 )
 
+type metricsHolder interface {
+	IncFailedApiCallsTotal(string)
+	IncSuccessfulApiCallsTotal(string)
+	AddApiDelayHist(string, int64)
+	SetRateLimitStats(string, http.Header)
+}
+
 // hetznerCloud is the Cloud API client.
 type hetznerCloud struct {
 	client  *hcloud.Client
-	metrics *metrics.OpenMetrics
+	metrics metricsHolder
+}
+
+// writeMetrics writes all the metrics related to the API calls.
+func (h hetznerCloud) writeMetrics(a string, s time.Time, r *hcloud.Response, err error) {
+	delay := time.Since(s)
+	if err != nil {
+		h.metrics.IncFailedApiCallsTotal(a)
+	} else {
+		h.metrics.IncSuccessfulApiCallsTotal(a)
+	}
+	h.metrics.AddApiDelayHist(a, delay.Milliseconds())
+	if r != nil {
+		h.metrics.SetRateLimitStats(a, r.Header)
+	}
 }
 
 // NewHetznerCloud returns a new client. The API key is passed as an argument.
@@ -62,13 +84,7 @@ func (h hetznerCloud) GetZones(ctx context.Context, opts hcloud.ZoneListOpts) ([
 	zoneClient := h.client.Zone
 	start := time.Now()
 	result, response, err := zoneClient.List(ctx, opts)
-	if err != nil {
-		h.metrics.IncFailedApiCallsTotal(actGetZones)
-	}
-	delay := time.Since(start)
-	h.metrics.IncSuccessfulApiCallsTotal(actGetZones)
-	h.metrics.AddApiDelayHist(actGetZones, delay.Milliseconds())
-	h.metrics.SetRateLimitStats(actGetZones, response.Header)
+	h.writeMetrics(actGetZones, start, response, err)
 	return result, response, err
 }
 
@@ -77,13 +93,7 @@ func (h hetznerCloud) GetRRSets(ctx context.Context, zone *hcloud.Zone, opts hcl
 	zoneClient := h.client.Zone
 	start := time.Now()
 	result, response, err := zoneClient.ListRRSets(ctx, zone, opts)
-	if err != nil {
-		h.metrics.IncFailedApiCallsTotal(actGetRRSets)
-	}
-	delay := time.Since(start)
-	h.metrics.IncSuccessfulApiCallsTotal(actGetRRSets)
-	h.metrics.AddApiDelayHist(actGetRRSets, delay.Milliseconds())
-	h.metrics.SetRateLimitStats(actGetRRSets, response.Header)
+	h.writeMetrics(actGetRRSets, start, response, err)
 	return result, response, err
 }
 
@@ -92,14 +102,7 @@ func (h hetznerCloud) CreateRRSet(ctx context.Context, zone *hcloud.Zone, opts h
 	zoneClient := h.client.Zone
 	start := time.Now()
 	result, response, err := zoneClient.CreateRRSet(ctx, zone, opts)
-	if err != nil {
-		h.metrics.IncFailedApiCallsTotal(actCreateRRSet)
-	}
-	delay := time.Since(start)
-	h.metrics.IncSuccessfulApiCallsTotal(actCreateRRSet)
-	h.metrics.AddApiDelayHist(actCreateRRSet, delay.Milliseconds())
-	h.metrics.SetRateLimitStats(actCreateRRSet, response.Header)
-
+	h.writeMetrics(actCreateRRSet, start, response, err)
 	return result, response, err
 }
 
@@ -109,14 +112,7 @@ func (h hetznerCloud) UpdateRRSetTTL(ctx context.Context, rrset *hcloud.ZoneRRSe
 	zoneClient := h.client.Zone
 	start := time.Now()
 	result, response, err := zoneClient.ChangeRRSetTTL(ctx, rrset, opts)
-	if err != nil {
-		h.metrics.IncFailedApiCallsTotal(actUpdateRRSetTTL)
-	}
-	delay := time.Since(start)
-	h.metrics.IncSuccessfulApiCallsTotal(actUpdateRRSetTTL)
-	h.metrics.AddApiDelayHist(actUpdateRRSetTTL, delay.Milliseconds())
-	h.metrics.SetRateLimitStats(actUpdateRRSetTTL, response.Header)
-
+	h.writeMetrics(actUpdateRRSet, start, response, err)
 	return result, response, err
 }
 
@@ -126,13 +122,7 @@ func (h hetznerCloud) UpdateRRSetRecords(ctx context.Context, rrset *hcloud.Zone
 	zoneClient := h.client.Zone
 	start := time.Now()
 	result, response, err := zoneClient.SetRRSetRecords(ctx, rrset, opts)
-	if err != nil {
-		h.metrics.IncFailedApiCallsTotal(actUpdateRRSetRecords)
-	}
-	delay := time.Since(start)
-	h.metrics.IncSuccessfulApiCallsTotal(actUpdateRRSetRecords)
-	h.metrics.AddApiDelayHist(actUpdateRRSetRecords, delay.Milliseconds())
-	h.metrics.SetRateLimitStats(actUpdateRRSetRecords, response.Header)
+	h.writeMetrics(actUpdateRRSetRecords, start, response, err)
 	return result, response, err
 }
 
@@ -141,13 +131,7 @@ func (h hetznerCloud) UpdateRRSetLabels(ctx context.Context, rrset *hcloud.ZoneR
 	zoneClient := h.client.Zone
 	start := time.Now()
 	result, response, err := zoneClient.UpdateRRSet(ctx, rrset, opts)
-	if err != nil {
-		h.metrics.IncFailedApiCallsTotal(actUpdateRRSet)
-	}
-	delay := time.Since(start)
-	h.metrics.IncSuccessfulApiCallsTotal(actUpdateRRSet)
-	h.metrics.AddApiDelayHist(actUpdateRRSet, delay.Milliseconds())
-	h.metrics.SetRateLimitStats(actUpdateRRSet, response.Header)
+	h.writeMetrics(actUpdateRRSet, start, response, err)
 	return result, response, err
 }
 
@@ -156,13 +140,7 @@ func (h hetznerCloud) DeleteRRSet(ctx context.Context, rrset *hcloud.ZoneRRSet) 
 	zoneClient := h.client.Zone
 	start := time.Now()
 	result, response, err := zoneClient.DeleteRRSet(ctx, rrset)
-	if err != nil {
-		h.metrics.IncFailedApiCallsTotal(actDeleteRRSet)
-	}
-	delay := time.Since(start)
-	h.metrics.IncSuccessfulApiCallsTotal(actDeleteRRSet)
-	h.metrics.AddApiDelayHist(actDeleteRRSet, delay.Milliseconds())
-	h.metrics.SetRateLimitStats(actDeleteRRSet, response.Header)
+	h.writeMetrics(actDeleteRRSet, start, response, err)
 	return result, response, err
 }
 
@@ -171,13 +149,7 @@ func (h hetznerCloud) ExportZonefile(ctx context.Context, zone *hcloud.Zone) (hc
 	zoneClient := h.client.Zone
 	start := time.Now()
 	result, response, err := zoneClient.ExportZonefile(ctx, zone)
-	if err != nil {
-		h.metrics.IncFailedApiCallsTotal(actExportZonefile)
-	}
-	delay := time.Since(start)
-	h.metrics.IncSuccessfulApiCallsTotal(actExportZonefile)
-	h.metrics.AddApiDelayHist(actExportZonefile, delay.Milliseconds())
-	h.metrics.SetRateLimitStats(actExportZonefile, response.Header)
+	h.writeMetrics(actExportZonefile, start, response, err)
 	return result, response, err
 }
 
@@ -186,12 +158,6 @@ func (h hetznerCloud) ImportZonefile(ctx context.Context, zone *hcloud.Zone, opt
 	zoneClient := h.client.Zone
 	start := time.Now()
 	result, response, err := zoneClient.ImportZonefile(ctx, zone, opts)
-	if err != nil {
-		h.metrics.IncFailedApiCallsTotal(actImportZonefile)
-	}
-	delay := time.Since(start)
-	h.metrics.IncSuccessfulApiCallsTotal(actImportZonefile)
-	h.metrics.AddApiDelayHist(actImportZonefile, delay.Milliseconds())
-	h.metrics.SetRateLimitStats(actImportZonefile, response.Header)
+	h.writeMetrics(actImportZonefile, start, response, err)
 	return result, response, err
 }
