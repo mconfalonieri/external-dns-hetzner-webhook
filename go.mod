@@ -8,7 +8,7 @@ require (
 	codeberg.org/miekg/dns v0.6.84
 	github.com/codingconcepts/env v0.0.0-20240618133406-5b0845441187
 	github.com/sirupsen/logrus v1.9.4
-	github.com/stretchr/testify v1.11.1
+	github.com/stretchr/testify v1.12.0
 	golang.org/x/net v0.57.0
 )
 
