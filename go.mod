@@ -7,7 +7,7 @@ toolchain go1.26.5
 require (
 	codeberg.org/miekg/dns v0.6.84
 	github.com/codingconcepts/env v0.0.0-20240618133406-5b0845441187
-	github.com/sirupsen/logrus v1.10.0
+	github.com/sirupsen/logrus v1.10.2
 	github.com/stretchr/testify v1.12.1
 	golang.org/x/net v0.58.0
 )
@@ -82,7 +82,6 @@ require (
 	github.com/prometheus/common v0.70.1 // indirect
 	github.com/prometheus/procfs v0.21.1 // indirect
 	google.golang.org/protobuf v1.36.12-0.20260120151049-f2248ac996af // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
 	k8s.io/klog/v2 v2.140.0 // indirect
 	sigs.k8s.io/external-dns v0.21.0
 )
