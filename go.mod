@@ -8,7 +8,7 @@ require (
 	codeberg.org/miekg/dns v0.6.84
 	github.com/codingconcepts/env v0.0.0-20240618133406-5b0845441187
 	github.com/sirupsen/logrus v1.9.4
-	github.com/stretchr/testify v1.11.1
+	github.com/stretchr/testify v1.12.0
 	golang.org/x/net v0.57.0
 )
 
@@ -76,7 +76,6 @@ require (
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/hetznercloud/hcloud-go/v2 v2.46.0
-	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/prometheus/client_golang v1.24.1
 	github.com/prometheus/client_model v0.6.2 // indirect
 	github.com/prometheus/common v0.70.1 // indirect
