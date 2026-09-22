@@ -7,7 +7,7 @@ toolchain go1.27.1
 require (
 	codeberg.org/miekg/dns v0.6.109
 	github.com/codingconcepts/env v0.0.0-20240618133406-5b0845441187
-	github.com/hetznercloud/hcloud-go/v2 v2.47.0
+	github.com/hetznercloud/hcloud-go/v2 v2.49.0
 	github.com/prometheus/client_golang v1.24.1
 	github.com/sirupsen/logrus v1.10.2
 	github.com/stretchr/testify v1.12.1
