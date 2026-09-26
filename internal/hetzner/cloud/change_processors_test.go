@@ -1284,7 +1284,7 @@ func Test_processUpdateEndpoint(t *testing.T) {
 					Targets:    []string{"1.1.1.1", "2.2.2.2"},
 					RecordTTL:  endpoint.TTL(testTTL),
 					ProviderSpecific: endpoint.ProviderSpecific{
-						{
+						endpoint.ProviderSpecificProperty{
 							Name:  "webhook/hetzner-label-env",
 							Value: "production",
 						},
@@ -1354,7 +1354,7 @@ func Test_processUpdateEndpoint(t *testing.T) {
 					Targets:    []string{"1.1.1.1", "2.2.2.2"},
 					RecordTTL:  endpoint.TTL(testTTL),
 					ProviderSpecific: endpoint.ProviderSpecific{
-						{
+						endpoint.ProviderSpecificProperty{
 							Name:  "webhook/hetzner-label-env",
 							Value: "production",
 						},
@@ -1424,7 +1424,7 @@ func Test_processUpdateEndpoint(t *testing.T) {
 					Targets:    []string{"1.1.1.1", "3.3.3.3"},
 					RecordTTL:  endpoint.TTL(testSecondTTL),
 					ProviderSpecific: endpoint.ProviderSpecific{
-						{
+						endpoint.ProviderSpecificProperty{
 							Name:  "webhook/hetzner-label-env",
 							Value: "production",
 						},
