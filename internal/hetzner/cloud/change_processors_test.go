@@ -1884,11 +1884,11 @@ func Test_processUpdateActions(t *testing.T) {
 							RecordType: endpoint.RecordTypeCNAME,
 							RecordTTL:  endpoint.TTL(defaultTTL),
 							ProviderSpecific: endpoint.ProviderSpecific{
-								{
+								endpoint.ProviderSpecificProperty{
 									Name:  "webhook/hetzner-label-env",
 									Value: "production",
 								},
-								{
+								endpoint.ProviderSpecificProperty{
 									Name:  "webhook/hetzner-label-project",
 									Value: "beta.com",
 								},
