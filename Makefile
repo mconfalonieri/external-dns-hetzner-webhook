@@ -2,7 +2,7 @@
 
 # Tools
 GO_FUMPT = mvdan.cc/gofumpt@latest
-GO_LINT = github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+GO_LINT = github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
 GO_TEST = gotest.tools/gotestsum@latest
 GO_LICENSE = github.com/google/go-licenses/v2@latest
 

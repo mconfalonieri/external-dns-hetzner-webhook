@@ -74,24 +74,35 @@ func getProviderSpecific(slash string, labels map[string]string) endpoint.Provid
 	return ps
 }
 
+// checkLabelLength checks if the label length is within boundaries.
+func checkLabelLength(label string) error {
+	ll := len(label)
+	if ll == 0 {
+		return errors.New("empty label is not acceptable")
+	} else if ll > 63 {
+		return fmt.Errorf("label [%s...] is longer than 63 characters", label[:20])
+	}
+	return nil
+}
+
 // checkLabel checks if the label is correct.
 func checkLabel(label string) error {
-	if label == "" {
-		return errors.New("empty label is not acceptable")
-	} else if !(len(label) == 1 && regex1CharChecker.MatchString(label)) && !(len(label) > 1 && regexLabelChecker.MatchString(label)) {
+	if err := checkLabelLength(label); err != nil {
+		return err
+	} else if !regex1CharChecker.MatchString(label) && !regexLabelChecker.MatchString(label) {
 		return fmt.Errorf("label [%s] is not acceptable", label)
-	} else if len(label) > 63 {
-		return fmt.Errorf("label [%s...] is longer than 63 characters", label[:20])
 	}
 	return nil
 }
 
 // checkValue checks if the value is correct.
 func checkValue(value string) error {
-	if value != "" && !(len(value) == 1 && regex1CharChecker.MatchString(value)) && !(len(value) > 1 && regexValueChecker.MatchString(value)) {
-		return fmt.Errorf("value \"%s\" is not acceptable", value)
+	if value == "" {
+		return nil
 	} else if len(value) > 63 {
 		return fmt.Errorf("value \"%s...\" is longer than 63 characters", value[:20])
+	} else if !regex1CharChecker.MatchString(value) && !regexValueChecker.MatchString(value) {
+		return fmt.Errorf("value \"%s\" is not acceptable", value)
 	}
 	return nil
 }

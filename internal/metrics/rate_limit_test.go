@@ -47,7 +47,7 @@ func Test_readLimit(t *testing.T) {
 		{
 			name: "limit ok",
 			input: http.Header{
-				"Ratelimit-Limit": {"1000"},
+				"Ratelimit-Limit": []string{"1000"},
 			},
 			expected: struct {
 				limit int
@@ -71,7 +71,7 @@ func Test_readLimit(t *testing.T) {
 		{
 			name: "unexpected value",
 			input: http.Header{
-				"Ratelimit-Limit": {"TXT"},
+				"Ratelimit-Limit": []string{"TXT"},
 			},
 			expected: struct {
 				limit int
@@ -112,7 +112,7 @@ func Test_readRemaining(t *testing.T) {
 		{
 			name: "remaining ok",
 			input: http.Header{
-				"Ratelimit-Remaining": {"500"},
+				"Ratelimit-Remaining": []string{"500"},
 			},
 			expected: struct {
 				remaining int
@@ -136,7 +136,7 @@ func Test_readRemaining(t *testing.T) {
 		{
 			name: "unexpected value",
 			input: http.Header{
-				"Ratelimit-Remaining": {"TXT"},
+				"Ratelimit-Remaining": []string{"TXT"},
 			},
 			expected: struct {
 				remaining int
@@ -177,7 +177,7 @@ func Test_readReset(t *testing.T) {
 		{
 			name: "reset ok",
 			input: http.Header{
-				"Ratelimit-Reset": {"1771370227"},
+				"Ratelimit-Reset": []string{"1771370227"},
 			},
 			expected: struct {
 				reset uint64
@@ -201,7 +201,7 @@ func Test_readReset(t *testing.T) {
 		{
 			name: "unexpected value",
 			input: http.Header{
-				"Ratelimit-Reset": {"TXT"},
+				"Ratelimit-Reset": []string{"TXT"},
 			},
 			expected: struct {
 				reset uint64
@@ -242,9 +242,9 @@ func Test_parseRateLimit(t *testing.T) {
 		{
 			name: "parse ok",
 			input: http.Header{
-				"Ratelimit-Limit":     {"1000"},
-				"Ratelimit-Remaining": {"500"},
-				"Ratelimit-Reset":     {"1771370227"},
+				"Ratelimit-Limit":     []string{"1000"},
+				"Ratelimit-Remaining": []string{"500"},
+				"Ratelimit-Reset":     []string{"1771370227"},
 			},
 			expected: struct {
 				rl  *rateLimit
@@ -261,8 +261,8 @@ func Test_parseRateLimit(t *testing.T) {
 		{
 			name: "limit error",
 			input: http.Header{
-				"Ratelimit-Remaining": {"500"},
-				"Ratelimit-Reset":     {"1771370227"},
+				"Ratelimit-Remaining": []string{"500"},
+				"Ratelimit-Reset":     []string{"1771370227"},
 			},
 			expected: struct {
 				rl  *rateLimit
@@ -275,8 +275,8 @@ func Test_parseRateLimit(t *testing.T) {
 		{
 			name: "remaining error",
 			input: http.Header{
-				"Ratelimit-Limit": {"1000"},
-				"Ratelimit-Reset": {"1771370227"},
+				"Ratelimit-Limit": []string{"1000"},
+				"Ratelimit-Reset": []string{"1771370227"},
 			},
 			expected: struct {
 				rl  *rateLimit
@@ -289,8 +289,8 @@ func Test_parseRateLimit(t *testing.T) {
 		{
 			name: "reset error",
 			input: http.Header{
-				"Ratelimit-Limit":     {"1000"},
-				"Ratelimit-Remaining": {"500"},
+				"Ratelimit-Limit":     []string{"1000"},
+				"Ratelimit-Remaining": []string{"500"},
 			},
 			expected: struct {
 				rl  *rateLimit

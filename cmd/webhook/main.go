@@ -65,6 +65,17 @@ func createProvider(config *hetzner.Configuration) (provider.Provider, error) {
 	return hetznercloud.NewHetznerProvider(config)
 }
 
+// createServerOptions creates an api.ServerOptions object.
+func createServerOptions(so *server.SocketOptions, p provider.Provider, c chan struct{}) api.ServerOptions {
+	return api.ServerOptions{
+		Provider:     p,
+		StartedChan:  c,
+		ReadTimeout:  so.GetReadTimeout(),
+		WriteTimeout: so.GetWriteTimeout(),
+		ProviderPort: so.GetWebhookAddress(),
+	}
+}
+
 // main reads the server configuration and starts both the webhook and the
 // metrics socket.
 func main() {
@@ -102,12 +113,8 @@ func main() {
 	// Start the webhook
 	log.Infof("Starting webhook server with socket address %s", socketOptions.GetWebhookAddress())
 	startedChan := make(chan struct{})
-	go api.StartHTTPApi(
-		provider, startedChan,
-		socketOptions.GetReadTimeout(),
-		socketOptions.GetWriteTimeout(),
-		socketOptions.GetWebhookAddress(),
-	)
+	serverOptions := createServerOptions(socketOptions, provider, startedChan)
+	go api.StartHTTPApi(serverOptions)
 
 	// Wait for the HTTP server to start and then set the healthy and ready flags
 	<-startedChan

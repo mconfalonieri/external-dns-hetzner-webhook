@@ -108,9 +108,9 @@ func Test_OpenMetrics_SetSkippedRecords(t *testing.T) {
 func Test_OpenMetrics_SetRateLimitStats(t *testing.T) {
 	metrics = nil
 	val := http.Header{
-		"Ratelimit-Limit":     {"1000"},
-		"Ratelimit-Remaining": {"500"},
-		"Ratelimit-Reset":     {"1771370227"},
+		"Ratelimit-Limit":     []string{"1000"},
+		"Ratelimit-Remaining": []string{"500"},
+		"Ratelimit-Reset":     []string{"1771370227"},
 	}
 	expLimit := float64(1000)
 	expRemaining := float64(500)

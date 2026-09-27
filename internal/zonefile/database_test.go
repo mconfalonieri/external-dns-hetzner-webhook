@@ -1201,7 +1201,7 @@ func Test_Zonefile_parseARecord(t *testing.T) {
 				err error
 			}{
 				a:   nil,
-				err: errors.New("Address 2001:db8:85a3:0:0:8a2e:370:7334 is not IPv4, unsupported for record type A"),
+				err: errors.New("address 2001:db8:85a3:0:0:8a2e:370:7334 is not IPv4, unsupported for record type A"),
 			},
 		},
 	}
@@ -1310,7 +1310,7 @@ func Test_Zonefile_parseAAAARecord(t *testing.T) {
 				err  error
 			}{
 				aaaa: nil,
-				err:  errors.New("Address 10.0.0.1 is not IPv6, unsupported for record type AAAA"),
+				err:  errors.New("address 10.0.0.1 is not IPv6, unsupported for record type AAAA"),
 			},
 		},
 	}
@@ -1930,7 +1930,7 @@ func Test_Zonefile_parseMXRecord(t *testing.T) {
 				mx  *dns.MX
 				err error
 			}{
-				err: errors.New("Values for MX record fastipletonis.eu. cannot be decoded from \"mbox\""),
+				err: errors.New("values for MX record fastipletonis.eu. cannot be decoded from \"mbox\""),
 			},
 		},
 		{
@@ -1951,7 +1951,7 @@ func Test_Zonefile_parseMXRecord(t *testing.T) {
 				mx  *dns.MX
 				err error
 			}{
-				err: errors.New("Cannot read preference for MX record _minecraft._tcp.fastipletonis.eu. from \"PRI\""),
+				err: errors.New("cannot read preference for MX record _minecraft._tcp.fastipletonis.eu. from \"PRI\""),
 			},
 		},
 	}
