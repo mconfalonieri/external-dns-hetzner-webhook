@@ -169,7 +169,7 @@ func (z Zonefile) Export() (string, error) {
 		return "", fmt.Errorf("cannot export zonefile: %w", err)
 	}
 	if ttl <= 0 {
-		ttl = int(soa.SOA.Minttl)
+		ttl = int(soa.Minttl)
 	}
 	recs[0] = soa
 	for k, slice := range z.records {
@@ -207,7 +207,7 @@ func (z Zonefile) parseARecord(name string, ttl int, arg string) (*dns.A, error)
 		return nil, fmt.Errorf("cannot parse address %s: %w", arg, err)
 	}
 	if !ip.Is4() {
-		return nil, fmt.Errorf("Address %s is not IPv4, unsupported for record type A", arg)
+		return nil, fmt.Errorf("address %s is not IPv4, unsupported for record type A", arg)
 	}
 	return &dns.A{
 		Hdr: dns.Header{
@@ -228,7 +228,7 @@ func (z Zonefile) parseAAAARecord(name string, ttl int, arg string) (*dns.AAAA, 
 		return nil, fmt.Errorf("cannot parse address %s: %w", arg, err)
 	}
 	if !ip.Is6() {
-		return nil, fmt.Errorf("Address %s is not IPv6, unsupported for record type AAAA", arg)
+		return nil, fmt.Errorf("address %s is not IPv6, unsupported for record type AAAA", arg)
 	}
 	return &dns.AAAA{
 		Hdr: dns.Header{
@@ -335,11 +335,11 @@ func (z Zonefile) parseSRVRecord(name string, ttl int, arg string) (*dns.SRV, er
 func (z Zonefile) parseMXRecord(name string, ttl int, arg string) (*dns.MX, error) {
 	mx := splitter.Split(arg, 3)
 	if len(mx) != 2 {
-		return nil, fmt.Errorf("Values for MX record %s cannot be decoded from \"%s\"", name, arg)
+		return nil, fmt.Errorf("values for MX record %s cannot be decoded from \"%s\"", name, arg)
 	}
 	p, err := strconv.Atoi(mx[0])
 	if err != nil {
-		return nil, fmt.Errorf("Cannot read preference for MX record %s from \"%s\"", name, mx[0])
+		return nil, fmt.Errorf("cannot read preference for MX record %s from \"%s\"", name, mx[0])
 	}
 	exchange := z.expandTarget(mx[1])
 	return &dns.MX{
