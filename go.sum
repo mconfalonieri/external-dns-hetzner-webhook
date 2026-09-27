@@ -1,5 +1,3 @@
-codeberg.org/miekg/dns v0.6.109 h1:B2lA6b6n/FuUTdECFU9HCunwxLRaR71d+UFV5EP44gg=
-codeberg.org/miekg/dns v0.6.109/go.mod h1:vbidSyLJl5JcDUL2LrXCUjRYSFa5tJweseQox0GOrTk=
 codeberg.org/miekg/dns v0.6.117 h1:1y9FOMy/6xdNIJhSKwdTUJGAtjuSTFaJiZCQ5C9905A=
 codeberg.org/miekg/dns v0.6.117/go.mod h1:vbidSyLJl5JcDUL2LrXCUjRYSFa5tJweseQox0GOrTk=
 github.com/Masterminds/semver/v3 v3.4.0 h1:Zog+i5UMtVoCU8oKka5P7i9q9HgrJeGzI9SA1Xbatp0=
