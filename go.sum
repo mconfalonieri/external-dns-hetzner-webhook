@@ -73,8 +73,6 @@ github.com/google/pprof v0.0.0-20250501235452-c0086092b71a h1:rDA3FfmxwXR+BVKKdz
 github.com/google/pprof v0.0.0-20250501235452-c0086092b71a/go.mod h1:5hDyRhoBCxViHszMt12TnOpEI4VVi+U8Gm9iphldiMA=
 github.com/google/uuid v1.6.0 h1:NIvaJDMOsjHA8n1jAhLSgzrAzy1Hgr+hNrb57e+94F0=
 github.com/google/uuid v1.6.0/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
-github.com/hetznercloud/hcloud-go/v2 v2.49.0 h1:QXONxfgXIF99PFJknkVw+LrQQB4PB5IbEjEDh4Hfmig=
-github.com/hetznercloud/hcloud-go/v2 v2.49.0/go.mod h1:J9QH6j8pRH0K3+HlqgOlQ8abXagWTD/GpTkfra2et+g=
 github.com/hetznercloud/hcloud-go/v2 v2.50.0 h1:ECWYFFGTU0/ftWjTBDPDtqpqxEbCAJYG9KHWpHPUoDo=
 github.com/hetznercloud/hcloud-go/v2 v2.50.0/go.mod h1:J9QH6j8pRH0K3+HlqgOlQ8abXagWTD/GpTkfra2et+g=
 github.com/json-iterator/go v1.1.12 h1:PV8peI4a0ysnczrg+LtxykD8LfKY9ML6u2jnxaEnrnM=
