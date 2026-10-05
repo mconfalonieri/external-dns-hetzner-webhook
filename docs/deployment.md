@@ -1,15 +1,15 @@
 # Kubernetes deployment
 
-The Hetzner webhook is provided as a regular Open Container Initiative (OCI)
-image released in the
+The Hetzner webhook is provided as source repository and as a regular Open
+Container Initiative (OCI) image released in the
 [GitHub container registry](https://github.com/mconfalonieri/external-dns-hetzner-webhook/pkgs/container/external-dns-hetzner-webhook).
-The deployment can be performed in every way Kubernetes supports.
 
-Here are provided examples using the
+The deployment can be performed in every way Kubernetes supports. The examples
+provided in this page feature the
 [External DNS chart](#using-the-externaldns-chart) and the
 [Bitnami chart](#using-the-bitnami-chart).
 
-In either case, a secret that stores the Hetzner API key is required:
+In both cases the Hetzner API key must be stored in a secret:
 
 ```yaml
 kubectl create secret generic hetzner-credentials --from-literal=api-key='<EXAMPLE_PLEASE_REPLACE>' -n external-dns
@@ -132,3 +132,16 @@ And then:
 # install external-dns with helm
 helm install external-dns-hetzner bitnami/external-dns -f external-dns-hetzner-values.yaml -n external-dns
 ```
+
+## Additional notes
+
+You might notice that both examples start the ExternalDNS executables with the
+following parameter:
+
+```
+--txt-prefix=reg-%{record_type}.
+```
+
+The reason behind this is ExternalDNS [issue 6125](https://github.com/kubernetes-sigs/external-dns/issues/6125),
+that prevents other types of prefixes to correctly handle the DNS TXT database
+for root domain records (@).
