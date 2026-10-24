@@ -1,11 +1,42 @@
+#
+# Ignored files
+#
+
+# Binaries for programs and plugins
+*.so
+*.dylib
+
+# Test binary, built with `go test -c`
+*.test
+
+# Code coverage profiles and other test artifacts
+*.out
+coverage.*
+!coverage.go
+*.coverprofile
+profile.cov
+
 # Build directories
 build/
-token
-.idea/
-.vscode/
-coverage.out
-reports/
-cosign.key
-dist/
-tools/
 site/
+
+
+# Dependency directories (remove the comment below to include it)
+# vendor/
+
+# Go workspace file
+go.work
+go.work.sum
+
+# env file
+.env
+
+# Editor/IDE
+.vscode/
+.idea/
+
+
+# In case we use Cosign
+cosign.key
+
+
