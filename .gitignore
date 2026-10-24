@@ -39,4 +39,6 @@ go.work.sum
 # In case we use Cosign
 cosign.key
 
-
+# Go workspace file
+go.work
+go.work.sum
