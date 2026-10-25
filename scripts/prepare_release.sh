@@ -45,8 +45,8 @@ if [[ "$NEXT_TAG" == ERROR* ]]; then
     exit 1
 fi
 
-COMMIT_TITLE="💾 Preparing release $NEXT_TAG"
-COMMIT_BODY="Automated release preparation to $NEXT_TAG."
+COMMIT_TITLE="💾 Release $NEXT_TAG preparation"
+COMMIT_BODY="Automated $1 update from $LAST_TAG to $NEXT_TAG."
 
 git checkout -b release/$NEXT_TAG
 ./scripts/generate_readme.sh $NEXT_TAG
