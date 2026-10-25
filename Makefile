@@ -15,7 +15,7 @@ ifndef $(GOPATH)
 endif
 
 ARTIFACT_NAME = external-dns-hetzner-webhook
-
+TARGET = build/bin/$(ARTIFACT_NAME)
 
 REGISTRY ?= docker.io/mconfalonieri
 IMAGE_NAME ?= external-dns-hetzner-webhook
@@ -32,18 +32,35 @@ help: ## Display this help.
 
 show: ## Show variables
 	@echo "\n\033[1mVariables\033[0m"
-	@echo "\033[36m  GOPATH\033[0m        $(GOPATH)"
-	@echo "\033[36m  ARTIFACT_NAME\033[0m $(ARTIFACT_NAME)"
-	@echo "\033[36m  REGISTRY\033[0m      $(REGISTRY)"
-	@echo "\033[36m  IMAGE_NAME\033[0m    $(IMAGE_NAME)"
-	@echo "\033[36m  IMAGE_TAG\033[0m     $(IMAGE_TAG)"
-	@echo "\033[36m  IMAGE\033[0m         $(IMAGE)"
+	@echo "  \033[36mGOPATH\033[0m        = $(GOPATH)"
+	@echo "  \033[36mARTIFACT_NAME\033[0m = $(ARTIFACT_NAME)"
+	@echo "  \033[36mVERSION\033[0m       = $(VERSION)"
+	@echo "  \033[36mREGISTRY\033[0m      = $(REGISTRY)"
+	@echo "  \033[36mIMAGE_NAME\033[0m    = $(IMAGE_NAME)"
+	@echo "  \033[36mIMAGE_TAG\033[0m     = $(IMAGE_TAG)"
+	@echo "  \033[36mIMAGE\033[0m         = $(IMAGE)"
+
+##@ Release control
+
+.PHONY: prepare-major
+prepare-major: ## Prepare a major release
+	./scripts/prepare_release.sh major
+
+.PHONY: prepare-minor
+prepare-minor: ## Prepare a minor release
+	./scripts/prepare_release.sh minor
+
+.PHONY: prepare-patch
+prepare-patch: ## Prepare a patch release
+	./scripts/prepare_release.sh patch
 
 ##@ Documentation
 
-.PHONY: readme
-readme: ## Update version in README.md
-	scripts/generate_readme.sh $(VERSION)
+README.md: README.tmpl.md
+	./scripts/generate_readme.sh $(VERSION)
+
+.PHONY: generate-readme
+generate-readme: README.md ## Generate the README.md file
 
 ##@ Code analysis
 
@@ -73,19 +90,19 @@ clean: ## Clean the build directory
 
 .PHONY: build
 build: ## Build the default binary
-	CGO_ENABLED=0 go build -o build/bin/$(ARTIFACT_NAME) ./cmd/webhook
+	CGO_ENABLED=0 go build -o $(TARGET) ./cmd/webhook
 
 .PHONY: build-arm64
 build-arm64: ## Build the ARM64 binary
-	CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -o build/bin/$(ARTIFACT_NAME)-arm64 ./cmd/webhook
+	CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -o $(TARGET)-arm64 ./cmd/webhook
 
 .PHONY: build-amd64
 build-amd64: ## Build the AMD64 binary
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o build/bin/$(ARTIFACT_NAME)-amd64 ./cmd/webhook
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o $(TARGET)-amd64 ./cmd/webhook
 
 .PHONY: run
 run: build ## Run the binary on local machine
-	build/bin/external-dns-hetzner-webhook
+	$(TARGET)
 
 .PHONY: all
 all: unit-test build ## Run the unit tests and build the binaries
