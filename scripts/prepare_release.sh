@@ -53,4 +53,3 @@ git checkout -b release/$NEXT_TAG
 git commit -a -m "$COMMIT_TITLE" -m "$COMMIT_BODY"
 git push --set-upstream origin release/$NEXT_TAG
 echo The release/$NEXT_TAG is ready. You can open a pull request on GitHub.
-
